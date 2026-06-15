@@ -105,15 +105,21 @@ function buildUserPrompt(input: EnrichInput): string {
   return lines.join("\n");
 }
 
+// 只接受形如 sk-ant-... 的 Anthropic 密钥；格式明显不对的不点亮"已接入"，也不浪费一次请求。
+function hasAnthropicKey(): boolean {
+  const k = process.env.ANTHROPIC_API_KEY;
+  return Boolean(k && k.startsWith("sk-ant-"));
+}
+
 let client: Anthropic | null = null;
 function getClient(): Anthropic | null {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
+  if (!hasAnthropicKey()) return null;
   if (!client) client = new Anthropic();
   return client;
 }
 
 export function isEnrichEnabled(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
+  return hasAnthropicKey();
 }
 
 export async function enrichPath(input: EnrichInput): Promise<EnrichOut | null> {
