@@ -18,17 +18,18 @@ npm run build    # 生产构建（含类型检查 + lint）
 
 ### 接入真实 AI（可选，让故事"活"起来）
 
-把你的 Anthropic API Key 放进 `.env.local`，每段人生的故事就会由真实大模型按你的真实背景生成：
+把你的 DeepSeek API Key 放进 `.env.local`，每段人生的故事就会由真实大模型按你的真实背景生成：
 
 ```bash
-cp .env.example .env.local   # 然后编辑 .env.local，填入 ANTHROPIC_API_KEY
+cp .env.example .env.local   # 然后编辑 .env.local，填入 DEEPSEEK_API_KEY
 npm run dev                  # 重启即可生效
 ```
 
-- 密钥只在**服务端**使用（`src/app/api/enrich/route.ts`），永远不会进到浏览器，也不会被提交（`.env*` 已 gitignore）。
-- 默认模型 `claude-opus-4-8`（质量最好）；想省钱在 `.env.local` 里设 `LIFEPLANNER_MODEL=claude-sonnet-4-6` 或 `claude-haiku-4-5`。
+- 密钥只在**服务端**使用（`src/app/api/enrich/route.ts` → `src/lib/enrich.ts`），永远不会进到浏览器，也不会被提交（`.env*` 已 gitignore）。
+- 默认模型 `deepseek-chat`（DeepSeek-V3）；可用 `LIFEPLANNER_MODEL` 覆盖。
 - 机制是**混合**的：本地引擎先即时画出整棵树和数字，真实 AI 在后台重写每段故事，写好后原地替换；接口失败或没配密钥都会安静回退到本地文案，不影响使用。
 - 每"加一条岔路"会产生一次 AI 调用（按量计费），结果存进本地不会重复生成。
+- 想换成别的服务商（如 Claude）只需改 `src/lib/enrich.ts` 里的请求——接口与回退逻辑都不用动。
 
 ## 用户流程
 
