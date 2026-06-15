@@ -32,15 +32,18 @@
   --font-sans: var(--font-geist-sans);
 }
 
-html,
-body {
-  height: 100%;
+html {
+  min-height: 100%;
+  background: var(--bg-0); /* 兜底深色基底，避免内容超过一屏时露白 */
 }
 
 body {
+  min-height: 100vh;
   color: var(--fg);
   background:
-    radial-gradient(120% 120% at 20% 0%, #1b1f3a 0%, #11132a 45%, #0a0b1a 100%) fixed;
+    radial-gradient(140% 100% at 20% 0%, #1b1f3a 0%, #11132a 42%, #0a0b1a 100%)
+      no-repeat;
+  background-attachment: fixed;
   font-family:
     var(--font-geist-sans), "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB",
     -apple-system, BlinkMacSystemFont, sans-serif;

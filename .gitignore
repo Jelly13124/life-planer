@@ -16,6 +16,9 @@
 # brainstorm visual-companion artifacts
 /.superpowers/
 
+# playwright verification artifacts
+/.playwright-mcp/
+
 # next.js
 /.next/
 /out/
