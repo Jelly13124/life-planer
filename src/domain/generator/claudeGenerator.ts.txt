@@ -1,0 +1,35 @@
+// ⏳ 未来实现草稿（v1 不编译，故用 .txt 后缀）。
+// 目标：用真实大模型生成"一种可能的人生"，接口与 LocalPathGenerator 完全一致，可无缝替换。
+//
+// 关键点：
+// 1. 成本控制：生成结果存进 Repository（按 profile+choice 缓存），不重复调用。
+//    免费用户限制每天 N 次生成；超出走本地生成或提示升级。
+// 2. 安全/定位红线：system prompt 明确"这是一种可能的人生探索，不是预测或建议"，
+//    避免输出被当成真实人生预言（见 spec 第1节）。
+// 3. 结构化输出：要求模型返回符合 LifePath 的 JSON（nodes/metrics/summary/...），
+//    用 schema 校验；失败则回退 LocalPathGenerator。
+//
+// import Anthropic from "@anthropic-ai/sdk";
+// import type { GenerateInput, PathGenerator } from "./types";
+// import { localGenerator } from "./localGenerator";
+//
+// export class ClaudePathGenerator implements PathGenerator {
+//   constructor(private client: Anthropic, private model = "claude-opus-4-8") {}
+//
+//   // 注意：真实实现是异步的。届时把 PathGenerator.generate 改为返回 Promise<LifePath>，
+//   // 并让 LocalPathGenerator 也返回 resolved Promise，保持接口统一。
+//   async generate(input: GenerateInput): Promise<LifePath> {
+//     const prompt = buildPrompt(input); // 注入 profile、choice、horizon
+//     try {
+//       const res = await this.client.messages.create({
+//         model: this.model,
+//         max_tokens: 2000,
+//         system: SYSTEM_PROMPT, // 含定位红线
+//         messages: [{ role: "user", content: prompt }],
+//       });
+//       return parseAndValidate(res); // 校验为 LifePath，失败抛错
+//     } catch {
+//       return localGenerator.generate(input); // 兜底
+//     }
+//   }
+// }
