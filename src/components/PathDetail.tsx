@@ -19,10 +19,12 @@ export function PathDetail({
   tree,
   pathId,
   onBack,
+  enriching = false,
 }: {
   tree: LifeTree;
   pathId: string;
   onBack: () => void;
+  enriching?: boolean;
 }) {
   const path = tree.paths.find((p) => p.id === pathId);
   if (!path) {
@@ -65,6 +67,12 @@ export function PathDetail({
         <p className="mt-2 text-xs text-[var(--fg-faint)]">
           这是一种可能的人生，不是预测。数字代表综合状态感受，仅供想象与参考。
         </p>
+        {enriching && (
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-3 py-1 text-xs text-[var(--accent)]">
+            <span className="inline-block h-2 w-2 animate-ping rounded-full bg-[var(--accent)]" />
+            AI 正在把这段人生写得更真实…
+          </div>
+        )}
       </div>
 
       {/* 指标 */}

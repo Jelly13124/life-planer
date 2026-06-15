@@ -7,11 +7,12 @@ import { AddBranchSheet } from "./AddBranchSheet";
 import { Button } from "./ui/Button";
 
 export function TreeScreen() {
-  const { tree, openPath, addBranch, reset } = useApp();
+  const { tree, openPath, addBranch, reset, enrichingIds, aiEnabled } = useApp();
   const [adding, setAdding] = useState(false);
 
   if (!tree) return null;
   const choiceCount = tree.paths.filter((p) => p.kind === "choice").length;
+  const enriching = enrichingIds.length > 0;
 
   return (
     <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-8 sm:px-8">
@@ -27,6 +28,16 @@ export function TreeScreen() {
           <p className="mt-1 text-sm text-[var(--fg-dim)]">
             灰色虚线是维持现状，每条彩色曲线是一个不同的选择。点曲线看那段人生。
           </p>
+          {enriching ? (
+            <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-3 py-1 text-xs text-[var(--accent)]">
+              <span className="inline-block h-2 w-2 animate-ping rounded-full bg-[var(--accent)]" />
+              AI 正在生成更真实的人生…
+            </div>
+          ) : aiEnabled ? (
+            <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-[var(--fg-faint)]">
+              ✨ 由真实 AI 生成
+            </div>
+          ) : null}
         </div>
         <div className="flex gap-2">
           <Button variant="primary" onClick={() => setAdding(true)}>

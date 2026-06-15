@@ -6,7 +6,7 @@ import { TreeScreen } from "@/components/TreeScreen";
 import { PathDetail } from "@/components/PathDetail";
 
 function Screen() {
-  const { view, tree, activePathId, hydrated, backToTree } = useApp();
+  const { view, tree, activePathId, hydrated, backToTree, enrichingIds } = useApp();
 
   // 首帧还没读取本地数据时给个安静的占位，避免闪烁
   if (!hydrated) {
@@ -18,7 +18,14 @@ function Screen() {
   }
 
   if (view === "detail" && tree && activePathId) {
-    return <PathDetail tree={tree} pathId={activePathId} onBack={backToTree} />;
+    return (
+      <PathDetail
+        tree={tree}
+        pathId={activePathId}
+        onBack={backToTree}
+        enriching={enrichingIds.includes(activePathId)}
+      />
+    );
   }
   if (view === "tree" && tree) {
     return <TreeScreen />;
