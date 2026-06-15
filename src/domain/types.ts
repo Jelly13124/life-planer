@@ -23,11 +23,29 @@ export const AREA_LABELS: Record<LifeArea, string> = {
   growth: "成长",
 };
 
+export type EducationLevel = "highschool" | "college" | "bachelor" | "master" | "phd";
+export type SalaryBand = "none" | "lt5" | "5to10" | "10to20" | "20to50" | "gt50";
+export type RelationshipStatus =
+  | "single"
+  | "dating"
+  | "married"
+  | "married_kids"
+  | "divorced"
+  | "na";
+
 export interface Profile {
   name: string;
   age: number; // 当前年龄
-  snapshot: string; // 现状自述（自由文本）
-  areas: Record<LifeArea, number>; // 各领域当前状态 0-100
+  education: EducationLevel;
+  major: string; // 专业（可空）
+  occupation: string; // 现在的职业（可空）
+  salary: SalaryBand; // 月薪区间
+  hasSideHustle: boolean; // 有没有副业
+  sideHustle: string; // 副业是什么（可空）
+  hobbies: string; // 爱好（可空）
+  relationship: RelationshipStatus; // 情感/婚姻状态
+  snapshot: string; // 由结构化信息自动汇总的现状描述
+  areas: Record<LifeArea, number>; // 各领域起点 0-100，由上面信息推导
   crossroad: string; // 当前面临的岔路/纠结
 }
 
