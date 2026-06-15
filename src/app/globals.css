@@ -1,26 +1,145 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-0: #0a0b1a;
+  --bg-1: #11132a;
+  --bg-2: #1b1f3a;
+  --fg: #e8eaf6;
+  --fg-dim: #9aa0c7;
+  --fg-faint: #6b719e;
+  --line: rgba(255, 255, 255, 0.1);
+  --accent: #a78bfa;
+
+  /* 路径色板 */
+  --c-rose: #fb7185;
+  --c-violet: #a78bfa;
+  --c-sky: #38bdf8;
+  --c-emerald: #34d399;
+  --c-amber: #f59e0b;
+  --c-blue: #60a5fa;
+  --c-fuchsia: #e879f9;
+  --c-slate: #7681a3;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg-0: var(--bg-0);
+  --color-bg-1: var(--bg-1);
+  --color-bg-2: var(--bg-2);
+  --color-fg: var(--fg);
+  --color-fg-dim: var(--fg-dim);
+  --color-fg-faint: var(--fg-faint);
+  --color-accent: var(--accent);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--fg);
+  background:
+    radial-gradient(120% 120% at 20% 0%, #1b1f3a 0%, #11132a 45%, #0a0b1a 100%) fixed;
+  font-family:
+    var(--font-geist-sans), "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB",
+    -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- 动画 ---------- */
+@keyframes lpDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes lpFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes lpPop {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes lpPulse {
+  0%,
+  100% {
+    r: 7;
+    opacity: 1;
+  }
+  50% {
+    r: 11;
+    opacity: 0.55;
+  }
+}
+@keyframes lpScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade {
+  animation: lpFade 0.7s ease both;
+}
+.animate-scale-in {
+  animation: lpScaleIn 0.4s ease both;
+}
+
+/* SVG 路径绘制 */
+.lp-path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-dasharray: 1600;
+  stroke-dashoffset: 1600;
+  animation: lpDraw 1.6s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+.lp-origin {
+  animation: lpPulse 2.4s ease-in-out infinite;
+}
+
+/* 自定义滚动条（克制） */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+/* 表单控件基础 */
+input[type="text"],
+input[type="number"],
+textarea {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--fg);
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+input[type="text"]:focus,
+input[type="number"]:focus,
+textarea:focus {
+  border-color: var(--accent);
+  background: rgba(167, 139, 250, 0.08);
+}
+input[type="range"] {
+  accent-color: var(--accent);
+}
+::placeholder {
+  color: var(--fg-faint);
 }
