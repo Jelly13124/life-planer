@@ -13,6 +13,8 @@ const base: Profile = {
   sideHustle: "",
   hobbies: "",
   relationship: "single",
+  location: "",
+  status: "",
   snapshot: "",
   crossroad: "",
   areas: { career: 50, wealth: 50, relationships: 50, health: 50, growth: 50 },

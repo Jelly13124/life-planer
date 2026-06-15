@@ -35,16 +35,17 @@ export interface EnrichInput {
   curve: CurveShape; // 仅用来给模型一个"整体走向"的轻提示
 }
 
-// 系统提示：把"名字"和"选择"钉成不可违背的硬约束（模型很爱改名/偏题），
-// 其余（经历、转折、结局、开头）留给模型自由发挥，保证差异。
+// 系统提示：做"贴着真实的你"的推演——只往未来写、不和已知现状矛盾、守现实约束、克制可信。
 const SYSTEM = [
-  "你在为一款人生探索产品写故事。我会给你一个主角和他做出的一个具体选择，",
-  "你写出他做了这个选择之后、未来十几年可能经历的一段人生，拆成几个关键时刻。",
-  "【不可违背的硬约束】",
-  "1. 主角姓名严格用我给的名字，绝不改名、绝不换成别人。",
-  "2. 整段人生必须是“他真的做了这个选择”之后发生的，全程围绕这个选择；绝不能写成他没做这件事、或改去做了别的事。",
-  "【可以自由发挥】具体经历、遇到的人、起伏与转折、最终结局都由你定，可以大胆、可以有意外；开头不必从“现在在上班”写起，也不必逐条复述背景。",
-  "风格像小说，有画面感、情感真实。这是一种可能性，不是预测或保证，别说教、别算命腔。",
+  "你在为一款人生探索产品做一段贴近现实的人生推演。我会给你一个真实的人现在的情况，以及他在考虑的一个选择；",
+  "你推演：如果他从现在起做这个选择，未来十几年可能怎么走，拆成几个关键时刻。",
+  "【必须遵守的硬约束】",
+  "1. 主角姓名严格用我给的名字，绝不改名。",
+  "2. 只写未来：所有时刻的年龄都必须大于他现在的年龄，绝不重写、不编造、不否定他的过去。",
+  "3. 绝不与他已知的现状矛盾——他已达成的、身份/签证、所在地都要当作既定事实。例：他已读完研、在国外持工作签，就不要写他辍学、还在读、或无视签证限制。",
+  "4. 尊重现实规律：签证身份、行业现实、时间、金钱、年龄阶段都要讲得通。",
+  "风格：克制、可信，普通人真实生活的质感。可以有起伏和转折，但不要爽文/逆袭套路（别动不动就辍学创业然后上市）。像一段真实的人生，不是电影。",
+  "可以自由发挥的是：具体经历、遇到的人、起落与结局——只要都扎根在他的真实处境里。",
   "全部用中文。只输出 JSON 本身，不要用代码块包裹，不要任何解释文字。",
 ].join("");
 
@@ -65,44 +66,45 @@ function arcHint(curve: CurveShape): string {
 
 function buildUserPrompt(input: EnrichInput): string {
   const p = input.profile;
-  const lo = input.startAge + 1;
-  const hi = input.startAge + input.horizonYears;
+  const now = input.startAge;
+  const lo = now + 1;
+  const hi = now + input.horizonYears;
 
-  const bg: string[] = [];
-  bg.push(`${input.startAge} 岁`);
-  bg.push(EDUCATION_LABELS[p.education] + (p.major ? `（${p.major}）` : ""));
-  if (p.occupation) bg.push(p.occupation);
-  bg.push(`月薪${SALARY_LABELS[p.salary]}`);
-  if (p.hasSideHustle) bg.push(p.sideHustle ? `副业:${p.sideHustle}` : "有副业");
-  if (p.hobbies) bg.push(`爱好:${p.hobbies}`);
-  bg.push(RELATIONSHIP_LABELS[p.relationship]);
-  if (p.snapshot) bg.push(p.snapshot);
+  // 现状要点（既定事实，不可矛盾）
+  const facts: string[] = [];
+  facts.push(`${EDUCATION_LABELS[p.education]}${p.major ? `（${p.major}）` : ""}`);
+  if (p.occupation) facts.push(`职业：${p.occupation}`);
+  facts.push(`月薪${SALARY_LABELS[p.salary]}`);
+  if (p.hasSideHustle) facts.push(p.sideHustle ? `副业：${p.sideHustle}` : "有副业");
+  if (p.hobbies) facts.push(`爱好：${p.hobbies}`);
+  facts.push(`情感：${RELATIONSHIP_LABELS[p.relationship]}`);
+  if (p.snapshot) facts.push(`自述：${p.snapshot}`);
 
   const choiceText =
     input.kind === "status-quo" ? "维持现状、不做大的改变" : input.choiceLabel;
 
   const lines: string[] = [];
-  lines.push(`主角姓名：${p.name}（全程必须用这个名字）。`);
-  lines.push(`背景（参考用，不必逐条写进去）：${bg.join("、")}。`);
-  lines.push(`${p.name} 做出的选择：${choiceText}。`);
+  lines.push(`主角姓名：${p.name}（全程用这个名字）。`);
+  lines.push(`他现在 ${now} 岁${p.location ? `，生活在${p.location}` : ""}${p.status ? `，身份/阶段：${p.status}` : ""}。`);
+  lines.push(`现状（既定事实，推演不能与之矛盾）：${facts.join("；")}。`);
   lines.push("");
   lines.push(
-    `请写 ${p.name} 做了“${choiceText}”这个选择之后、约 ${input.horizonYears} 年里的人生，全程围绕这个选择展开。整体走向：${arcHint(input.curve)}`,
+    `请推演：${p.name} 从现在（${now} 岁）起，如果选择「${choiceText}」，未来约 ${input.horizonYears} 年的人生会怎么走。整体走向：${arcHint(input.curve)}`,
   );
   lines.push("");
   const firstBeat =
     input.kind === "status-quo"
-      ? `第一个时刻写 ${p.name} 意识到自己决定就这样走下去的那一刻`
-      : `第一个时刻就写 ${p.name} 真正开始“${choiceText}”的那一刻（例如读研=拿到录取/入学，开店=盘下店面/开业，跳槽=入职新公司）`;
+      ? `第一个时刻写他从现在起、按原轨道继续走的第一步`
+      : `第一个时刻写他从现在的处境出发、为「${choiceText}」迈出的第一步（要符合他现在的真实身份与所在地）`;
   lines.push(
-    `请你自己决定这段人生里 3-5 个关键转折点：每个点的年龄（在 ${lo} 到 ${hi} 岁之间、按先后排列、不重复）、当时是高光(high)/平稳(mid)/低谷(low)、发生了什么。${firstBeat}；之后的每个时刻都是这条路上接着发生的后续，连起来大致符合上面的“整体走向”，但具体怎么走由你发挥。`,
+    `自己决定 3-5 个关键转折点：年龄都在 ${lo} 到 ${hi} 岁之间（必须大于他现在的 ${now} 岁、按先后排列、不重复）；每个点标 高光(high)/平稳(mid)/低谷(low)；写当时发生了什么。${firstBeat}；之后每个时刻是接着发生的后续，连起来大致符合上面的“整体走向”，但要克制可信、扎根现实，不要写成爽文。`,
   );
   lines.push("");
   lines.push("只输出如下结构的 json：");
   lines.push(jsonExample(p.name, lo, hi));
   lines.push("");
   lines.push(
-    `要求：summary ≤ 25 字，一句话点出这条路最后把 ${p.name} 带到了哪里；每个 node 的 title ≤ 12 字，story 用 1-3 句、有画面感、自然带到 ${p.name}。`,
+    `要求：summary ≤ 25 字，点出这条路最后把 ${p.name} 带到了哪里；每个 node 的 title ≤ 12 字，story 用 1-3 句、具体可信、自然带到 ${p.name}，绝不与他的现状矛盾。`,
   );
   return lines.join("\n");
 }
@@ -158,7 +160,7 @@ export async function enrichPath(input: EnrichInput): Promise<EnrichOut | null> 
   if (!IS_REASONER) {
     // 仅普通 chat 模型支持：JSON 模式 + 温度。reasoner 都不支持。
     body.response_format = { type: "json_object" };
-    body.temperature = 0.8; // 差异来自"模型自选转折点"，温度低一点更扣题、中文更顺
+    body.temperature = 0.7; // 偏低：要克制可信、扎根现实，别飘成爽文
   }
 
   try {

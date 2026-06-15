@@ -29,6 +29,7 @@ export function Onboarding() {
   const [age, setAge] = useState(28);
   const [education, setEducation] = useState<EducationLevel>("bachelor");
   const [major, setMajor] = useState("");
+  const [location, setLocation] = useState("");
 
   const [occupation, setOccupation] = useState("");
   const [salary, setSalary] = useState<SalaryBand>("5to10");
@@ -37,6 +38,7 @@ export function Onboarding() {
 
   const [relationship, setRelationship] = useState<RelationshipStatus>("single");
   const [hobbies, setHobbies] = useState("");
+  const [status, setStatus] = useState("");
   const [crossroad, setCrossroad] = useState("");
 
   const step0Valid = name.trim().length > 0 && age >= 10 && age <= 100;
@@ -48,12 +50,14 @@ export function Onboarding() {
       age,
       education,
       major: major.trim(),
+      location: location.trim(),
       occupation: occupation.trim(),
       salary,
       hasSideHustle,
       sideHustle: sideHustle.trim(),
       hobbies: hobbies.trim(),
       relationship,
+      status: status.trim(),
       crossroad: crossroad.trim(),
     };
     const profile: Profile = {
@@ -123,6 +127,15 @@ export function Onboarding() {
                 value={major}
                 onChange={(e) => setMajor(e.target.value)}
                 placeholder="学的是什么专业"
+                className="px-4 py-3 text-base"
+              />
+            </Field>
+            <Field label="现在生活在哪" hint="国家/城市，用来让预测符合现实，比如 美国纽约 / 中国上海">
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="所在国家 / 城市"
                 className="px-4 py-3 text-base"
               />
             </Field>
@@ -206,6 +219,18 @@ export function Onboarding() {
                 value={hobbies}
                 onChange={(e) => setHobbies(e.target.value)}
                 placeholder="平时喜欢做什么"
+                className="px-4 py-3 text-base"
+              />
+            </Field>
+            <Field
+              label="现在的身份 / 阶段"
+              hint="可选但很关键，帮预测贴合现实，比如 H1B工作签 / 在读研究生 / 已工作3年 / 创业中"
+            >
+              <input
+                type="text"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                placeholder="你现在的处境 / 身份"
                 className="px-4 py-3 text-base"
               />
             </Field>

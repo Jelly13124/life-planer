@@ -104,6 +104,7 @@ export function deriveAreas(p: ProfileInputs): Record<LifeArea, number> {
 export function buildSnapshot(p: ProfileInputs): string {
   const parts: string[] = [];
   parts.push(`${p.age} 岁`);
+  if (p.location.trim()) parts.push(p.location.trim());
   parts.push(EDUCATION_LABELS[p.education]);
   if (p.major.trim()) parts.push(`${p.major.trim()}专业`);
   if (p.occupation.trim()) parts.push(`现在是${p.occupation.trim()}`);
@@ -111,5 +112,6 @@ export function buildSnapshot(p: ProfileInputs): string {
   if (p.hasSideHustle) parts.push(p.sideHustle.trim() ? `有副业（${p.sideHustle.trim()}）` : "有副业");
   if (p.hobbies.trim()) parts.push(`爱好${p.hobbies.trim()}`);
   parts.push(RELATIONSHIP_LABELS[p.relationship]);
+  if (p.status.trim()) parts.push(p.status.trim());
   return parts.join(" · ");
 }

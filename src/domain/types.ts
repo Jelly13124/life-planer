@@ -35,7 +35,7 @@ export type RelationshipStatus =
 
 export interface Profile {
   name: string;
-  age: number; // 当前年龄
+  age: number; // 当前年龄（预测从这里往后）
   education: EducationLevel;
   major: string; // 专业（可空）
   occupation: string; // 现在的职业（可空）
@@ -44,6 +44,8 @@ export interface Profile {
   sideHustle: string; // 副业是什么（可空）
   hobbies: string; // 爱好（可空）
   relationship: RelationshipStatus; // 情感/婚姻状态
+  location: string; // 现在生活在哪（国家/城市），用于现实约束（可空）
+  status: string; // 现在的身份/阶段，如 H1B工作签 / 在读 / 工作3年（可空）
   snapshot: string; // 由结构化信息自动汇总的现状描述
   areas: Record<LifeArea, number>; // 各领域起点 0-100，由上面信息推导
   crossroad: string; // 当前面临的岔路/纠结

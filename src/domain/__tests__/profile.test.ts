@@ -15,6 +15,8 @@ const base: Inputs = {
   sideHustle: "",
   hobbies: "",
   relationship: "single",
+  location: "上海",
+  status: "工作3年",
   crossroad: "要不要辞职创业",
 };
 

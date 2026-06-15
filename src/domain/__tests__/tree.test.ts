@@ -18,6 +18,8 @@ const profile: Profile = {
   sideHustle: "",
   hobbies: "",
   relationship: "dating",
+  location: "杭州",
+  status: "工作5年",
   snapshot: "设计师",
   crossroad: "要不要换城市",
   areas: { career: 50, wealth: 45, relationships: 55, health: 60, growth: 50 },
