@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# brainstorm visual-companion artifacts
+/.superpowers/
+
 # next.js
 /.next/
 /out/
