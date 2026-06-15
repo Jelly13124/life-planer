@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ result: null }, { status: 400 });
   }
-  if (!body || !body.profile || !Array.isArray(body.nodes)) {
+  if (!body || !body.profile || typeof body.kind !== "string") {
     return Response.json({ result: null }, { status: 400 });
   }
   const result = await enrichPath(body);

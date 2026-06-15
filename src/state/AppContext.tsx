@@ -57,8 +57,11 @@ function reducer(state: State, action: Action): State {
       return { ...state, tree: action.tree, view: "tree" };
     case "mergeEnrichment": {
       if (!state.tree) return state;
+      const { profile, horizonYears } = state.tree;
       const paths = state.tree.paths.map((p) =>
-        p.id === action.pathId ? applyEnrichment(p, action.result) : p,
+        p.id === action.pathId
+          ? applyEnrichment(p, action.result, profile.age, horizonYears)
+          : p,
       );
       return { ...state, tree: { ...state.tree, paths } };
     }
