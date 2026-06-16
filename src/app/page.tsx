@@ -4,6 +4,7 @@ import { AppProvider, useApp } from "@/state/AppContext";
 import { Onboarding } from "@/components/Onboarding";
 import { TreeScreen } from "@/components/TreeScreen";
 import { PathDetail } from "@/components/PathDetail";
+import { PlanningAssistant } from "@/components/PlanningAssistant";
 
 function Screen() {
   const { view, tree, activePathId, hydrated, backToTree, enrichingIds } = useApp();
@@ -17,20 +18,24 @@ function Screen() {
     );
   }
 
-  if (view === "detail" && tree && activePathId) {
-    return (
-      <PathDetail
-        tree={tree}
-        pathId={activePathId}
-        onBack={backToTree}
-        enriching={enrichingIds.includes(activePathId)}
-      />
-    );
-  }
-  if (view === "tree" && tree) {
-    return <TreeScreen />;
-  }
-  return <Onboarding />;
+  if (view === "onboarding" || !tree) return <Onboarding />;
+
+  return (
+    <>
+      {view === "detail" && activePathId ? (
+        <PathDetail
+          tree={tree}
+          pathId={activePathId}
+          onBack={backToTree}
+          enriching={enrichingIds.includes(activePathId)}
+        />
+      ) : (
+        <TreeScreen />
+      )}
+      {/* 常驻规划助手（有树时才出现） */}
+      <PlanningAssistant />
+    </>
+  );
 }
 
 export default function Home() {

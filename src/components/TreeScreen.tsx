@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import { useApp } from "@/state/AppContext";
-import { LifeTreeCanvas } from "./LifeTreeCanvas";
-import { AddBranchSheet } from "./AddBranchSheet";
+import { LifeMap } from "./LifeMap";
+import { AddBranchSheet, type ForkContext } from "./AddBranchSheet";
 import { Button } from "./ui/Button";
 
 export function TreeScreen() {
   const { tree, openPath, addBranch, reset, enrichingIds, aiEnabled } = useApp();
   const [adding, setAdding] = useState(false);
+  // 在某条路的某个未来节点处加岔路（R6 递归）；null = 关闭
+  const [fork, setFork] = useState<ForkContext | null>(null);
 
   if (!tree) return null;
   const choiceCount = tree.paths.filter((p) => p.kind === "choice").length;
@@ -49,24 +51,41 @@ export function TreeScreen() {
         </div>
       </header>
 
-      {/* 画布 */}
+      {/* 地图：可平移缩放的多层人生决策树 */}
       <div className="mt-4 flex flex-1 items-center">
-        <div className="w-full rounded-3xl border border-[var(--line)] bg-black/20 p-2 sm:p-4">
-          <LifeTreeCanvas tree={tree} onSelect={openPath} />
+        <div className="w-full overflow-hidden rounded-3xl border border-[var(--line)] bg-black/20 p-2 sm:p-4">
+          <LifeMap
+            tree={tree}
+            onSelectPath={openPath}
+            onForkAtNode={(parentId, forkAge, atLabel) =>
+              setFork({ parentId, forkAge, atLabel })
+            }
+          />
         </div>
       </div>
 
       <p className="mt-3 text-center text-xs text-[var(--fg-faint)]">
         {choiceCount === 0
           ? "还没有岔路。点「添加岔路」，看看另一种人生。"
-          : `已有 ${choiceCount} 条岔路 · 这些都是可能的人生，不是预测`}
+          : `已有 ${choiceCount} 条岔路 · 点曲线上的节点，还能在那里再长一条岔路`}
       </p>
 
+      {/* 根分叉：从"现在"加一条新路 */}
       {adding && (
         <AddBranchSheet
           tree={tree}
           onAdd={addBranch}
           onClose={() => setAdding(false)}
+        />
+      )}
+
+      {/* 递归分叉：从某条路的某个未来节点再长一条岔路 */}
+      {fork && (
+        <AddBranchSheet
+          tree={tree}
+          onAdd={addBranch}
+          onClose={() => setFork(null)}
+          fork={fork}
         />
       )}
     </div>

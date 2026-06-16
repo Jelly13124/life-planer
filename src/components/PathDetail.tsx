@@ -43,7 +43,7 @@ export function PathDetail({
   onBack: () => void;
   enriching?: boolean;
 }) {
-  const { addScenario, openPath, enrichingIds } = useApp();
+  const { addScenario, addBranch, openPath, enrichingIds } = useApp();
   const [chatting, setChatting] = useState(false);
   const path = tree.paths.find((p) => p.id === pathId);
   if (!path) {
@@ -207,7 +207,17 @@ export function PathDetail({
       </div>
 
       {chatting && (
-        <FutureSelfChat tree={tree} path={path} onClose={() => setChatting(false)} />
+        <FutureSelfChat
+          tree={tree}
+          path={path}
+          onClose={() => setChatting(false)}
+          onAddBranch={(label) =>
+            addBranch(label, {
+              parentId: path.id,
+              forkAge: path.nodes[0]?.age ?? path.forkAge + 2,
+            })
+          }
+        />
       )}
     </div>
   );

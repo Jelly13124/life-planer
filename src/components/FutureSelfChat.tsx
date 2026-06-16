@@ -14,16 +14,19 @@ export function FutureSelfChat({
   tree,
   path,
   onClose,
+  onAddBranch,
 }: {
   tree: LifeTree;
   path: LifePath;
   onClose: () => void;
+  onAddBranch?: (label: string) => void; // R7：把聊出来的选择加进人生树
 }) {
   const fAge = futureAgeOf(path);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [branched, setBranched] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -181,6 +184,34 @@ export function FutureSelfChat({
                 {q}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* 解锁岔路：把聊出来的选择加进树（R7） */}
+        {onAddBranch && (input.trim() || branched) && (
+          <div className="flex items-center justify-between gap-2 border-t border-[var(--line)] px-5 pt-3 text-xs">
+            {branched ? (
+              <span className="text-[var(--c-emerald)]">🌱 已把「{branched}」加进你的人生树</span>
+            ) : (
+              <>
+                <span className="truncate text-[var(--fg-faint)]">
+                  把「{input.trim()}」当作一个新选择？
+                </span>
+                <button
+                  onClick={() => {
+                    const v = input.trim();
+                    if (!v) return;
+                    onAddBranch(v);
+                    setInput("");
+                    setBranched(v);
+                    setTimeout(() => setBranched(null), 2600);
+                  }}
+                  className="flex-shrink-0 rounded-full border border-[var(--c-fuchsia)]/50 px-3 py-1 text-[var(--c-fuchsia)] transition hover:bg-[var(--c-fuchsia)]/10"
+                >
+                  ＋ 加进人生树
+                </button>
+              </>
+            )}
           </div>
         )}
 
