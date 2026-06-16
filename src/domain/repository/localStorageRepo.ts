@@ -1,7 +1,8 @@
 import type { LifeTree } from "../types";
 import type { TreeRepository } from "./types";
 
-const STORAGE_KEY = "lifeplanner.tree.v1";
+// v2：递归树/多走向/维度 等字段引入后，旧结构不兼容——换 key 自动丢弃旧数据。
+const STORAGE_KEY = "lifeplanner.tree.v2";
 
 // 最小 Storage 接口，便于注入内存实现做测试。
 export interface KeyValueStore {
