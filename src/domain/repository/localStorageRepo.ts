@@ -1,8 +1,10 @@
 import type { LifeTree } from "../types";
 import type { TreeRepository } from "./types";
 
-// v2：递归树/多走向/维度 等字段引入后，旧结构不兼容——换 key 自动丢弃旧数据。
-const STORAGE_KEY = "lifeplanner.tree.v2";
+// v3：分支改为"从各自现实的人生时间点分叉"（forkAge 不再都等于当前年龄）。
+// 旧树的分叉与节点年龄都钉在"现在"，无法在不产生年龄/文案错位的情况下平滑迁移，
+// 故换 key 丢弃旧数据，让新树带着正确时间线重新生成。
+const STORAGE_KEY = "lifeplanner.tree.v3";
 
 // 最小 Storage 接口，便于注入内存实现做测试。
 export interface KeyValueStore {

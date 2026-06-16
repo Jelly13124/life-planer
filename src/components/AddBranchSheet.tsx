@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { LifeTree } from "@/domain/types";
 import { suggestFor, wildCardSuggestions } from "@/domain/suggestions";
+import { inferForkDelayYears, MAX_FORK_DELAY } from "@/domain/forkTiming";
 import type { AddPathOptions } from "@/domain/tree";
 import { Button } from "./ui/Button";
 
@@ -25,13 +26,22 @@ export function AddBranchSheet({
   fork?: ForkContext;
 }) {
   const [label, setLabel] = useState("");
+  // 用户手动设的"几年后"；null = 跟随按选择的推测值。仅根分支可调。
+  const [delayOverride, setDelayOverride] = useState<number | null>(null);
   const alternatives = suggestFor(tree.profile);
   const wild = wildCardSuggestions(tree.profile);
+
+  const effDelay = delayOverride ?? inferForkDelayYears(label);
+  const forkAge = tree.profile.age + effDelay;
 
   function confirm() {
     const v = label.trim();
     if (!v) return;
-    onAdd(v, fork ? { parentId: fork.parentId, forkAge: fork.forkAge } : undefined);
+    if (fork) {
+      onAdd(v, { parentId: fork.parentId, forkAge: fork.forkAge });
+    } else {
+      onAdd(v, { forkAge }); // 根分支：从推测/用户选定的人生时间点分叉
+    }
     onClose();
   }
 
@@ -64,6 +74,41 @@ export function AddBranchSheet({
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) confirm();
           }}
         />
+
+        {/* 何时分叉（仅根分支）：从现实的人生时间点长出，而不是都从"现在" */}
+        {!fork && (
+          <div className="mt-4">
+            <div className="text-xs uppercase tracking-wider text-[var(--fg-faint)]">
+              什么时候走上这条路
+            </div>
+            <div className="mt-2 flex items-center gap-3">
+              <button
+                type="button"
+                aria-label="提前一年"
+                onClick={() => setDelayOverride(Math.max(0, effDelay - 1))}
+                disabled={effDelay <= 0}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--line)] text-base leading-none text-[var(--fg-dim)] transition hover:border-[var(--accent)] hover:text-[var(--fg)] disabled:opacity-30"
+              >
+                −
+              </button>
+              <div className="min-w-[9rem] text-center text-sm font-medium text-[var(--fg)]">
+                {effDelay === 0 ? "现在就开始" : `${effDelay} 年后 · ${forkAge} 岁`}
+              </div>
+              <button
+                type="button"
+                aria-label="推后一年"
+                onClick={() => setDelayOverride(Math.min(MAX_FORK_DELAY, effDelay + 1))}
+                disabled={effDelay >= MAX_FORK_DELAY}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--line)] text-base leading-none text-[var(--fg-dim)] transition hover:border-[var(--accent)] hover:text-[var(--fg)] disabled:opacity-30"
+              >
+                ＋
+              </button>
+              {delayOverride === null && label.trim() && (
+                <span className="text-xs text-[var(--fg-faint)]">按这个选择推测，可调整</span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Odyssey：替代路 */}
         <div className="mt-4">

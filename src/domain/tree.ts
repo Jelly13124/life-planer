@@ -1,6 +1,7 @@
 import type { LifePath, LifeTree, Profile, Scenario } from "./types";
 import type { PathGenerator } from "./generator/types";
 import { hashSeed } from "./seed";
+import { inferForkAge } from "./forkTiming";
 
 export interface AddPathOptions {
   parentId?: string | null; // 父分支 id；不传 = 从"现在"分叉
@@ -29,7 +30,8 @@ export function createTree(
 
   const paths: LifePath[] = [statusQuo];
 
-  // 用当前岔路生成第一条 choice 路径（若用户填了）
+  // 用当前岔路生成第一条 choice 路径（若用户填了）。
+  // 分叉年龄按选择推测——它从现实的人生时间点长出，而不是都挤在"现在"。
   const crossroad = profile.crossroad.trim();
   if (crossroad) {
     paths.push(
@@ -39,6 +41,7 @@ export function createTree(
         kind: "choice",
         horizonYears,
         index: 1,
+        forkAge: inferForkAge(profile, crossroad),
       }),
     );
   }
@@ -62,6 +65,11 @@ export function addPath(
 ): LifeTree {
   const label = choiceLabel.trim();
   if (!label) return tree;
+  const isRoot = (opts.parentId ?? null) === null;
+  // 根分支：没指定就按选择推测分叉年龄（"两年后才辞职"）。
+  // 子分支：分叉年龄由点击的节点决定，没传则退回当前年龄。
+  const forkAge =
+    opts.forkAge ?? (isRoot ? inferForkAge(tree.profile, label) : tree.profile.age);
   const path = generator.generate({
     profile: tree.profile,
     choiceLabel: label,
@@ -69,7 +77,7 @@ export function addPath(
     horizonYears: tree.horizonYears,
     index: tree.paths.length,
     parentId: opts.parentId ?? null,
-    forkAge: opts.forkAge ?? tree.profile.age,
+    forkAge,
     scenario: opts.scenario ?? "likely",
   });
   return { ...tree, paths: [...tree.paths, path], updatedAt: now };

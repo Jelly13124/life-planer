@@ -56,6 +56,30 @@ describe("tree operations", () => {
     expect(addPath(t, "   ", gen, NOW).paths.length).toBe(t.paths.length);
   });
 
+  it("root choices fork at a realistic future age, not all from now", () => {
+    // profile.age = 30；不同选择推测出不同的分叉年龄 → 从不同时间点长出。
+    const t = createTree({ ...profile, crossroad: "" }, gen, NOW); // 只有维持现状
+    const t1 = addPath(t, "辞职做自媒体", gen, NOW); // 含'辞职/自媒体' → +2
+    const p1 = t1.paths[t1.paths.length - 1];
+    expect(p1.forkAge).toBe(profile.age + 2);
+
+    const t2 = addPath(t1, "去读研", gen, NOW); // 含'读研' → +1
+    const p2 = t2.paths[t2.paths.length - 1];
+    expect(p2.forkAge).toBe(profile.age + 1);
+
+    // 两条根分支从不同的人生时间点分叉
+    expect(p1.forkAge).not.toBe(p2.forkAge);
+    // 维持现状仍从现在起
+    expect(t.paths[0].forkAge).toBe(profile.age);
+  });
+
+  it("addPath honors an explicit forkAge (user-adjusted timing)", () => {
+    const t = createTree(profile, gen, NOW);
+    const t2 = addPath(t, "辞职做自媒体", gen, NOW, { forkAge: profile.age });
+    const p = t2.paths[t2.paths.length - 1];
+    expect(p.forkAge).toBe(profile.age); // 用户选"现在就开始"覆盖推测
+  });
+
   it("folding several addPath onto one base yields distinct ids (batch '全部画上')", () => {
     // 复刻 addBranches 的折叠：在同一个 base 上依次 addPath。每条都要真的加进去，
     // 且 id 互不相同（这正是逐条 addBranch 因 ref 滞后而做不到的）。

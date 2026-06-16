@@ -9,7 +9,13 @@ import {
   type ChatMessage,
   type PathSuggestion,
 } from "@/lib/assistantClient";
+import { inferForkDelayYears } from "@/domain/forkTiming";
 import { Button } from "./ui/Button";
+
+function whenLabel(label: string): string {
+  const y = inferForkDelayYears(label);
+  return y === 0 ? "现在就可以走" : `约 ${y} 年后分叉`;
+}
 
 // 常驻浮窗的规划助手（P4）：帮你理清选择、提出新可能、一键加进树。
 // 也能"铺开几条路"：建议多条候选，但每条都要你点一下才画上（确认优先）。
@@ -153,6 +159,9 @@ export function PlanningAssistant() {
                     {s.why && (
                       <div className="mt-0.5 text-xs text-[var(--fg-dim)]">{s.why}</div>
                     )}
+                    <div className="mt-0.5 text-[11px] text-[var(--fg-faint)]">
+                      🕒 {whenLabel(s.label)}
+                    </div>
                   </div>
                   <button
                     onClick={() => draw(s.label)}
