@@ -1,6 +1,7 @@
 // 客户端安全：规划助手对话的网络封装。
 import type { LifeTree } from "@/domain/types";
 import type { ChatMessage } from "./chatClient";
+import { currentLocale } from "@/i18n/locale";
 
 export type { ChatMessage } from "./chatClient";
 
@@ -19,6 +20,7 @@ export async function sendAssistant(
         profileSummary: tree.profile.snapshot || "",
         choices,
         messages,
+        lang: currentLocale(),
       }),
     });
     if (!res.ok) return null;
@@ -49,7 +51,7 @@ export async function fetchSuggestedPaths(tree: LifeTree): Promise<PathSuggestio
     const res = await fetch("/api/suggest-paths", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ profileSummary: tree.profile.snapshot || "", choices }),
+      body: JSON.stringify({ profileSummary: tree.profile.snapshot || "", choices, lang: currentLocale() }),
     });
     if (!res.ok) return [];
     const data = (await res.json()) as { suggestions?: PathSuggestion[] };

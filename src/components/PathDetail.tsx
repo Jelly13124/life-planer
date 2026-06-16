@@ -12,6 +12,7 @@ import {
   type Scenario,
 } from "@/domain/types";
 import { useApp } from "@/state/AppContext";
+import { useT } from "@/prefs/PreferencesContext";
 import { MetricChart } from "./MetricChart";
 import { Button } from "./ui/Button";
 
@@ -42,14 +43,15 @@ export function PathDetail({
   onBack: () => void;
 }) {
   const { addScenario, addBranch, openPath } = useApp();
+  const { t } = useT();
   const [chatting, setChatting] = useState(false);
   const path = tree.paths.find((p) => p.id === pathId);
   if (!path) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-12">
-        <p className="text-[var(--fg-dim)]">这条路找不到了。</p>
+        <p className="text-[var(--fg-dim)]">{t("这条路找不到了。")}</p>
         <Button variant="ghost" onClick={onBack} className="mt-4">
-          ← 返回人生树
+          {t("← 返回人生树")}
         </Button>
       </div>
     );
@@ -61,7 +63,7 @@ export function PathDetail({
         onClick={onBack}
         className="text-sm text-[var(--fg-dim)] transition hover:text-[var(--fg)]"
       >
-        ← 返回人生树
+        {t("← 返回人生树")}
       </button>
 
       {/* 头部 */}
@@ -75,18 +77,20 @@ export function PathDetail({
         </div>
         <p className="mt-2 text-[var(--fg-dim)]">{path.summary}</p>
         <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-white/5 px-3 py-1 text-sm">
-          <span className="text-[var(--fg-faint)]">{tree.profile.name} 的综合人生指数 ·</span>
+          <span className="text-[var(--fg-faint)]">
+            {t("{name} 的综合人生指数 ·", { name: tree.profile.name })}
+          </span>
           <span className="font-semibold" style={{ color: path.color }}>
             {path.endValue}
           </span>
           <span className="text-[var(--fg-faint)]">/100</span>
         </div>
         <p className="mt-2 text-xs text-[var(--fg-faint)]">
-          这是一种可能的人生，不是预测。数字代表综合状态感受，仅供想象与参考。
+          {t("这是一种可能的人生，不是预测。数字代表综合状态感受，仅供想象与参考。")}
         </p>
         <div className="mt-4">
           <Button variant="primary" onClick={() => setChatting(true)}>
-            ✨ 和 {futureAgeOf(path)} 岁的你聊聊
+            {t("✨ 和 {age} 岁的你聊聊", { age: futureAgeOf(path) })}
           </Button>
         </div>
       </div>
@@ -95,7 +99,7 @@ export function PathDetail({
       {path.kind === "choice" && (
         <div className="mt-5">
           <div className="text-xs uppercase tracking-wider text-[var(--fg-faint)]">
-            换个走向看看
+            {t("换个走向看看")}
           </div>
           <div className="mt-2 inline-flex rounded-full border border-[var(--line)] bg-white/5 p-1">
             {SCENARIOS.map((s) => {
@@ -122,7 +126,7 @@ export function PathDetail({
                       : "text-[var(--fg-dim)] hover:text-[var(--fg)]"
                   }`}
                 >
-                  {s.label}
+                  {t(s.label)}
                 </button>
               );
             })}
@@ -133,13 +137,13 @@ export function PathDetail({
       {/* 指标 */}
       <div className="mt-8">
         <div className="text-xs uppercase tracking-wider text-[var(--fg-faint)]">
-          各方面随时间的变化
+          {t("各方面随时间的变化")}
         </div>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {LIFE_AREAS.map((a) => (
             <MetricChart
               key={a}
-              label={AREA_LABELS[a]}
+              label={t(AREA_LABELS[a])}
               points={path.metrics[a]}
               color={path.color}
             />
@@ -150,7 +154,7 @@ export function PathDetail({
       {/* 时间线 */}
       <div className="mt-10">
         <div className="text-xs uppercase tracking-wider text-[var(--fg-faint)]">
-          这条路上的关键时刻
+          {t("这条路上的关键时刻")}
         </div>
         <div className="relative mt-4 pl-6">
           <div className="absolute left-[7px] top-1 bottom-1 w-px bg-[var(--line)]" />
@@ -167,13 +171,13 @@ export function PathDetail({
                 />
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold tabular-nums text-[var(--fg)]">
-                    {n.age} 岁
+                    {t("{age} 岁", { age: n.age })}
                   </span>
                   <span
                     className="rounded-full px-2 py-0.5 text-[10px]"
                     style={{ background: `${MOOD_COLOR[n.mood]}22`, color: MOOD_COLOR[n.mood] }}
                   >
-                    {MOOD_LABEL[n.mood]}
+                    {t(MOOD_LABEL[n.mood])}
                   </span>
                 </div>
                 <div className="mt-1 font-medium">{n.title}</div>
@@ -185,7 +189,7 @@ export function PathDetail({
                         key={d}
                         className="rounded-full border border-[var(--line)] bg-white/5 px-2 py-0.5 text-[10px] text-[var(--fg-faint)]"
                       >
-                        {DIMENSION_LABELS[d]}
+                        {t(DIMENSION_LABELS[d])}
                       </span>
                     ))}
                   </div>

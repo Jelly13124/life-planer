@@ -10,6 +10,7 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from "react";
 import type { LifeTree, Mood } from "@/domain/types";
+import { useT } from "@/prefs/PreferencesContext";
 import { layoutMap, type MapLayout, type MapNode, type PathLayout } from "./mapLayout";
 
 const MIN_K = 0.4;
@@ -53,6 +54,7 @@ export function LifeMap({
   onForkAtNode: (parentId: string, forkAge: number, atLabel: string) => void;
 }) {
   const reduced = usePrefersReducedMotion();
+  const { t } = useT();
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   const layout: MapLayout = useMemo(
@@ -206,7 +208,7 @@ export function LifeMap({
         width="100%"
         className="block touch-none select-none"
         role="application"
-        aria-label={`${name} 的人生地图：可平移缩放，点曲线看那段人生，点节点在那里加岔路`}
+        aria-label={t("{name} 的人生地图：可平移缩放，点曲线看那段人生，点节点在那里加岔路", { name })}
         onWheel={onWheel}
       >
         <defs>
@@ -259,7 +261,7 @@ export function LifeMap({
                     fontSize={11}
                     fill="var(--fg-faint)"
                   >
-                    {age} 岁
+                    {t("{age} 岁", { age })}
                   </text>
                 </g>
               );
@@ -281,7 +283,7 @@ export function LifeMap({
               hoverNodeKey={hoverNode}
               onHoverNode={setHoverNode}
               onForkNode={(node) =>
-                onForkAtNode(p.id, node.age, `${node.age} 岁这里`)
+                onForkAtNode(p.id, node.age, t("{age} 岁这里", { age: node.age }))
               }
             />
           ))}
@@ -306,7 +308,7 @@ export function LifeMap({
               fontWeight={700}
               fill="var(--fg)"
             >
-              现在
+              {t("现在")}
             </text>
             <text
               x={origin.x}
@@ -323,10 +325,10 @@ export function LifeMap({
 
       {/* 缩放/重置控件 */}
       <div className="absolute right-3 top-3 flex flex-col gap-1.5">
-        <ZoomBtn label="放大" onClick={() => zoomBy(1.2)}>
+        <ZoomBtn label={t("放大")} onClick={() => zoomBy(1.2)}>
           ＋
         </ZoomBtn>
-        <ZoomBtn label="缩小" onClick={() => zoomBy(1 / 1.2)}>
+        <ZoomBtn label={t("缩小")} onClick={() => zoomBy(1 / 1.2)}>
           −
         </ZoomBtn>
         <button
@@ -334,13 +336,13 @@ export function LifeMap({
           onClick={resetView}
           className="rounded-full border border-[var(--line)] bg-black/30 px-2.5 py-1 text-[11px] text-[var(--fg-dim)] backdrop-blur transition hover:border-[var(--accent)] hover:text-[var(--fg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
         >
-          重置视图
+          {t("重置视图")}
         </button>
       </div>
 
       {/* 操作提示（地图语义） */}
       <div className="pointer-events-none absolute bottom-2 left-3 text-[11px] text-[var(--fg-faint)]">
-        拖动平移 · 滚轮缩放 · 点曲线看那段人生 · 点节点在那里加岔路
+        {t("拖动平移 · 滚轮缩放 · 点曲线看那段人生 · 点节点在那里加岔路")}
       </div>
     </div>
   );
@@ -372,6 +374,7 @@ function PathCurve({
   onHoverNode: (key: string | null) => void;
   onForkNode: (node: MapNode) => void;
 }) {
+  const { t } = useT();
   const isSq = p.kind === "status-quo";
   const color = isSq ? "var(--c-slate)" : p.color;
   // 越深的分支起手越晚一点，营造"逐层展开"的节奏
@@ -449,7 +452,9 @@ function PathCurve({
                 onForkNode(n);
               }}
             >
-              {!isFirst && <title>＋ 在这里加岔路（{n.age} 岁 · {n.title}）</title>}
+              {!isFirst && (
+                <title>{t("＋ 在这里加岔路（{age} 岁 · {title}）", { age: n.age, title: n.title })}</title>
+              )}
             </circle>
             {/* hover 时浮出"加岔路"提示 */}
             {nodeHover && !isFirst && (
@@ -473,7 +478,7 @@ function PathCurve({
                   fontWeight={600}
                   fill="var(--fg)"
                 >
-                  ＋ 在这里加岔路
+                  {t("＋ 在这里加岔路")}
                 </text>
               </g>
             )}
@@ -506,7 +511,7 @@ function PathCurve({
           fontWeight={700}
           fill={isSq ? "var(--fg-dim)" : "var(--fg)"}
         >
-          {truncate(p.choiceLabel, 12)}
+          {truncate(t(p.choiceLabel), 12)}
         </text>
         <text x={p.end.x + 14} y={p.end.y + 15} fontSize={12} fill="var(--fg-dim)">
           {truncate(p.summary, 20)}

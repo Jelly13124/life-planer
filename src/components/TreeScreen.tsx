@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useApp } from "@/state/AppContext";
+import { useT } from "@/prefs/PreferencesContext";
 import { LifeMap } from "./LifeMap";
 import { AddBranchSheet, type ForkContext } from "./AddBranchSheet";
 import { Button } from "./ui/Button";
 
 export function TreeScreen() {
   const { tree, openPath, addBranch, reset, aiEnabled } = useApp();
+  const { t } = useT();
   const [adding, setAdding] = useState(false);
   // 在某条路的某个未来节点处加岔路（R6 递归）；null = 关闭
   const [fork, setFork] = useState<ForkContext | null>(null);
@@ -24,23 +26,23 @@ export function TreeScreen() {
             Life Planner
           </div>
           <h1 className="mt-1 text-2xl font-bold sm:text-3xl">
-            {tree.profile.name} 的人生树
+            {t("{name} 的人生树", { name: tree.profile.name })}
           </h1>
           <p className="mt-1 text-sm text-[var(--fg-dim)]">
-            灰色虚线是维持现状，每条彩色曲线是一个不同的选择。点曲线看那段人生。
+            {t("灰色虚线是维持现状，每条彩色曲线是一个不同的选择。点曲线看那段人生。")}
           </p>
           {aiEnabled ? (
             <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-[var(--fg-faint)]">
-              ✨ 由真实 AI 生成
+              {t("✨ 由真实 AI 生成")}
             </div>
           ) : null}
         </div>
         <div className="flex gap-2">
           <Button variant="primary" onClick={() => setAdding(true)}>
-            ＋ 添加岔路
+            {t("＋ 添加岔路")}
           </Button>
-          <Button variant="ghost" onClick={reset} title="清空并重新开始">
-            ↺ 重置
+          <Button variant="ghost" onClick={reset} title={t("清空并重新开始")}>
+            {t("↺ 重置")}
           </Button>
         </div>
       </header>
@@ -60,8 +62,8 @@ export function TreeScreen() {
 
       <p className="mt-3 text-center text-xs text-[var(--fg-faint)]">
         {choiceCount === 0
-          ? "还没有岔路。点「添加岔路」，看看另一种人生。"
-          : `已有 ${choiceCount} 条岔路 · 点曲线上的节点，还能在那里再长一条岔路`}
+          ? t("还没有岔路。点「添加岔路」，看看另一种人生。")
+          : t("已有 {n} 条岔路 · 点曲线上的节点，还能在那里再长一条岔路", { n: choiceCount })}
       </p>
 
       {/* 根分叉：从"现在"加一条新路 */}

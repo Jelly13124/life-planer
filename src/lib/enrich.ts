@@ -51,6 +51,7 @@ export interface EnrichInput {
   curve: CurveShape; // 仅用来给模型一个"整体走向"的轻提示
   scenario?: "optimistic" | "likely" | "conservative"; // 走向变体
   canRetime?: boolean; // 是否允许 AI 决定"几年后才分叉"（根分支的选择=true）
+  lang?: "zh" | "en"; // 生成语言：跟随用户界面语言
 }
 
 // 系统提示：做"贴着真实的你"的推演——只往未来写、不和已知现状矛盾、守现实约束、克制可信。
@@ -65,7 +66,7 @@ const SYSTEM = [
   "4. 尊重现实规律：签证身份、行业现实、时间、金钱、年龄阶段都要讲得通。",
   "风格：克制、可信，普通人真实生活的质感。可以有起伏和转折，但不要爽文/逆袭套路（别动不动就辍学创业然后上市）。像一段真实的人生，不是电影。",
   "可以自由发挥的是：具体经历、遇到的人、起落与结局——只要都扎根在他的真实处境里。",
-  "全部用中文。只输出 JSON 本身，不要用代码块包裹，不要任何解释文字。",
+  "只输出 JSON 本身，不要用代码块包裹，不要任何解释文字。",
 ].join("");
 
 function arcHint(curve: CurveShape): string {
@@ -152,6 +153,12 @@ function buildUserPrompt(input: EnrichInput): string {
   lines.push("");
   lines.push(
     `要求：summary ≤ 25 字，点出这条路最后把 ${p.name} 带到了哪里；每个 node 的 title ≤ 12 字；绝不与他的现状矛盾。`,
+  );
+  // 语言：跟随用户界面语言（默认中文）
+  lines.push(
+    input.lang === "en"
+      ? "LANGUAGE: write every JSON string value (summary, title, story) in natural, fluent English. Keep all ages as numbers and keep the JSON keys in English exactly as shown."
+      : "语言：所有 JSON 字符串（summary / title / story）一律用简体中文。",
   );
   return lines.join("\n");
 }

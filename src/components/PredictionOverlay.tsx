@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/prefs/PreferencesContext";
 
 export interface PredictionOverlayProps {
   labels: string[]; // 正在推演的选择标签，可能为空（仅维持现状）
@@ -54,6 +55,7 @@ export function PredictionOverlay({
   aiEnabled,
 }: PredictionOverlayProps) {
   const reduced = usePrefersReducedMotion();
+  const { t } = useT();
   const [stepIdx, setStepIdx] = useState(0);
 
   // 微文案轮播：每 ~1.4s 切换一行，让等待显得在“认真计算”。
@@ -67,10 +69,10 @@ export function PredictionOverlay({
   }, [reduced]);
 
   const title =
-    context === "onboarding" ? "正在推演你的人生地图…" : "正在推演这条路…";
+    context === "onboarding" ? t("正在推演你的人生地图…") : t("正在推演这条路…");
   const lead = aiEnabled
-    ? "正在结合你的真实处境逐条推演"
-    : "正在依据你填写的信息逐条推演";
+    ? t("正在结合你的真实处境逐条推演")
+    : t("正在依据你填写的信息逐条推演");
   const multi = total > 1;
   const pct = multi ? Math.min(100, Math.round((done / total) * 100)) : 0;
 
@@ -78,7 +80,7 @@ export function PredictionOverlay({
     <div
       role="status"
       aria-live="polite"
-      aria-label="AI 正在推演你的人生"
+      aria-label={t("AI 正在推演你的人生")}
       className="fixed inset-0 z-[60] flex flex-col items-center justify-center px-6"
       style={{
         background:
@@ -211,7 +213,7 @@ export function PredictionOverlay({
               animation: reduced ? undefined : "po-blink 1.4s ease-in-out infinite",
             }}
           />
-          {reduced ? "正在推演，请稍候" : STEPS[stepIdx]}
+          {reduced ? t("正在推演，请稍候") : t(STEPS[stepIdx])}
         </span>
       </div>
 
@@ -221,7 +223,7 @@ export function PredictionOverlay({
           <>
             <div className="mb-2 flex items-baseline justify-between text-xs">
               <span className="text-[var(--fg-faint)]">
-                已推演 {Math.min(done, total)} / {total} 条路
+                {t("已推演 {done} / {total} 条路", { done: Math.min(done, total), total })}
               </span>
               <span className="tabular-nums text-[var(--fg-dim)]">{pct}%</span>
             </div>

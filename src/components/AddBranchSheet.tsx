@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { LifeTree } from "@/domain/types";
 import { suggestFor, wildCardSuggestions } from "@/domain/suggestions";
+import { useT } from "@/prefs/PreferencesContext";
 import type { AddPathOptions } from "@/domain/tree";
 import { Button } from "./ui/Button";
 
@@ -24,6 +25,7 @@ export function AddBranchSheet({
   onClose: () => void;
   fork?: ForkContext;
 }) {
+  const { t } = useT();
   const [label, setLabel] = useState("");
   const alternatives = suggestFor(tree.profile);
   const wild = wildCardSuggestions(tree.profile);
@@ -47,12 +49,12 @@ export function AddBranchSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-lg font-bold">
-          {fork ? `${fork.atLabel}，再选一次` : "添加一条岔路"}
+          {fork ? t("{atLabel}，再选一次", { atLabel: fork.atLabel }) : t("添加一条岔路")}
         </h3>
         <p className="mt-1 text-sm text-[var(--fg-dim)]">
           {fork
-            ? "从这一刻起，如果做个不同的选择，人生会怎样？AI 会接着往下推演。"
-            : "写下一个你想尝试的选择，AI 会推演出它的人生走向。"}
+            ? t("从这一刻起，如果做个不同的选择，人生会怎样？AI 会接着往下推演。")
+            : t("写下一个你想尝试的选择，AI 会推演出它的人生走向。")}
         </p>
 
         <textarea
@@ -60,7 +62,7 @@ export function AddBranchSheet({
           onChange={(e) => setLabel(e.target.value)}
           rows={2}
           autoFocus
-          placeholder="比如：辞职创业 / 去读研 / 搬到深圳……"
+          placeholder={t("比如：辞职创业 / 去读研 / 搬到深圳……")}
           className="mt-4 w-full resize-none px-4 py-3 text-base"
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) confirm();
@@ -70,11 +72,11 @@ export function AddBranchSheet({
         {/* Odyssey：替代路 */}
         <div className="mt-4">
           <div className="text-xs uppercase tracking-wider text-[var(--fg-faint)]">
-            替代路 · 现实的另一种选择
+            {t("替代路 · 现实的另一种选择")}
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
             {alternatives.map((s) => (
-              <Chip key={s} text={s} onPick={() => setLabel(s)} />
+              <Chip key={s} text={t(s)} onPick={() => setLabel(s)} />
             ))}
           </div>
         </div>
@@ -82,21 +84,21 @@ export function AddBranchSheet({
         {/* Odyssey：疯狂路 */}
         <div className="mt-3">
           <div className="text-xs uppercase tracking-wider text-[var(--fg-faint)]">
-            疯狂路 · 不计代价、不顾眼光
+            {t("疯狂路 · 不计代价、不顾眼光")}
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
             {wild.map((s) => (
-              <Chip key={s} text={s} onPick={() => setLabel(s)} wild />
+              <Chip key={s} text={t(s)} onPick={() => setLabel(s)} wild />
             ))}
           </div>
         </div>
 
         <div className="mt-6 flex items-center justify-end gap-3">
           <Button variant="ghost" onClick={onClose}>
-            取消
+            {t("取消")}
           </Button>
           <Button variant="primary" disabled={!label.trim()} onClick={confirm}>
-            生成这条路 →
+            {t("生成这条路 →")}
           </Button>
         </div>
       </div>

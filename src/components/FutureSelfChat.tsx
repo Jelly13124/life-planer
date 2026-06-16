@@ -8,6 +8,7 @@ import {
   QUICK_PROMPTS,
   type ChatMessage,
 } from "@/lib/chatClient";
+import { useT } from "@/prefs/PreferencesContext";
 import { Button } from "./ui/Button";
 
 export function FutureSelfChat({
@@ -21,6 +22,7 @@ export function FutureSelfChat({
   onClose: () => void;
   onAddBranch?: (label: string) => void; // R7：把聊出来的选择加进人生树
 }) {
+  const { t } = useT();
   const fAge = futureAgeOf(path);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -75,7 +77,7 @@ export function FutureSelfChat({
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label={`和 ${fAge} 岁的你聊聊`}
+      aria-label={t("和 {age} 岁的你聊聊", { age: fAge })}
     >
       <div
         className="animate-scale-in flex h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-[var(--line)] bg-[var(--bg-1)] shadow-2xl sm:h-[80vh] sm:rounded-3xl"
@@ -92,7 +94,7 @@ export function FutureSelfChat({
                   boxShadow: `0 0 12px ${accent}`,
                 }}
               />
-              和 {fAge} 岁的你聊聊
+              {t("和 {age} 岁的你聊聊", { age: fAge })}
             </h3>
             <p className="mt-1 truncate text-sm text-[var(--fg-dim)]">
               <span style={{ color: accent }}>{path.choiceLabel}</span>
@@ -101,7 +103,7 @@ export function FutureSelfChat({
           </div>
           <button
             onClick={onClose}
-            aria-label="关闭"
+            aria-label={t("关闭")}
             className="flex-shrink-0 rounded-full border border-[var(--line)] px-2.5 py-1 text-sm text-[var(--fg-dim)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
           >
             ✕
@@ -122,7 +124,7 @@ export function FutureSelfChat({
                 🕰️
               </div>
               <p className="max-w-xs text-sm text-[var(--fg-dim)]">
-                问问那个走了这条路的你…
+                {t("问问那个走了这条路的你…")}
               </p>
             </div>
           )}
@@ -159,14 +161,14 @@ export function FutureSelfChat({
                   border: `1px solid ${accent}33`,
                 }}
               >
-                对方正在回想…
+                {t("对方正在回想…")}
               </div>
             </div>
           )}
 
           {failed && (
             <div className="animate-fade rounded-2xl border border-[var(--line)] bg-white/5 px-4 py-3 text-center text-xs text-[var(--fg-faint)]">
-              （没接上 AI，先聊不了——确认 .env.local 里配了 DEEPSEEK_API_KEY）
+              {t("（没接上 AI，先聊不了——确认 .env.local 里配了 DEEPSEEK_API_KEY）")}
             </div>
           )}
         </div>
@@ -181,7 +183,7 @@ export function FutureSelfChat({
                 disabled={thinking}
                 className="rounded-full border border-[var(--line)] bg-white/5 px-3 py-1.5 text-xs text-[var(--fg-dim)] transition hover:border-[var(--accent)] hover:text-[var(--fg)] disabled:opacity-40"
               >
-                {q}
+                {t(q)}
               </button>
             ))}
           </div>
@@ -191,11 +193,13 @@ export function FutureSelfChat({
         {onAddBranch && (input.trim() || branched) && (
           <div className="flex items-center justify-between gap-2 border-t border-[var(--line)] px-5 pt-3 text-xs">
             {branched ? (
-              <span className="text-[var(--c-emerald)]">🌱 已把「{branched}」加进你的人生树</span>
+              <span className="text-[var(--c-emerald)]">
+                {t("🌱 已把「{label}」加进你的人生树", { label: branched })}
+              </span>
             ) : (
               <>
                 <span className="truncate text-[var(--fg-faint)]">
-                  把「{input.trim()}」当作一个新选择？
+                  {t("把「{label}」当作一个新选择？", { label: input.trim() })}
                 </span>
                 <button
                   onClick={() => {
@@ -208,7 +212,7 @@ export function FutureSelfChat({
                   }}
                   className="flex-shrink-0 rounded-full border border-[var(--c-fuchsia)]/50 px-3 py-1 text-[var(--c-fuchsia)] transition hover:bg-[var(--c-fuchsia)]/10"
                 >
-                  ＋ 加进人生树
+                  {t("＋ 加进人生树")}
                 </button>
               </>
             )}
@@ -224,7 +228,7 @@ export function FutureSelfChat({
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.nativeEvent.isComposing) send(input);
             }}
-            placeholder={`跟 ${fAge} 岁的自己说点什么…`}
+            placeholder={t("跟 {age} 岁的自己说点什么…", { age: fAge })}
             className="flex-1 rounded-full border border-[var(--line)] bg-[var(--bg-2)] px-4 py-2.5 text-sm text-[var(--fg)] outline-none transition focus:border-[var(--accent)] placeholder:text-[var(--fg-faint)]"
           />
           <Button
@@ -232,7 +236,7 @@ export function FutureSelfChat({
             disabled={!input.trim() || thinking}
             onClick={() => send(input)}
           >
-            发送
+            {t("发送")}
           </Button>
         </div>
       </div>

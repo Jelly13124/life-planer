@@ -7,6 +7,7 @@ interface AssistantBody {
   profileSummary: string; // 一句话现状
   choices: string[]; // 树上已有的选择
   messages: { role: "user" | "assistant"; content: string }[];
+  lang?: "zh" | "en";
 }
 
 function getKey(): string | null {
@@ -32,10 +33,13 @@ export async function POST(request: Request) {
     "你是一个温暖、清醒的人生规划助手，服务的对象正处在迷茫期、面临选择、怕选错。",
     "你的任务：帮 TA 把纠结想清楚，并主动提出 TA 可能没考虑过的、具体的人生选择。",
     "当你建议一个值得探索的选择时，用简短的短语点出来（例如：去读个在职研究生 / 搬去成都 / 先 gap 一年），方便 TA 加进自己的人生树去推演。",
-    "诚实、不打鸡血、不说教、不做待办清单管理；像个想得明白的朋友。中文，简洁，每次 2-5 句。",
+    "诚实、不打鸡血、不说教、不做待办清单管理；像个想得明白的朋友。简洁，每次 2-5 句。",
     "提醒：人生没有标准答案，你给的是可能性和思路，不是命令。",
     body.profileSummary ? `TA 的现状：${body.profileSummary}。` : "",
     body.choices?.length ? `TA 已经在考虑的路：${body.choices.join("、")}。可以基于这些延伸或补充新的。` : "",
+    body.lang === "en"
+      ? "LANGUAGE: reply entirely in natural, fluent English, and phrase any suggested choices in English."
+      : "语言：全程用简体中文回答。",
   ]
     .filter(Boolean)
     .join("");

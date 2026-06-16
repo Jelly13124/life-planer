@@ -1,5 +1,6 @@
 // 客户端安全：不引入任何服务端依赖。封装「和未来的自己聊聊」的网络调用。
 import type { LifePath, LifeTree } from "@/domain/types";
+import { currentLocale } from "@/i18n/locale";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -48,6 +49,7 @@ export async function sendChat(
           })),
         },
         messages,
+        lang: currentLocale(),
       }),
     });
     if (!res.ok) return null;

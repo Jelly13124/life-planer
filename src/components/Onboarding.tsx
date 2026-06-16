@@ -15,6 +15,7 @@ import {
   SALARY_OPTIONS,
 } from "@/domain/profile";
 import { useApp } from "@/state/AppContext";
+import { useT } from "@/prefs/PreferencesContext";
 import { Button } from "./ui/Button";
 import { Field } from "./ui/Field";
 import { Select } from "./ui/Select";
@@ -23,6 +24,7 @@ const TOTAL_STEPS = 3;
 
 export function Onboarding() {
   const { completeOnboarding } = useApp();
+  const { t } = useT();
   const [step, setStep] = useState(0);
 
   const [name, setName] = useState("");
@@ -75,10 +77,11 @@ export function Onboarding() {
           Life Planner
         </div>
         <h1 className="mt-2 text-3xl font-bold">
-          先认识一下<span className="text-[var(--accent)]">真实的你</span>
+          {t("先认识一下")}
+          <span className="text-[var(--accent)]">{t("真实的你")}</span>
         </h1>
         <p className="mt-2 text-sm text-[var(--fg-dim)]">
-          填得越具体，AI 推演的人生越像你。这些信息只存在你自己的浏览器里。
+          {t("填得越具体，AI 推演的人生越像你。这些信息只存在你自己的浏览器里。")}
         </p>
       </div>
 
@@ -97,17 +100,17 @@ export function Onboarding() {
         {step === 0 && (
           <>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="昵称">
+              <Field label={t("昵称")}>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="比如 阿明"
+                  placeholder={t("比如 阿明")}
                   className="px-4 py-3 text-base"
                   autoFocus
                 />
               </Field>
-              <Field label="年龄">
+              <Field label={t("年龄")}>
                 <input
                   type="number"
                   value={age}
@@ -118,24 +121,24 @@ export function Onboarding() {
                 />
               </Field>
             </div>
-            <Field label="最高学历">
+            <Field label={t("最高学历")}>
               <Select value={education} onChange={setEducation} options={EDUCATION_OPTIONS} />
             </Field>
-            <Field label="专业" hint="可选，比如 计算机 / 会计 / 临床医学">
+            <Field label={t("专业")} hint={t("可选，比如 计算机 / 会计 / 临床医学")}>
               <input
                 type="text"
                 value={major}
                 onChange={(e) => setMajor(e.target.value)}
-                placeholder="学的是什么专业"
+                placeholder={t("学的是什么专业")}
                 className="px-4 py-3 text-base"
               />
             </Field>
-            <Field label="现在生活在哪" hint="国家/城市，用来让预测符合现实，比如 美国纽约 / 中国上海">
+            <Field label={t("现在生活在哪")} hint={t("国家/城市，用来让预测符合现实，比如 美国纽约 / 中国上海")}>
               <input
                 type="text"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="所在国家 / 城市"
+                placeholder={t("所在国家 / 城市")}
                 className="px-4 py-3 text-base"
               />
             </Field>
@@ -145,60 +148,60 @@ export function Onboarding() {
               onClick={() => setStep(1)}
               className="mt-2 self-end"
             >
-              下一步 →
+              {t("下一步 →")}
             </Button>
           </>
         )}
 
         {step === 1 && (
           <>
-            <Field label="现在的职业" hint="可选，比如 后端工程师 / 中学老师 / 自由职业">
+            <Field label={t("现在的职业")} hint={t("可选，比如 后端工程师 / 中学老师 / 自由职业")}>
               <input
                 type="text"
                 value={occupation}
                 onChange={(e) => setOccupation(e.target.value)}
-                placeholder="现在靠什么谋生"
+                placeholder={t("现在靠什么谋生")}
                 className="px-4 py-3 text-base"
                 autoFocus
               />
             </Field>
-            <Field label="月薪区间">
+            <Field label={t("月薪区间")}>
               <Select value={salary} onChange={setSalary} options={SALARY_OPTIONS} />
             </Field>
             <div className="flex flex-col gap-2">
-              <span className="text-sm font-medium">有没有副业？</span>
+              <span className="text-sm font-medium">{t("有没有副业？")}</span>
               <div className="flex gap-2">
                 <Button
                   variant={hasSideHustle ? "primary" : "subtle"}
                   onClick={() => setHasSideHustle(true)}
                 >
-                  有
+                  {t("有")}
                 </Button>
                 <Button
                   variant={!hasSideHustle ? "primary" : "subtle"}
                   onClick={() => setHasSideHustle(false)}
                 >
-                  没有
+                  {t("没有")}
                 </Button>
               </div>
             </div>
             {hasSideHustle && (
-              <Field label="副业是什么" hint="可选，比如 做自媒体 / 摆摊 / 接私活">
+              <Field label={t("副业是什么")} hint={t("可选，比如 做自媒体 / 摆摊 / 接私活")}>
                 <input
                   type="text"
                   value={sideHustle}
                   onChange={(e) => setSideHustle(e.target.value)}
-                  placeholder="在做的副业"
+                  placeholder={t("在做的副业")}
                   className="px-4 py-3 text-base"
                 />
               </Field>
             )}
             <div className="mt-2 flex items-center justify-between">
               <Button variant="ghost" onClick={() => setStep(0)}>
-                ← 返回
+                {t("← 返回")}
               </Button>
               <Button variant="primary" onClick={() => setStep(2)}>
-                下一步 →
+                {t("下一步 →")}
               </Button>
             </div>
           </>
@@ -206,53 +209,53 @@ export function Onboarding() {
 
         {step === 2 && (
           <>
-            <Field label="情感 / 婚姻状态">
+            <Field label={t("情感 / 婚姻状态")}>
               <Select
                 value={relationship}
                 onChange={setRelationship}
                 options={RELATIONSHIP_OPTIONS}
               />
             </Field>
-            <Field label="爱好" hint="可选，比如 跑步、摄影、打游戏">
+            <Field label={t("爱好")} hint={t("可选，比如 跑步、摄影、打游戏")}>
               <input
                 type="text"
                 value={hobbies}
                 onChange={(e) => setHobbies(e.target.value)}
-                placeholder="平时喜欢做什么"
+                placeholder={t("平时喜欢做什么")}
                 className="px-4 py-3 text-base"
               />
             </Field>
             <Field
-              label="现在的身份 / 阶段"
-              hint="可选但很关键，帮预测贴合现实，比如 H1B工作签 / 在读研究生 / 已工作3年 / 创业中"
+              label={t("现在的身份 / 阶段")}
+              hint={t("可选但很关键，帮预测贴合现实，比如 H1B工作签 / 在读研究生 / 已工作3年 / 创业中")}
             >
               <input
                 type="text"
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                placeholder="你现在的处境 / 身份"
+                placeholder={t("你现在的处境 / 身份")}
                 className="px-4 py-3 text-base"
               />
             </Field>
             <Field
-              label="你现在面临的一个岔路是？"
-              hint="比如 要不要辞职创业 / 要不要换城市 / 要不要读研"
+              label={t("你现在面临的一个岔路是？")}
+              hint={t("比如 要不要辞职创业 / 要不要换城市 / 要不要读研")}
             >
               <textarea
                 value={crossroad}
                 onChange={(e) => setCrossroad(e.target.value)}
                 rows={2}
-                placeholder="写下一个你正在纠结的选择，它会成为第一条岔路"
+                placeholder={t("写下一个你正在纠结的选择，它会成为第一条岔路")}
                 className="resize-none px-4 py-3 text-base"
                 autoFocus
               />
             </Field>
             <div className="mt-2 flex items-center justify-between">
               <Button variant="ghost" onClick={() => setStep(1)}>
-                ← 返回
+                {t("← 返回")}
               </Button>
               <Button variant="primary" disabled={!finalValid} onClick={submit}>
-                ✨ 生成我的人生树
+                {t("✨ 生成我的人生树")}
               </Button>
             </div>
           </>

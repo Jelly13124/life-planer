@@ -7,6 +7,7 @@ import {
   type Mood,
   type PathNode,
 } from "@/domain/types";
+import { currentLocale } from "@/i18n/locale";
 
 export interface EnrichResult {
   forkDelayYears?: number; // AI 决定的"几年后才分叉"（仅根分支的选择会用）
@@ -46,6 +47,7 @@ export async function fetchEnrichment(
         curve: path.curve,
         scenario: path.scenario,
         canRetime: canRetime(path),
+        lang: currentLocale(),
       }),
     });
     if (!res.ok) return null;

@@ -9,12 +9,14 @@ import {
   type ChatMessage,
   type PathSuggestion,
 } from "@/lib/assistantClient";
+import { useT } from "@/prefs/PreferencesContext";
 import { Button } from "./ui/Button";
 
 // 常驻浮窗的规划助手（P4）：帮你理清选择、提出新可能、一键加进树。
 // 也能"铺开几条路"：建议多条候选，但每条都要你点一下才画上（确认优先）。
 export function PlanningAssistant() {
   const { tree, addBranch, addBranches } = useApp();
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -78,7 +80,7 @@ export function PlanningAssistant() {
         onClick={() => setOpen(true)}
         className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-[var(--accent)]/50 bg-[var(--bg-1)]/90 px-4 py-2.5 text-sm font-medium text-[var(--fg)] shadow-xl backdrop-blur transition hover:bg-[var(--accent)]/15"
       >
-        <span className="text-base">💬</span> 规划助手
+        <span className="text-base">💬</span> {t("规划助手")}
       </button>
     );
   }
@@ -86,10 +88,10 @@ export function PlanningAssistant() {
   return (
     <div className="fixed bottom-5 right-5 z-40 flex h-[70vh] w-[min(92vw,380px)] flex-col overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--bg-1)] shadow-2xl animate-scale-in">
       <header className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3">
-        <div className="text-sm font-bold">💬 规划助手</div>
+        <div className="text-sm font-bold">💬 {t("规划助手")}</div>
         <button
           onClick={() => setOpen(false)}
-          aria-label="收起"
+          aria-label={t("收起")}
           className="rounded-full border border-[var(--line)] px-2 py-0.5 text-xs text-[var(--fg-dim)] transition hover:text-[var(--fg)]"
         >
           ✕
@@ -99,7 +101,7 @@ export function PlanningAssistant() {
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {messages.length === 0 && !thinking && (
           <p className="mt-2 text-center text-sm text-[var(--fg-dim)]">
-            迷茫的时候，跟我说说你在纠结什么。我会帮你理清，也会提一些你没想到的路。
+            {t("迷茫的时候，跟我说说你在纠结什么。我会帮你理清，也会提一些你没想到的路。")}
           </p>
         )}
         {messages.map((m, i) => (
@@ -116,29 +118,29 @@ export function PlanningAssistant() {
           </div>
         ))}
         {thinking && (
-          <div className="text-xs text-[var(--fg-faint)]">助手正在想…</div>
+          <div className="text-xs text-[var(--fg-faint)]">{t("助手正在想…")}</div>
         )}
         {failed && (
           <div className="rounded-xl border border-[var(--line)] bg-white/5 px-3 py-2 text-center text-xs text-[var(--fg-faint)]">
-            （没接上 AI——确认 .env.local 配了 DEEPSEEK_API_KEY）
+            {t("（没接上 AI——确认 .env.local 配了 DEEPSEEK_API_KEY）")}
           </div>
         )}
 
         {suggesting && (
-          <div className="text-xs text-[var(--fg-faint)]">正在铺开几条路…</div>
+          <div className="text-xs text-[var(--fg-faint)]">{t("正在铺开几条路…")}</div>
         )}
 
         {suggestions.length > 0 && (
           <div className="space-y-2 rounded-2xl border border-[var(--accent)]/30 bg-[var(--accent)]/[0.06] p-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-[var(--fg)]">
-                给你铺开几条路（点「画这条」才会加到地图）
+                {t("给你铺开几条路（点「画这条」才会加到地图）")}
               </span>
               <button
                 onClick={drawAll}
                 className="rounded-full border border-[var(--c-fuchsia)]/50 px-2 py-0.5 text-[11px] text-[var(--c-fuchsia)] transition hover:bg-[var(--c-fuchsia)]/10"
               >
-                全部画上
+                {t("全部画上")}
               </button>
             </div>
             {suggestions.map((s) => {
@@ -154,7 +156,7 @@ export function PlanningAssistant() {
                       <div className="mt-0.5 text-xs text-[var(--fg-dim)]">{s.why}</div>
                     )}
                     <div className="mt-0.5 text-[11px] text-[var(--fg-faint)]">
-                      🕒 分叉时机由 AI 按现实推演决定
+                      {t("🕒 分叉时机由 AI 按现实推演决定")}
                     </div>
                   </div>
                   <button
@@ -166,7 +168,7 @@ export function PlanningAssistant() {
                         : "border border-[var(--accent)]/50 text-[var(--accent)] hover:bg-[var(--accent)]/15"
                     }`}
                   >
-                    {isDrawn ? "✓ 已画" : "＋ 画这条"}
+                    {isDrawn ? t("✓ 已画") : t("＋ 画这条")}
                   </button>
                 </div>
               );
@@ -184,7 +186,7 @@ export function PlanningAssistant() {
               disabled={thinking}
               className="rounded-full border border-[var(--line)] bg-white/5 px-2.5 py-1 text-[11px] text-[var(--fg-dim)] transition hover:border-[var(--accent)] hover:text-[var(--fg)] disabled:opacity-40"
             >
-              {q}
+              {t(q)}
             </button>
           ))}
         </div>
@@ -197,7 +199,7 @@ export function PlanningAssistant() {
           disabled={suggesting}
           className="w-full rounded-full border border-[var(--accent)]/50 bg-[var(--accent)]/10 px-3 py-1.5 text-xs font-medium text-[var(--accent)] transition hover:bg-[var(--accent)]/20 disabled:opacity-50"
         >
-          {suggesting ? "正在铺开…" : "✨ 帮我铺开几条值得探索的路"}
+          {suggesting ? t("正在铺开…") : t("✨ 帮我铺开几条值得探索的路")}
         </button>
       </div>
 
@@ -205,10 +207,10 @@ export function PlanningAssistant() {
       {(input.trim() || added) && (
         <div className="flex items-center justify-between gap-2 border-t border-[var(--line)] px-4 pt-2 text-xs">
           {added ? (
-            <span className="text-[var(--c-emerald)]">🌱 已加进人生树：{added}</span>
+            <span className="text-[var(--c-emerald)]">{t("🌱 已加进人生树：{label}", { label: added })}</span>
           ) : (
             <>
-              <span className="truncate text-[var(--fg-faint)]">加「{input.trim()}」当一条新岔路？</span>
+              <span className="truncate text-[var(--fg-faint)]">{t("加「{label}」当一条新岔路？", { label: input.trim() })}</span>
               <button
                 onClick={() => {
                   const v = input.trim();
@@ -220,7 +222,7 @@ export function PlanningAssistant() {
                 }}
                 className="flex-shrink-0 rounded-full border border-[var(--c-fuchsia)]/50 px-2.5 py-1 text-[var(--c-fuchsia)] transition hover:bg-[var(--c-fuchsia)]/10"
               >
-                ＋ 加进树
+                {t("＋ 加进树")}
               </button>
             </>
           )}
@@ -234,11 +236,11 @@ export function PlanningAssistant() {
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.nativeEvent.isComposing) send(input);
           }}
-          placeholder="说说你在纠结什么…"
+          placeholder={t("说说你在纠结什么…")}
           className="flex-1 rounded-full border border-[var(--line)] bg-[var(--bg-2)] px-3.5 py-2 text-sm text-[var(--fg)] outline-none transition focus:border-[var(--accent)] placeholder:text-[var(--fg-faint)]"
         />
         <Button variant="primary" disabled={!input.trim() || thinking} onClick={() => send(input)}>
-          发送
+          {t("发送")}
         </Button>
       </div>
     </div>

@@ -26,6 +26,7 @@ interface ChatRequestBody {
   horizonYears: number;
   path: PathPayload;
   messages: ChatTurn[];
+  lang?: "zh" | "en";
 }
 
 function getKey(): string | null {
@@ -81,6 +82,11 @@ function buildSystem(body: ChatRequestBody): string {
     "温暖、具体、像过来人；可以有遗憾也有释然；不要说教、不要打鸡血、不要算命腔。简短口语，每次回答 2-5 句就够了。",
   );
   lines.push("这是一种可能的你，不是预言。");
+  lines.push(
+    body.lang === "en"
+      ? "LANGUAGE: reply entirely in natural, fluent English (the person you are talking to is using English)."
+      : "语言：全程用简体中文回答。",
+  );
   return lines.join("\n");
 }
 

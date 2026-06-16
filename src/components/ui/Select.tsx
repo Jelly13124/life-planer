@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/prefs/PreferencesContext";
+
 export function Select<T extends string>({
   value,
   onChange,
@@ -9,6 +11,7 @@ export function Select<T extends string>({
   onChange: (v: T) => void;
   options: { value: T; label: string }[];
 }) {
+  const { t } = useT();
   return (
     <div className="relative">
       <select
@@ -18,7 +21,7 @@ export function Select<T extends string>({
       >
         {options.map((o) => (
           <option key={o.value} value={o.value} className="bg-[var(--bg-1)] text-[var(--fg)]">
-            {o.label}
+            {t(o.label)}
           </option>
         ))}
       </select>
