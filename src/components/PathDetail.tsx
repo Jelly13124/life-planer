@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import { futureAgeOf } from "@/lib/chatClient";
+import { FutureSelfChat } from "./FutureSelfChat";
 import {
   AREA_LABELS,
   DIMENSION_LABELS,
@@ -41,6 +44,7 @@ export function PathDetail({
   enriching?: boolean;
 }) {
   const { addScenario, openPath, enrichingIds } = useApp();
+  const [chatting, setChatting] = useState(false);
   const path = tree.paths.find((p) => p.id === pathId);
   if (!path) {
     return (
@@ -88,6 +92,11 @@ export function PathDetail({
             AI 正在把这段人生写得更真实…
           </div>
         )}
+        <div className="mt-4">
+          <Button variant="primary" onClick={() => setChatting(true)}>
+            ✨ 和 {futureAgeOf(path)} 岁的你聊聊
+          </Button>
+        </div>
       </div>
 
       {/* 多走向切换（乐观/最可能/保守） */}
@@ -196,6 +205,10 @@ export function PathDetail({
           </div>
         </div>
       </div>
+
+      {chatting && (
+        <FutureSelfChat tree={tree} path={path} onClose={() => setChatting(false)} />
+      )}
     </div>
   );
 }
