@@ -56,6 +56,19 @@ describe("tree operations", () => {
     expect(addPath(t, "   ", gen, NOW).paths.length).toBe(t.paths.length);
   });
 
+  it("folding several addPath onto one base yields distinct ids (batch '全部画上')", () => {
+    // 复刻 addBranches 的折叠：在同一个 base 上依次 addPath。每条都要真的加进去，
+    // 且 id 互不相同（这正是逐条 addBranch 因 ref 滞后而做不到的）。
+    const base = createTree(profile, gen, NOW);
+    const labels = ["转战自媒体全职", "搬去加拿大或欧洲", "考个云计算认证", "回亚洲加入初创"];
+    let t = base;
+    for (const l of labels) t = addPath(t, l, gen, NOW);
+    expect(t.paths.length).toBe(base.paths.length + labels.length);
+    const added = t.paths.filter((p) => !base.paths.some((b) => b.id === p.id));
+    expect(added.map((p) => p.choiceLabel)).toEqual(labels);
+    expect(new Set(added.map((p) => p.id)).size).toBe(labels.length); // 全部唯一
+  });
+
   it("removePath removes a choice but never status-quo", () => {
     const t = addPath(createTree(profile, gen, NOW), "读研", gen, NOW);
     const choice = t.paths.find((p) => p.kind === "choice")!;

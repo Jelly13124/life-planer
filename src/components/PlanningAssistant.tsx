@@ -14,7 +14,7 @@ import { Button } from "./ui/Button";
 // 常驻浮窗的规划助手（P4）：帮你理清选择、提出新可能、一键加进树。
 // 也能"铺开几条路"：建议多条候选，但每条都要你点一下才画上（确认优先）。
 export function PlanningAssistant() {
-  const { tree, addBranch } = useApp();
+  const { tree, addBranch, addBranches } = useApp();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -61,6 +61,15 @@ export function PlanningAssistant() {
     if (drawn.includes(label)) return;
     addBranch(label); // 画上（生成一条根分支）；确认优先——点了才画
     setDrawn((d) => [...d, label]);
+  }
+
+  // 一次画上所有还没画的候选：走 addBranches（单次提交），否则逐条 addBranch
+  // 会因 treeRef 滞后而互相覆盖，最终只画出一条。
+  function drawAll() {
+    const pending = suggestions.map((s) => s.label).filter((l) => !drawn.includes(l));
+    if (!pending.length) return;
+    addBranches(pending);
+    setDrawn((d) => [...d, ...pending]);
   }
 
   if (!open) {
@@ -126,7 +135,7 @@ export function PlanningAssistant() {
                 给你铺开几条路（点「画这条」才会加到地图）
               </span>
               <button
-                onClick={() => suggestions.forEach((s) => draw(s.label))}
+                onClick={drawAll}
                 className="rounded-full border border-[var(--c-fuchsia)]/50 px-2 py-0.5 text-[11px] text-[var(--c-fuchsia)] transition hover:bg-[var(--c-fuchsia)]/10"
               >
                 全部画上

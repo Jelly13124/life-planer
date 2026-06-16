@@ -97,6 +97,9 @@ interface AppApi {
   aiEnabled: boolean;
   completeOnboarding: (profile: Profile) => void;
   addBranch: (label: string, opts?: AddPathOptions) => void;
+  // 一次加多条（如"全部画上"）：在同一个 base 上折叠，单次 dispatch，避免
+  // 逐条 addBranch 因 treeRef 在 effect 后才更新而互相覆盖。
+  addBranches: (labels: string[], opts?: AddPathOptions) => void;
   addScenario: (basePathId: string, scenario: Scenario) => void;
   removeBranch: (id: string) => void;
   openPath: (id: string) => void;
@@ -180,6 +183,21 @@ export function AppProvider({
         if (!base) return;
         const before = new Set(base.paths.map((p) => p.id));
         const tree = addPath(base, label, generator, now(), opts);
+        dispatch({ type: "setTree", tree });
+        const added = tree.paths.filter((p) => !before.has(p.id));
+        runEnrichment(tree, added);
+      },
+      addBranches: (labels, opts) => {
+        const base = treeRef.current;
+        if (!base) return;
+        const before = new Set(base.paths.map((p) => p.id));
+        const ts = now();
+        // 在同一个 base 上依次折叠（index 递增 → id 互不相同），最后一次性提交
+        let tree = base;
+        for (const label of labels) {
+          if (label.trim()) tree = addPath(tree, label, generator, ts, opts);
+        }
+        if (tree === base) return;
         dispatch({ type: "setTree", tree });
         const added = tree.paths.filter((p) => !before.has(p.id));
         runEnrichment(tree, added);
