@@ -27,3 +27,17 @@ export function suggestFor(profile: Profile): string[] {
   const out = Array.from(new Set([...matched, ...GENERAL]));
   return out.slice(0, 5);
 }
+
+// Odyssey「疯狂路」：不计代价 / 不顾世俗眼光的大胆选择。
+const WILD: string[] = [
+  "裸辞去环游世界一年",
+  "All-in 创业，赌上全部积蓄",
+  "彻底转行，从零学一门新手艺",
+  "搬到一个完全陌生的国家重启",
+  "放下一切去追一个一直没敢碰的梦",
+];
+
+export function wildCardSuggestions(profile: Profile): string[] {
+  void profile;
+  return WILD.slice(0, 5);
+}

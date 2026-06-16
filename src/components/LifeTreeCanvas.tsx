@@ -13,7 +13,8 @@ export function LifeTreeCanvas({
 }) {
   const [hover, setHover] = useState<string | null>(null);
 
-  const paths = tree.paths;
+  // 主屏只画"从现在分叉、最可能"的根分支；多走向在详情页切换，子分支在地图视图展开
+  const paths = tree.paths.filter((p) => p.parentId === null && p.scenario === "likely");
   // 防重叠车道：每条路分到一个不重叠的终点高度
   const lanes = computeLanes(
     paths.map((p) => ({ id: p.id, curve: p.curve, endValue: p.endValue })),

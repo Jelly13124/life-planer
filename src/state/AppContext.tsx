@@ -10,12 +10,18 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import type { LifePath, LifeTree, Profile } from "@/domain/types";
+import type { LifePath, LifeTree, Profile, Scenario } from "@/domain/types";
 import type { PathGenerator } from "@/domain/generator/types";
 import { localGenerator } from "@/domain/generator/localGenerator";
 import type { TreeRepository } from "@/domain/repository/types";
 import { LocalStorageRepository } from "@/domain/repository/localStorageRepo";
-import { addPath, createTree, removePath } from "@/domain/tree";
+import {
+  addPath,
+  addScenarioVariant,
+  createTree,
+  removePath,
+  type AddPathOptions,
+} from "@/domain/tree";
 import {
   applyEnrichment,
   fetchEnrichEnabled,
@@ -90,7 +96,8 @@ interface AppApi {
   enrichingIds: string[];
   aiEnabled: boolean;
   completeOnboarding: (profile: Profile) => void;
-  addBranch: (label: string) => void;
+  addBranch: (label: string, opts?: AddPathOptions) => void;
+  addScenario: (basePathId: string, scenario: Scenario) => void;
   removeBranch: (id: string) => void;
   openPath: (id: string) => void;
   backToTree: () => void;
@@ -168,13 +175,24 @@ export function AppProvider({
         dispatch({ type: "setTree", tree });
         runEnrichment(tree, tree.paths);
       },
-      addBranch: (label) => {
+      addBranch: (label, opts) => {
         const base = treeRef.current;
         if (!base) return;
         const before = new Set(base.paths.map((p) => p.id));
-        const tree = addPath(base, label, generator, now());
+        const tree = addPath(base, label, generator, now(), opts);
         dispatch({ type: "setTree", tree });
         const added = tree.paths.filter((p) => !before.has(p.id));
+        runEnrichment(tree, added);
+      },
+      addScenario: (basePathId, scenario) => {
+        const base = treeRef.current;
+        if (!base) return;
+        const before = new Set(base.paths.map((p) => p.id));
+        const tree = addScenarioVariant(base, basePathId, scenario, generator, now());
+        if (tree === base) return; // 已存在或没找到
+        dispatch({ type: "setTree", tree });
+        const added = tree.paths.filter((p) => !before.has(p.id));
+        if (added.length) dispatch({ type: "openPath", id: added[0].id }); // 切到新走向
         runEnrichment(tree, added);
       },
       removeBranch: (id) => {

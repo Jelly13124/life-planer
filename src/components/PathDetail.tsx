@@ -6,9 +6,17 @@ import {
   LIFE_AREAS,
   type LifeTree,
   type Mood,
+  type Scenario,
 } from "@/domain/types";
+import { useApp } from "@/state/AppContext";
 import { MetricChart } from "./MetricChart";
 import { Button } from "./ui/Button";
+
+const SCENARIOS: { value: Scenario; label: string }[] = [
+  { value: "optimistic", label: "乐观" },
+  { value: "likely", label: "最可能" },
+  { value: "conservative", label: "保守" },
+];
 
 const MOOD_COLOR: Record<Mood, string> = {
   high: "#34d399",
@@ -32,6 +40,7 @@ export function PathDetail({
   onBack: () => void;
   enriching?: boolean;
 }) {
+  const { addScenario, openPath, enrichingIds } = useApp();
   const path = tree.paths.find((p) => p.id === pathId);
   if (!path) {
     return (
@@ -80,6 +89,47 @@ export function PathDetail({
           </div>
         )}
       </div>
+
+      {/* 多走向切换（乐观/最可能/保守） */}
+      {path.kind === "choice" && (
+        <div className="mt-5">
+          <div className="text-xs uppercase tracking-wider text-[var(--fg-faint)]">
+            换个走向看看
+          </div>
+          <div className="mt-2 inline-flex rounded-full border border-[var(--line)] bg-white/5 p-1">
+            {SCENARIOS.map((s) => {
+              const variant = tree.paths.find(
+                (p) =>
+                  p.kind === "choice" &&
+                  p.choiceLabel === path.choiceLabel &&
+                  p.parentId === path.parentId &&
+                  p.forkAge === path.forkAge &&
+                  p.scenario === s.value,
+              );
+              const active = path.scenario === s.value;
+              const loading = variant ? enrichingIds.includes(variant.id) : false;
+              return (
+                <button
+                  key={s.value}
+                  onClick={() => {
+                    if (active) return;
+                    if (variant) openPath(variant.id);
+                    else addScenario(path.id, s.value);
+                  }}
+                  className={`rounded-full px-3.5 py-1.5 text-sm transition ${
+                    active
+                      ? "bg-[var(--accent)] font-semibold text-[#11132a]"
+                      : "text-[var(--fg-dim)] hover:text-[var(--fg)]"
+                  }`}
+                >
+                  {s.label}
+                  {loading && " …"}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 指标 */}
       <div className="mt-8">
