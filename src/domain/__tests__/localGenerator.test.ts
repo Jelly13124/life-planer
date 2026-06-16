@@ -45,8 +45,10 @@ describe("LocalPathGenerator", () => {
     }
     const ages = p.nodes.map((n) => n.age);
     expect(ages).toEqual([...ages].sort((x, y) => x - y));
-    expect(p.nodes.length).toBeGreaterThanOrEqual(3);
-    expect(p.nodes.length).toBeLessThanOrEqual(5);
+    expect(p.nodes.length).toBeGreaterThanOrEqual(6); // PRD R2: 更密
+    expect(p.nodes.length).toBeLessThanOrEqual(8);
+    // 每个节点都带维度标签
+    for (const n of p.nodes) expect(n.dimensions.length).toBeGreaterThanOrEqual(1);
   });
 
   it("classifies the choice into an archetype (startup)", () => {

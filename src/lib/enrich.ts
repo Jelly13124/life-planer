@@ -13,6 +13,16 @@ import {
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
 
+const DIMS = [
+  "career",
+  "finance",
+  "relationships",
+  "health",
+  "housing",
+  "identity",
+  "growth",
+] as const;
+
 const EnrichOut = z.object({
   summary: z.string(),
   nodes: z.array(
@@ -21,6 +31,7 @@ const EnrichOut = z.object({
       title: z.string(),
       story: z.string(),
       mood: z.enum(["high", "mid", "low"]),
+      dimensions: z.array(z.enum(DIMS)).default([]),
     }),
   ),
 });
@@ -33,6 +44,7 @@ export interface EnrichInput {
   choiceLabel: string;
   kind: PathKind;
   curve: CurveShape; // 仅用来给模型一个"整体走向"的轻提示
+  scenario?: "optimistic" | "likely" | "conservative"; // 走向变体
 }
 
 // 系统提示：做"贴着真实的你"的推演——只往未来写、不和已知现状矛盾、守现实约束、克制可信。
@@ -91,33 +103,49 @@ function buildUserPrompt(input: EnrichInput): string {
   lines.push(
     `请推演：${p.name} 从现在（${now} 岁）起，如果选择「${choiceText}」，未来约 ${input.horizonYears} 年的人生会怎么走。整体走向：${arcHint(input.curve)}`,
   );
+  if (input.scenario === "optimistic")
+    lines.push("按偏顺利、运气较好但仍现实可信的走向来写。");
+  else if (input.scenario === "conservative")
+    lines.push("按偏不顺、磕磕绊绊、运气一般但依然真实的走向来写。");
   lines.push("");
   const firstBeat =
     input.kind === "status-quo"
       ? `第一个时刻写他从现在起、按原轨道继续走的第一步`
       : `第一个时刻写他从现在的处境出发、为「${choiceText}」迈出的第一步（要符合他现在的真实身份与所在地）`;
   lines.push(
-    `自己决定 3-5 个关键转折点：年龄都在 ${lo} 到 ${hi} 岁之间（必须大于他现在的 ${now} 岁、按先后排列、不重复）；每个点标 高光(high)/平稳(mid)/低谷(low)；写当时发生了什么。${firstBeat}；之后每个时刻是接着发生的后续，连起来大致符合上面的“整体走向”，但要克制可信、扎根现实，不要写成爽文。`,
+    `自己决定 6-10 个关键转折点：年龄都在 ${lo} 到 ${hi} 岁之间（必须大于他现在的 ${now} 岁、按先后排列、不重复，靠近现在的更密）；每个点标 高光(high)/平稳(mid)/低谷(low)。${firstBeat}；之后每个时刻是接着发生的后续，连起来大致符合上面的“整体走向”。`,
   );
+  lines.push("");
+  lines.push("【真实与细致的硬要求】");
+  lines.push(
+    "- 现实锚点：用具体、真实、可核对的细节，禁止空话（如“进了大厂/走上巅峰/逆袭”）。涉及签证就写真实里程碑（H1B 6 年上限/抽签/PERM/I-140/绿卡排期/入籍）；涉及薪资写真实档位与数字；写真实的职业层级、城市、行业现实。",
+  );
+  lines.push(
+    `- 每段 story 要 3-5 句，含至少：一个具体的人或机构、一个具体数字、一处内心或细节；并标注 dimensions（从 career/finance/relationships/health/housing/identity/growth 选 1-2 个该时刻主要触及的维度）。`,
+  );
+  lines.push(
+    "- 多维度：整条至少覆盖 4 个不同维度；finance（财务）必须出现；若他在国外/有签证，identity（身份/签证）也必须出现。",
+  );
+  lines.push("- 克制可信、扎根现实，有真实的摩擦（如抽签没中、晋升卡壳），不要爽文。");
   lines.push("");
   lines.push("只输出如下结构的 json：");
   lines.push(jsonExample(p.name, lo, hi));
   lines.push("");
   lines.push(
-    `要求：summary ≤ 25 字，点出这条路最后把 ${p.name} 带到了哪里；每个 node 的 title ≤ 12 字，story 用 1-3 句、具体可信、自然带到 ${p.name}，绝不与他的现状矛盾。`,
+    `要求：summary ≤ 25 字，点出这条路最后把 ${p.name} 带到了哪里；每个 node 的 title ≤ 12 字；绝不与他的现状矛盾。`,
   );
   return lines.join("\n");
 }
 
 // DeepSeek 的 json 模式需要一个形状示例。
 function jsonExample(name: string, lo: number, hi: number): string {
-  const a1 = Math.min(hi, lo + 2);
-  const a2 = Math.min(hi, lo + 7);
+  const a1 = Math.min(hi, lo + 1);
+  const a2 = Math.min(hi, lo + 5);
   return `{
   "summary": "一句话结局",
   "nodes": [
-    {"age": ${a1}, "title": "小标题", "story": "一两句关于${name}的、有画面感的叙述", "mood": "low"},
-    {"age": ${a2}, "title": "小标题", "story": "……", "mood": "high"}
+    {"age": ${a1}, "title": "小标题", "story": "3-5 句、关于${name}的、有具体人/数字/细节的叙述", "mood": "low", "dimensions": ["career", "identity"]},
+    {"age": ${a2}, "title": "小标题", "story": "……", "mood": "high", "dimensions": ["finance"]}
   ]
 }`;
 }

@@ -1,6 +1,12 @@
 "use client";
 
-import { AREA_LABELS, LIFE_AREAS, type LifeTree, type Mood } from "@/domain/types";
+import {
+  AREA_LABELS,
+  DIMENSION_LABELS,
+  LIFE_AREAS,
+  type LifeTree,
+  type Mood,
+} from "@/domain/types";
 import { MetricChart } from "./MetricChart";
 import { Button } from "./ui/Button";
 
@@ -123,6 +129,18 @@ export function PathDetail({
                 </div>
                 <div className="mt-1 font-medium">{n.title}</div>
                 <p className="mt-1 text-sm leading-relaxed text-[var(--fg-dim)]">{n.story}</p>
+                {n.dimensions?.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {n.dimensions.map((d) => (
+                      <span
+                        key={d}
+                        className="rounded-full border border-[var(--line)] bg-white/5 px-2 py-0.5 text-[10px] text-[var(--fg-faint)]"
+                      >
+                        {DIMENSION_LABELS[d]}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -1,6 +1,7 @@
 import {
   LIFE_AREAS,
   type CurveShape,
+  type Dimension,
   type LifeArea,
   type LifePath,
   type MetricPoint,
@@ -10,6 +11,18 @@ import {
 import { classifyChoice, getArchetype, type Archetype } from "../archetypes";
 import { hashSeed, makeRng, rngPick } from "../seed";
 import type { GenerateInput, PathGenerator } from "./types";
+
+// 每个原型主要触及的维度（本地兜底用；AI 版会逐节点更细地选）
+const ARCH_DIMS: Record<string, Dimension[]> = {
+  startup: ["career", "finance"],
+  jobhop: ["career", "finance"],
+  study: ["career", "growth"],
+  relocate: ["housing", "identity"],
+  family: ["relationships", "health"],
+  slowdown: ["health", "growth"],
+  statusQuo: ["career", "finance"],
+  bold: ["career", "growth"],
+};
 
 const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
 
@@ -68,13 +81,13 @@ function buildAreaSeries(
   return points;
 }
 
-// 在 [startAge+1, startAge+horizon] 内取 3-4 个递增的节点年龄。
+// 在 [startAge+1, startAge+horizon] 内取 6-8 个递增的节点年龄（PRD R2：更密）。
 function pickNodeAges(
   startAge: number,
   horizon: number,
   rng: () => number,
 ): number[] {
-  const count = 3 + Math.floor(rng() * 2); // 3..4
+  const count = 6 + Math.floor(rng() * 3); // 6..8
   const ages: number[] = [];
   for (let i = 0; i < count; i++) {
     const base = (i + 1) / (count + 1);
@@ -96,19 +109,30 @@ export class LocalPathGenerator implements PathGenerator {
     const choiceLabel =
       kind === "status-quo" ? "维持现状" : input.choiceLabel.trim() || "一个新的选择";
 
-    const seed = hashSeed(`${profile.name}|${choiceLabel}|${kind}|${index}`);
+    const parentId = input.parentId ?? null;
+    const scenario = input.scenario ?? "likely";
+    const startAge = input.forkAge ?? profile.age; // 子分支从分叉年龄起算
+    const archDims = ARCH_DIMS[archetype.key] ?? ["career"];
+
+    const seed = hashSeed(
+      `${profile.name}|${choiceLabel}|${kind}|${index}|${parentId ?? ""}|${startAge}|${scenario}`,
+    );
     const rng = makeRng(seed);
-    const startAge = profile.age;
+
+    // 走向影响强度：乐观放大、保守收敛
+    const scenarioFactor =
+      scenario === "optimistic" ? 1.3 : scenario === "conservative" ? 0.55 : 1;
 
     // 各领域轨迹 + 去噪目标（目标用于稳定的 endValue，不受随机噪声影响）
     const metrics = {} as Record<LifeArea, MetricPoint[]>;
     let targetSum = 0;
     for (const area of LIFE_AREAS) {
       const start = clamp(profile.areas[area] ?? 50);
-      targetSum += areaTarget(start, archetype.areaBias[area]);
+      const bias = archetype.areaBias[area] * scenarioFactor;
+      targetSum += areaTarget(start, bias);
       metrics[area] = buildAreaSeries(
         start,
-        archetype.areaBias[area],
+        bias,
         archetype.volatility,
         startAge,
         horizonYears,
@@ -121,6 +145,7 @@ export class LocalPathGenerator implements PathGenerator {
     // 节点：心情随曲线形状起伏（维持现状则按序轮换），减少同质重复
     const nodeAges = pickNodeAges(startAge, horizonYears, rng);
     const flatCycle: Mood[] = ["mid", "high", "mid", "low"];
+    const extraDims: Dimension[] = ["finance", "relationships", "health", "identity", "housing"];
     const usedTitles = new Set<string>();
     const nodes: PathNode[] = nodeAges.map((age, i) => {
       const frac = horizonYears > 0 ? (age - startAge) / horizonYears : 0.5;
@@ -136,18 +161,25 @@ export class LocalPathGenerator implements PathGenerator {
         if (unused) tpl = unused;
       }
       usedTitles.add(tpl.title);
+      // 维度：原型主维度轮换 + 隔点加一个其它维度，保证整条覆盖多维
+      const dims: Dimension[] = [archDims[i % archDims.length]];
+      if (i % 2 === 1) {
+        const extra = extraDims[i % extraDims.length];
+        if (!dims.includes(extra)) dims.push(extra);
+      }
       return {
         age,
         title: fillTemplate(tpl.title, profile.name, age),
         story: fillTemplate(tpl.story, profile.name, age),
         mood,
+        dimensions: dims,
       };
     });
 
     const summary = fillTemplate(rngPick(rng, archetype.summaries), profile.name, startAge);
 
     return {
-      id: `${kind}-${index}-${archetype.key}`,
+      id: `${kind}-${index}-${archetype.key}-${scenario}${parentId ? `-c${index}` : ""}`,
       choiceLabel,
       kind,
       summary,
@@ -156,6 +188,9 @@ export class LocalPathGenerator implements PathGenerator {
       endValue,
       nodes,
       metrics,
+      parentId,
+      forkAge: startAge,
+      scenario,
     };
   }
 }

@@ -58,11 +58,42 @@ export interface MetricPoint {
 
 export type Mood = "high" | "mid" | "low";
 
+// 人生维度（用于给节点打标签，比 LifeArea 更全：含居住、身份/签证）
+export type Dimension =
+  | "career"
+  | "finance"
+  | "relationships"
+  | "health"
+  | "housing"
+  | "identity"
+  | "growth";
+
+export const DIMENSION_LABELS: Record<Dimension, string> = {
+  career: "事业",
+  finance: "财务",
+  relationships: "感情/家庭",
+  health: "健康",
+  housing: "居住",
+  identity: "身份/签证",
+  growth: "成长",
+};
+
+export const DIMENSIONS: Dimension[] = [
+  "career",
+  "finance",
+  "relationships",
+  "health",
+  "housing",
+  "identity",
+  "growth",
+];
+
 export interface PathNode {
   age: number;
   title: string;
   story: string;
   mood: Mood;
+  dimensions: Dimension[]; // 该关键时刻主要触及的维度
 }
 
 export type CurveShape =
@@ -74,6 +105,9 @@ export type CurveShape =
 
 export type PathKind = "status-quo" | "choice";
 
+// 走向变体（同一选择的三种可能）
+export type Scenario = "optimistic" | "likely" | "conservative";
+
 export interface LifePath {
   id: string;
   choiceLabel: string; // 这条路代表的选择
@@ -82,8 +116,12 @@ export interface LifePath {
   color: string; // 曲线颜色（hex）
   curve: CurveShape;
   endValue: number; // 终点综合人生指数 0-100
-  nodes: PathNode[]; // 3-5 个关键节点
+  nodes: PathNode[]; // 关键节点（6-10）
   metrics: Record<LifeArea, MetricPoint[]>; // 各领域随年龄变化
+  // ---- 递归树 / 多走向（R6 / P2）----
+  parentId: string | null; // 父分支 id；null = 从"现在"分叉
+  forkAge: number; // 从哪一年分叉出来（根分支 = profile.age）
+  scenario: Scenario; // 该分支属于哪种走向
 }
 
 export interface LifeTree {
