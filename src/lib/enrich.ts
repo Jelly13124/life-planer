@@ -23,7 +23,11 @@ const DIMS = [
   "growth",
 ] as const;
 
+export const MAX_FORK_DELAY = 10; // AI 决定的"几年后分叉"上限
+
 const EnrichOut = z.object({
+  // AI 自己判断：现实里这条路大约几年后才真正开始（0 = 现在/今年就走）。
+  forkDelayYears: z.number().int().min(0).max(MAX_FORK_DELAY).default(0),
   summary: z.string(),
   nodes: z.array(
     z.object({
@@ -39,21 +43,24 @@ export type EnrichOut = z.infer<typeof EnrichOut>;
 
 export interface EnrichInput {
   profile: Profile;
-  startAge: number;
+  currentAge: number; // 他现在的真实年龄（"现在"的锚点）
+  startAge: number; // 这条路的起点年龄：子分支=固定分叉点；根分支=占位，AI 可重定
   horizonYears: number;
   choiceLabel: string;
   kind: PathKind;
   curve: CurveShape; // 仅用来给模型一个"整体走向"的轻提示
   scenario?: "optimistic" | "likely" | "conservative"; // 走向变体
+  canRetime?: boolean; // 是否允许 AI 决定"几年后才分叉"（根分支的选择=true）
 }
 
 // 系统提示：做"贴着真实的你"的推演——只往未来写、不和已知现状矛盾、守现实约束、克制可信。
 const SYSTEM = [
   "你在为一款人生探索产品做一段贴近现实的人生推演。我会给你一个真实的人现在的情况，以及他在考虑的一个选择；",
   "你推演：如果他从现在起做这个选择，未来十几年可能怎么走，拆成几个关键时刻。",
+  "有时我会先让你判断：现实里这条路大约要几年后才真正开始（筹备/积蓄/申请/签证/人生节奏），把这个年数填进 forkDelayYears，再从那个时间点往后写。",
   "【必须遵守的硬约束】",
   "1. 主角姓名严格用我给的名字，绝不改名。",
-  "2. 只写未来：所有时刻的年龄都必须大于他现在的年龄，绝不重写、不编造、不否定他的过去。",
+  "2. 只写未来：所有时刻的年龄都必须 ≥ 这条路的起点、且不小于他现在的年龄，绝不重写、不编造、不否定他的过去。",
   "3. 绝不与他已知的现状矛盾——他已达成的、身份/签证、所在地都要当作既定事实。例：他已读完研、在国外持工作签，就不要写他辍学、还在读、或无视签证限制。",
   "4. 尊重现实规律：签证身份、行业现实、时间、金钱、年龄阶段都要讲得通。",
   "风格：克制、可信，普通人真实生活的质感。可以有起伏和转折，但不要爽文/逆袭套路（别动不动就辍学创业然后上市）。像一段真实的人生，不是电影。",
@@ -78,9 +85,12 @@ function arcHint(curve: CurveShape): string {
 
 function buildUserPrompt(input: EnrichInput): string {
   const p = input.profile;
-  const now = input.startAge;
-  const lo = now + 1;
-  const hi = now + input.horizonYears;
+  const now = input.currentAge;
+  // 子分支/维持现状：起点固定。根分支的选择：起点由 AI 决定（now + forkDelayYears）。
+  const canRetime = Boolean(input.canRetime) && input.kind === "choice";
+  const fixedStart = input.startAge;
+  const lo = (canRetime ? now : fixedStart) + 1;
+  const hi = (canRetime ? now + MAX_FORK_DELAY : fixedStart) + input.horizonYears;
 
   // 现状要点（既定事实，不可矛盾）
   const facts: string[] = [];
@@ -100,9 +110,18 @@ function buildUserPrompt(input: EnrichInput): string {
   lines.push(`他现在 ${now} 岁${p.location ? `，生活在${p.location}` : ""}${p.status ? `，身份/阶段：${p.status}` : ""}。`);
   lines.push(`现状（既定事实，推演不能与之矛盾）：${facts.join("；")}。`);
   lines.push("");
-  lines.push(
-    `请推演：${p.name} 从现在（${now} 岁）起，如果选择「${choiceText}」，未来约 ${input.horizonYears} 年的人生会怎么走。整体走向：${arcHint(input.curve)}`,
-  );
+  if (canRetime) {
+    lines.push(
+      `第一步·定时机：现实里，${p.name} 从现在（${now} 岁）算起，大约几年后才会真正走上「${choiceText}」这条路？综合筹备、积蓄、申请/签证周期、家庭与人生节奏，给一个现实的年数，填进 forkDelayYears（0 到 ${MAX_FORK_DELAY}；现在/今年就能开始填 0）。这条路的「起点年龄」= ${now} + forkDelayYears。`,
+    );
+    lines.push(
+      `第二步·写人生：从「起点年龄」开始推演，如果 ${p.name} 走「${choiceText}」，往后约 ${input.horizonYears} 年会怎样。整体走向：${arcHint(input.curve)}`,
+    );
+  } else {
+    lines.push(
+      `请推演：${p.name} 从 ${fixedStart} 岁起（forkDelayYears 填 0），如果选择「${choiceText}」，往后约 ${input.horizonYears} 年会怎样。整体走向：${arcHint(input.curve)}`,
+    );
+  }
   if (input.scenario === "optimistic")
     lines.push("按偏顺利、运气较好但仍现实可信的走向来写。");
   else if (input.scenario === "conservative")
@@ -111,9 +130,9 @@ function buildUserPrompt(input: EnrichInput): string {
   const firstBeat =
     input.kind === "status-quo"
       ? `第一个时刻写他从现在起、按原轨道继续走的第一步`
-      : `第一个时刻写他从现在的处境出发、为「${choiceText}」迈出的第一步（要符合他现在的真实身份与所在地）`;
+      : `第一个时刻写他在「起点」迈出的第一步：为「${choiceText}」真正动手的那一步（要符合他那时的真实身份与所在地）`;
   lines.push(
-    `自己决定 6-10 个关键转折点：年龄都在 ${lo} 到 ${hi} 岁之间（必须大于他现在的 ${now} 岁、按先后排列、不重复，靠近现在的更密）；每个点标 高光(high)/平稳(mid)/低谷(low)。${firstBeat}；之后每个时刻是接着发生的后续，连起来大致符合上面的“整体走向”。`,
+    `自己决定 6-10 个关键转折点：年龄都 > 这条路的「起点年龄」、且落在 ${lo}–${hi} 岁范围内（按先后排列、不重复，靠近起点的更密）；每个点标 高光(high)/平稳(mid)/低谷(low)。${firstBeat}；之后每个时刻是接着发生的后续，连起来大致符合“整体走向”。`,
   );
   lines.push("");
   lines.push("【真实与细致的硬要求】");
@@ -142,6 +161,7 @@ function jsonExample(name: string, lo: number, hi: number): string {
   const a1 = Math.min(hi, lo + 1);
   const a2 = Math.min(hi, lo + 5);
   return `{
+  "forkDelayYears": 2,
   "summary": "一句话结局",
   "nodes": [
     {"age": ${a1}, "title": "小标题", "story": "3-5 句、关于${name}的、有具体人/数字/细节的叙述", "mood": "low", "dimensions": ["career", "identity"]},
