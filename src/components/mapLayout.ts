@@ -51,6 +51,8 @@ export interface PathLayout {
   dPath: string; // start→end 的三次贝塞尔 'd' 串
   start: { x: number; y: number };
   end: { x: number; y: number };
+  c1: { x: number; y: number }; // 贝塞尔控制点（节点/子分支起点据此采样曲线）
+  c2: { x: number; y: number };
   nodes: MapNode[];
 }
 
@@ -66,16 +68,33 @@ export interface MapLayout {
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
-// 沿一条直线段在给定 x 处线性插值出 y（用于把子分支起点钉在父曲线上、
-// 以及把节点沿其所在路径放置）。
-function lerpY(
+// 三次贝塞尔在参数 t∈[0,1] 处的单分量取值。
+function bezier1(a: number, b: number, c: number, d: number, t: number): number {
+  const mt = 1 - t;
+  return mt * mt * mt * a + 3 * mt * mt * t * b + 3 * mt * t * t * c + t * t * t * d;
+}
+
+// 给定 x，在「x 随 t 单调」的三次贝塞尔上求对应的 y（二分 t）。
+// 控制点 x 取 0.42/0.74 处，恒落在 [p0.x, p3.x] 内且递增 → x(t) 单调，可二分。
+// 节点与子分支起点都用它落在「真正的曲线」上，而不是首尾连线（弦）上。
+export function cubicYAtX(
+  p0: { x: number; y: number },
+  c1: { x: number; y: number },
+  c2: { x: number; y: number },
+  p3: { x: number; y: number },
   x: number,
-  a: { x: number; y: number },
-  b: { x: number; y: number },
 ): number {
-  if (b.x === a.x) return (a.y + b.y) / 2;
-  const t = clamp((x - a.x) / (b.x - a.x), 0, 1);
-  return a.y + (b.y - a.y) * t;
+  if (x <= p0.x) return p0.y;
+  if (x >= p3.x) return p3.y;
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    if (bezier1(p0.x, c1.x, c2.x, p3.x, mid) < x) lo = mid;
+    else hi = mid;
+  }
+  const t = (lo + hi) / 2;
+  return bezier1(p0.y, c1.y, c2.y, p3.y, t);
 }
 
 // 端点纵坐标：endValue 越高越靠上（y 越小），夹在 [topY, bottomY]。
@@ -84,13 +103,13 @@ function laneFromValue(endValue: number, topY: number, bottomY: number): number 
   return bottomY - (v / 100) * (bottomY - topY);
 }
 
-// 根据曲线形状给出从 start 到 end 的平滑三次贝塞尔。控制点用年龄跨度推 x，
+// 根据曲线形状给出从 start 到 end 的三次贝塞尔控制点。控制点用年龄跨度推 x，
 // 用形状偏置 y，让"先抑后扬 / 陡升 / 下行"读起来有性格（呼应 treePath.curvePath）。
-function buildCubic(
+function cubicControls(
   start: { x: number; y: number },
   end: { x: number; y: number },
   curve: CurveShape,
-): string {
+): { c1: { x: number; y: number }; c2: { x: number; y: number } } {
   const dx = end.x - start.x;
   const c1x = start.x + dx * 0.42;
   const c2x = start.x + dx * 0.74;
@@ -120,10 +139,20 @@ function buildCubic(
       c2y = end.y;
       break;
   }
+  return { c1: { x: c1x, y: c1y }, c2: { x: c2x, y: c2y } };
+}
+
+// 用控制点拼出 SVG 'd' 串（与节点采样共用同一组控制点 → 几何上完全一致）。
+function cubicPath(
+  start: { x: number; y: number },
+  c1: { x: number; y: number },
+  c2: { x: number; y: number },
+  end: { x: number; y: number },
+): string {
   return (
     `M${start.x.toFixed(1)},${start.y.toFixed(1)} ` +
-    `C ${c1x.toFixed(1)},${c1y.toFixed(1)} ` +
-    `${c2x.toFixed(1)},${c2y.toFixed(1)} ` +
+    `C ${c1.x.toFixed(1)},${c1.y.toFixed(1)} ` +
+    `${c2.x.toFixed(1)},${c2.y.toFixed(1)} ` +
     `${end.x.toFixed(1)},${end.y.toFixed(1)}`
   );
 }
@@ -210,8 +239,8 @@ export function layoutMap(
       }
     } else {
       const parent = layoutById.get(p.parentId!)!;
-      // 子分支起点 = 父曲线在 forkAge 处的 y（在父的 start→end 直线上插值）
-      yStart = lerpY(startX, parent.start, parent.end);
+      // 子分支起点 = 父「真正的曲线」在 forkAge 处的 y（沿父贝塞尔采样，不是弦）
+      yStart = cubicYAtX(parent.start, parent.c1, parent.c2, parent.end, startX);
       // 兄弟交替上下扇出，越深偏移略减
       const idx = childCount.get(parent.id) ?? 0;
       childCount.set(parent.id, idx + 1);
@@ -223,15 +252,20 @@ export function layoutMap(
 
     const start = { x: startX, y: yStart };
     const end = { x: endX, y: clamp(laneY, topY, bottomY) };
-    const dPath = buildCubic(start, end, p.kind === "status-quo" ? "flat" : p.curve);
+    const { c1, c2 } = cubicControls(
+      start,
+      end,
+      p.kind === "status-quo" ? "flat" : p.curve,
+    );
+    const dPath = cubicPath(start, c1, c2, end);
 
-    // 节点沿该路径放置：x = xFor(age)，y 在 start→end 直线上插值（与曲线大致贴合）
+    // 节点沿该路径放置：x = xFor(age)，y 落在「真正的曲线」上（与可见曲线完全贴合）
     const nodes: MapNode[] = p.nodes.map((n) => {
       const nx = xFor(n.age);
       return {
         age: n.age,
         x: nx,
-        y: lerpY(nx, start, end),
+        y: cubicYAtX(start, c1, c2, end, nx),
         mood: n.mood,
         title: n.title,
       };
@@ -252,6 +286,8 @@ export function layoutMap(
       dPath,
       start,
       end,
+      c1,
+      c2,
       nodes,
     };
     layoutById.set(p.id, item);

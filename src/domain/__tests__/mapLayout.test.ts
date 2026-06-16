@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { layoutMap } from "@/components/mapLayout";
+import { layoutMap, cubicYAtX } from "@/components/mapLayout";
 import type { LifeArea, LifePath, MetricPoint, PathNode } from "@/domain/types";
 
 // ── 轻量 fixture：只填 layoutMap 用到的字段 ──
@@ -136,13 +136,38 @@ describe("layoutMap", () => {
 
     // child 起点 x 在父分叉年龄处
     expect(k.start.x).toBeCloseTo(layout.xFor(34), 5);
-    // child 起点 y ≈ 父曲线在该 x 处的插值（沿父 start→end 直线）
-    const t = (k.start.x - p.start.x) / (p.end.x - p.start.x);
-    const parentYAtFork = p.start.y + (p.end.y - p.start.y) * t;
-    expect(Math.abs(k.start.y - parentYAtFork)).toBeLessThan(1);
+    // child 起点 y ≈ 父「真正的曲线」在该 x 处的取值（沿父贝塞尔，不是弦）
+    const parentYAtFork = cubicYAtX(p.start, p.c1, p.c2, p.end, k.start.x);
+    expect(Math.abs(k.start.y - parentYAtFork)).toBeLessThan(0.5);
     // child depth = 1
     expect(k.depth).toBe(1);
     expect(p.depth).toBe(0);
+  });
+
+  it("places nodes ON the curve, not the chord (bowing shapes)", () => {
+    // dip-rise 的曲线明显偏离首尾连线；节点必须贴在真正的曲线上。
+    const layout = layoutMap(
+      [
+        path({
+          id: "a",
+          curve: "dip-rise",
+          endValue: 85,
+          nodes: [node(28), node(32), node(36), node(40)],
+        }),
+      ],
+      START_AGE,
+      HORIZON,
+    );
+    const a = layout.items[0];
+    for (const n of a.nodes) {
+      const onCurve = cubicYAtX(a.start, a.c1, a.c2, a.end, n.x);
+      expect(Math.abs(n.y - onCurve)).toBeLessThan(0.5);
+    }
+    // sanity：至少一个内部节点明显偏离弦（证明曲线确实在鼓），否则测试没意义
+    const mid = a.nodes[1];
+    const chordT = (mid.x - a.start.x) / (a.end.x - a.start.x);
+    const chordY = a.start.y + (a.end.y - a.start.y) * chordT;
+    expect(Math.abs(mid.y - chordY)).toBeGreaterThan(8);
   });
 
   it("emits a smooth cubic dPath for every item", () => {
