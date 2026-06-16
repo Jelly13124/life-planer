@@ -132,18 +132,18 @@ export function LifeMap({
   );
 
   const onPointerDown = useCallback(
-    (e: ReactPointerEvent<SVGSVGElement>) => {
-      // 只有点在空白背景上才开始拖拽（路径/节点自行处理点击）
+    (e: ReactPointerEvent<SVGElement>) => {
+      // 只在空白背景上开始拖拽（曲线/节点各自处理点击，不会触发这里）
       drag.current = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty };
       moved.current = false;
       setDragging(true);
-      (e.currentTarget as SVGSVGElement).setPointerCapture?.(e.pointerId);
+      e.currentTarget.setPointerCapture?.(e.pointerId);
     },
     [view.tx, view.ty],
   );
 
   const onPointerMove = useCallback(
-    (e: ReactPointerEvent<SVGSVGElement>) => {
+    (e: ReactPointerEvent<SVGElement>) => {
       const d = drag.current;
       if (!d) return;
       const svg = svgRef.current;
@@ -158,10 +158,10 @@ export function LifeMap({
     [layout.width, layout.height],
   );
 
-  const endDrag = useCallback((e: ReactPointerEvent<SVGSVGElement>) => {
+  const endDrag = useCallback((e: ReactPointerEvent<SVGElement>) => {
     drag.current = null;
     setDragging(false);
-    (e.currentTarget as SVGSVGElement).releasePointerCapture?.(e.pointerId);
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
   }, []);
 
   const onBackgroundClick = useCallback(() => {
@@ -205,15 +205,9 @@ export function LifeMap({
         viewBox={`0 0 ${W} ${H}`}
         width="100%"
         className="block touch-none select-none"
-        style={{ cursor: dragging ? "grabbing" : "grab" }}
         role="application"
         aria-label={`${name} 的人生地图：可平移缩放，点曲线看那段人生，点节点在那里加岔路`}
         onWheel={onWheel}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        onClick={onBackgroundClick}
       >
         <defs>
           {/* 柔光：让曲线在深色底上有"发光"质感 */}
@@ -226,8 +220,21 @@ export function LifeMap({
           </filter>
         </defs>
 
-        {/* 背景命中区（透明）：承接平移与"点空白取消选中" */}
-        <rect x={0} y={0} width={W} height={H} fill="transparent" />
+        {/* 背景命中区（透明）：只在空白处承接平移与"点空白取消选中"。
+            平移/点击只挂在这里，曲线/节点的点击才不会被 SVG 级别的指针捕获吞掉。 */}
+        <rect
+          x={0}
+          y={0}
+          width={W}
+          height={H}
+          fill="transparent"
+          style={{ cursor: dragging ? "grabbing" : "grab" }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          onClick={onBackgroundClick}
+        />
 
         <g transform={`translate(${view.tx},${view.ty}) scale(${view.k})`}>
           {/* 时间轴：年龄刻度（极淡，作为地图底纹） */}
