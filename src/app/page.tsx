@@ -5,9 +5,10 @@ import { Onboarding } from "@/components/Onboarding";
 import { TreeScreen } from "@/components/TreeScreen";
 import { PathDetail } from "@/components/PathDetail";
 import { PlanningAssistant } from "@/components/PlanningAssistant";
+import { PredictionOverlay } from "@/components/PredictionOverlay";
 
 function Screen() {
-  const { view, tree, activePathId, hydrated, backToTree, enrichingIds } = useApp();
+  const { view, tree, activePathId, hydrated, backToTree, predicting, aiEnabled } = useApp();
 
   // 首帧还没读取本地数据时给个安静的占位，避免闪烁
   if (!hydrated) {
@@ -18,22 +19,36 @@ function Screen() {
     );
   }
 
-  if (view === "onboarding" || !tree) return <Onboarding />;
+  // 正在推演：全屏过场动画盖在当前画面上（首次引导 / 加岔路都用它）
+  const overlay = predicting ? (
+    <PredictionOverlay
+      labels={predicting.labels}
+      done={predicting.done}
+      total={predicting.total}
+      context={predicting.context}
+      aiEnabled={aiEnabled}
+    />
+  ) : null;
+
+  if (view === "onboarding" || !tree) {
+    return (
+      <>
+        <Onboarding />
+        {overlay}
+      </>
+    );
+  }
 
   return (
     <>
       {view === "detail" && activePathId ? (
-        <PathDetail
-          tree={tree}
-          pathId={activePathId}
-          onBack={backToTree}
-          enriching={enrichingIds.includes(activePathId)}
-        />
+        <PathDetail tree={tree} pathId={activePathId} onBack={backToTree} />
       ) : (
         <TreeScreen />
       )}
       {/* 常驻规划助手（有树时才出现） */}
       <PlanningAssistant />
+      {overlay}
     </>
   );
 }

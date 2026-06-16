@@ -30,21 +30,29 @@ import {
 
 export type View = "onboarding" | "tree" | "detail";
 
+// 一次"AI 正在推演"的进行态：在 AI 把这一批路全部写完之前，分支不落到树上。
+export interface Predicting {
+  labels: string[]; // 正在推演的选择（用于动画里展示）
+  total: number; // 这一批要推演的路径数
+  done: number; // 已完成数
+  context: "onboarding" | "branch";
+}
+
 interface State {
   view: View;
   tree: LifeTree | null;
   activePathId: string | null;
   hydrated: boolean;
-  enrichingIds: string[]; // 正在被 AI 润色的路径 id
+  predicting: Predicting | null; // 非空 = 正在推演，显示全屏动画
   aiEnabled: boolean; // 后端是否接入了真实大模型
 }
 
 type Action =
   | { type: "hydrate"; tree: LifeTree | null }
   | { type: "setTree"; tree: LifeTree }
-  | { type: "mergeEnrichment"; pathId: string; result: import("@/lib/enrichClient").EnrichResult }
-  | { type: "enrichStart"; ids: string[] }
-  | { type: "enrichEnd"; id: string }
+  | { type: "predictStart"; labels: string[]; total: number; context: "onboarding" | "branch" }
+  | { type: "predictTick" }
+  | { type: "predictEnd" }
   | { type: "setAiEnabled"; enabled: boolean }
   | { type: "openPath"; id: string }
   | { type: "backToTree" }
@@ -61,20 +69,22 @@ function reducer(state: State, action: Action): State {
       };
     case "setTree":
       return { ...state, tree: action.tree, view: "tree" };
-    case "mergeEnrichment": {
-      if (!state.tree) return state;
-      const { profile, horizonYears } = state.tree;
-      const paths = state.tree.paths.map((p) =>
-        p.id === action.pathId
-          ? applyEnrichment(p, action.result, profile.age, horizonYears)
-          : p,
-      );
-      return { ...state, tree: { ...state.tree, paths } };
-    }
-    case "enrichStart":
-      return { ...state, enrichingIds: [...new Set([...state.enrichingIds, ...action.ids])] };
-    case "enrichEnd":
-      return { ...state, enrichingIds: state.enrichingIds.filter((x) => x !== action.id) };
+    case "predictStart":
+      return {
+        ...state,
+        predicting: {
+          labels: action.labels,
+          total: action.total,
+          done: 0,
+          context: action.context,
+        },
+      };
+    case "predictTick":
+      return state.predicting
+        ? { ...state, predicting: { ...state.predicting, done: state.predicting.done + 1 } }
+        : state;
+    case "predictEnd":
+      return { ...state, predicting: null };
     case "setAiEnabled":
       return { ...state, aiEnabled: action.enabled };
     case "openPath":
@@ -82,7 +92,7 @@ function reducer(state: State, action: Action): State {
     case "backToTree":
       return { ...state, activePathId: null, view: "tree" };
     case "reset":
-      return { ...state, tree: null, activePathId: null, view: "onboarding", enrichingIds: [] };
+      return { ...state, tree: null, activePathId: null, view: "onboarding", predicting: null };
     default:
       return state;
   }
@@ -93,7 +103,7 @@ interface AppApi {
   tree: LifeTree | null;
   activePathId: string | null;
   hydrated: boolean;
-  enrichingIds: string[];
+  predicting: Predicting | null;
   aiEnabled: boolean;
   completeOnboarding: (profile: Profile) => void;
   addBranch: (label: string, opts?: AddPathOptions) => void;
@@ -109,6 +119,10 @@ interface AppApi {
 
 const AppContext = createContext<AppApi | null>(null);
 
+// "正在推演"动画至少播这么久——即便没接 AI / 本地秒出，也让过场有质感。
+const MIN_PREDICT_MS = 1600;
+const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 export function AppProvider({
   children,
   generator = localGenerator,
@@ -123,7 +137,7 @@ export function AppProvider({
     tree: null,
     activePathId: null,
     hydrated: false,
-    enrichingIds: [],
+    predicting: null,
     aiEnabled: false,
   });
 
@@ -133,11 +147,21 @@ export function AppProvider({
     return repoRef.current;
   }, []);
 
-  // 最新 tree 的引用，供异步润色读取
+  // 最新 tree 的引用，供异步推演读取
   const treeRef = useRef<LifeTree | null>(null);
   useEffect(() => {
     treeRef.current = state.tree;
   }, [state.tree]);
+
+  // 给异步推演读取的最新值：是否接入 AI、是否正在推演（用于并发保护）
+  const aiEnabledRef = useRef(false);
+  useEffect(() => {
+    aiEnabledRef.current = state.aiEnabled;
+  }, [state.aiEnabled]);
+  const predictingRef = useRef(false);
+  useEffect(() => {
+    predictingRef.current = state.predicting !== null;
+  }, [state.predicting]);
 
   // 挂载：读取本地数据 + 探测 AI 是否接入
   useEffect(() => {
@@ -150,20 +174,46 @@ export function AppProvider({
     if (state.hydrated && state.tree) repo().save(state.tree);
   }, [state.tree, state.hydrated, repo]);
 
-  const now = () => new Date().toISOString();
+  // 核心：先在内存里生成本地占位路径，等 AI 把这一批全部推演完，再一次性提交到
+  // 树上（届时分支才画出来，并落在 AI 决定的分叉年龄）。AI 没接入/失败则用本地兜底，
+  // 但仍保证动画至少播 MIN_PREDICT_MS，让"正在推演"有质感。
+  const predictAndCommit = useCallback(
+    async (
+      workingTree: LifeTree,
+      newPaths: LifePath[],
+      context: "onboarding" | "branch",
+    ): Promise<void> => {
+      const labels = newPaths
+        .filter((p) => p.kind === "choice")
+        .map((p) => p.choiceLabel);
+      dispatch({ type: "predictStart", labels, total: newPaths.length, context });
 
-  // 对若干路径异步请求 AI 润色，结果回来即合并（不阻塞 UI）
-  const runEnrichment = useCallback((tree: LifeTree, paths: LifePath[]) => {
-    if (paths.length === 0) return;
-    dispatch({ type: "enrichStart", ids: paths.map((p) => p.id) });
-    for (const path of paths) {
-      fetchEnrichment(tree, path)
-        .then((result) => {
-          if (result) dispatch({ type: "mergeEnrichment", pathId: path.id, result });
-        })
-        .finally(() => dispatch({ type: "enrichEnd", id: path.id }));
-    }
-  }, []);
+      const { profile, horizonYears } = workingTree;
+      const enrichedById = new Map<string, LifePath>();
+      const enrichOne = async (p: LifePath) => {
+        let finalP = p;
+        if (aiEnabledRef.current) {
+          const result = await fetchEnrichment(workingTree, p);
+          if (result) finalP = applyEnrichment(p, result, profile.age, horizonYears);
+        }
+        enrichedById.set(p.id, finalP);
+        dispatch({ type: "predictTick" });
+      };
+
+      await Promise.all([
+        Promise.all(newPaths.map(enrichOne)),
+        delay(MIN_PREDICT_MS), // 动画下限：等真预测或这个时长，取较长者
+      ]);
+
+      const finalPaths = workingTree.paths.map((p) => enrichedById.get(p.id) ?? p);
+      dispatch({
+        type: "setTree",
+        tree: { ...workingTree, paths: finalPaths, updatedAt: new Date().toISOString() },
+      });
+      dispatch({ type: "predictEnd" });
+    },
+    [],
+  );
 
   const api = useMemo<AppApi>(
     () => ({
@@ -171,52 +221,60 @@ export function AppProvider({
       tree: state.tree,
       activePathId: state.activePathId,
       hydrated: state.hydrated,
-      enrichingIds: state.enrichingIds,
+      predicting: state.predicting,
       aiEnabled: state.aiEnabled,
       completeOnboarding: (profile) => {
-        const tree = createTree(profile, generator, now());
-        dispatch({ type: "setTree", tree });
-        runEnrichment(tree, tree.paths);
+        if (predictingRef.current) return;
+        const tree = createTree(profile, generator, new Date().toISOString());
+        void predictAndCommit(tree, tree.paths, "onboarding");
       },
       addBranch: (label, opts) => {
+        if (predictingRef.current) return;
         const base = treeRef.current;
         if (!base) return;
-        const before = new Set(base.paths.map((p) => p.id));
-        const tree = addPath(base, label, generator, now(), opts);
-        dispatch({ type: "setTree", tree });
-        const added = tree.paths.filter((p) => !before.has(p.id));
-        runEnrichment(tree, added);
+        const working = addPath(base, label, generator, new Date().toISOString(), opts);
+        if (working === base) return; // 空标签
+        const newPath = working.paths[working.paths.length - 1];
+        void predictAndCommit(working, [newPath], "branch");
       },
       addBranches: (labels, opts) => {
+        if (predictingRef.current) return;
         const base = treeRef.current;
         if (!base) return;
-        const before = new Set(base.paths.map((p) => p.id));
-        const ts = now();
-        // 在同一个 base 上依次折叠（index 递增 → id 互不相同），最后一次性提交
-        let tree = base;
+        const ts = new Date().toISOString();
+        // 在同一个 base 上依次折叠（index 递增 → id 互不相同）
+        let working = base;
+        const newPaths: LifePath[] = [];
         for (const label of labels) {
-          if (label.trim()) tree = addPath(tree, label, generator, ts, opts);
+          if (label.trim()) {
+            working = addPath(working, label, generator, ts, opts);
+            newPaths.push(working.paths[working.paths.length - 1]);
+          }
         }
-        if (tree === base) return;
-        dispatch({ type: "setTree", tree });
-        const added = tree.paths.filter((p) => !before.has(p.id));
-        runEnrichment(tree, added);
+        if (!newPaths.length) return;
+        void predictAndCommit(working, newPaths, "branch");
       },
       addScenario: (basePathId, scenario) => {
+        if (predictingRef.current) return;
         const base = treeRef.current;
         if (!base) return;
-        const before = new Set(base.paths.map((p) => p.id));
-        const tree = addScenarioVariant(base, basePathId, scenario, generator, now());
-        if (tree === base) return; // 已存在或没找到
-        dispatch({ type: "setTree", tree });
-        const added = tree.paths.filter((p) => !before.has(p.id));
-        if (added.length) dispatch({ type: "openPath", id: added[0].id }); // 切到新走向
-        runEnrichment(tree, added);
+        const working = addScenarioVariant(
+          base,
+          basePathId,
+          scenario,
+          generator,
+          new Date().toISOString(),
+        );
+        if (working === base) return; // 已存在或没找到
+        const newPath = working.paths[working.paths.length - 1];
+        void predictAndCommit(working, [newPath], "branch").then(() =>
+          dispatch({ type: "openPath", id: newPath.id }),
+        );
       },
       removeBranch: (id) => {
         const base = treeRef.current;
         if (!base) return;
-        dispatch({ type: "setTree", tree: removePath(base, id, now()) });
+        dispatch({ type: "setTree", tree: removePath(base, id, new Date().toISOString()) });
       },
       openPath: (id) => dispatch({ type: "openPath", id }),
       backToTree: () => dispatch({ type: "backToTree" }),
@@ -230,11 +288,11 @@ export function AppProvider({
       state.tree,
       state.activePathId,
       state.hydrated,
-      state.enrichingIds,
+      state.predicting,
       state.aiEnabled,
       generator,
       repo,
-      runEnrichment,
+      predictAndCommit,
     ],
   );
 

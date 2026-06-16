@@ -36,14 +36,12 @@ export function PathDetail({
   tree,
   pathId,
   onBack,
-  enriching = false,
 }: {
   tree: LifeTree;
   pathId: string;
   onBack: () => void;
-  enriching?: boolean;
 }) {
-  const { addScenario, addBranch, openPath, enrichingIds } = useApp();
+  const { addScenario, addBranch, openPath } = useApp();
   const [chatting, setChatting] = useState(false);
   const path = tree.paths.find((p) => p.id === pathId);
   if (!path) {
@@ -86,12 +84,6 @@ export function PathDetail({
         <p className="mt-2 text-xs text-[var(--fg-faint)]">
           这是一种可能的人生，不是预测。数字代表综合状态感受，仅供想象与参考。
         </p>
-        {enriching && (
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-3 py-1 text-xs text-[var(--accent)]">
-            <span className="inline-block h-2 w-2 animate-ping rounded-full bg-[var(--accent)]" />
-            AI 正在把这段人生写得更真实…
-          </div>
-        )}
         <div className="mt-4">
           <Button variant="primary" onClick={() => setChatting(true)}>
             ✨ 和 {futureAgeOf(path)} 岁的你聊聊
@@ -116,7 +108,6 @@ export function PathDetail({
                   p.scenario === s.value,
               );
               const active = path.scenario === s.value;
-              const loading = variant ? enrichingIds.includes(variant.id) : false;
               return (
                 <button
                   key={s.value}
@@ -132,7 +123,6 @@ export function PathDetail({
                   }`}
                 >
                   {s.label}
-                  {loading && " …"}
                 </button>
               );
             })}
