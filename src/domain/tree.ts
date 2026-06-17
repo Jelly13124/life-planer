@@ -136,6 +136,7 @@ export function removePath(tree: LifeTree, pathId: string, now: string): LifeTre
   return {
     ...tree,
     paths: tree.paths.filter((p) => !toRemove.has(p.id)),
+    decisions: tree.decisions.filter((d) => !toRemove.has(d.pathId)),
     updatedAt: now,
   };
 }

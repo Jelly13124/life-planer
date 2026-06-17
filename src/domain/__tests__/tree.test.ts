@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createTree, addPath, removePath } from "@/domain/tree";
+import { createDecision, upsertDecision } from "@/domain/decisions";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
 import {
   LocalStorageRepository,
@@ -102,6 +103,29 @@ describe("tree operations", () => {
     const sq = t.paths.find((p) => p.kind === "status-quo")!;
     const t3 = removePath(t, sq.id, NOW);
     expect(t3.paths.find((p) => p.id === sq.id)).toBeDefined();
+  });
+
+  it("removePath also prunes decisions attached to removed paths", () => {
+    let t = addPath(createTree(profile, gen, NOW), "读研", gen, NOW);
+    const choice = t.paths.find((p) => p.kind === "choice")!;
+    t = upsertDecision(
+      t,
+      createDecision(
+        {
+          pathId: choice.id,
+          choiceLabel: choice.choiceLabel,
+          rationale: "",
+          expectation: "",
+          confidence: 50,
+          reversibility: "two-way",
+          horizon: "90d",
+        },
+        NOW,
+      ),
+    );
+    expect(t.decisions).toHaveLength(1);
+    const t2 = removePath(t, choice.id, NOW);
+    expect(t2.decisions).toHaveLength(0); // 删分支时连带清掉它的决定，避免幽灵复盘提示
   });
 });
 

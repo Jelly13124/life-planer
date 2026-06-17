@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { futureAgeOf } from "@/lib/chatClient";
 import { FutureSelfChat } from "./FutureSelfChat";
 import {
@@ -18,11 +18,11 @@ import { Button } from "./ui/Button";
 import { DecisionSheet } from "./DecisionSheet";
 import { activeDecisionFor, togglePlanItem } from "@/domain/decisions";
 
-/** Evaluated once at module load — outside any React render. */
-const _moduleNow = new Date().getTime();
+/** 导入时取一次当下作初值（render 内不可调用 new Date）；组件挂载后用 effect 刷新。 */
+const _bootNow = new Date().getTime();
 
-function daysUntil(reviewDate: string): number {
-  return Math.max(0, Math.ceil((new Date(reviewDate).getTime() - _moduleNow) / 86400000));
+function daysUntil(reviewDate: string, nowMs: number): number {
+  return Math.max(0, Math.ceil((new Date(reviewDate).getTime() - nowMs) / 86400000));
 }
 
 const SCENARIOS: { value: Scenario; label: string }[] = [
@@ -55,9 +55,17 @@ export function PathDetail({
   const { t } = useT();
   const [chatting, setChatting] = useState(false);
   const [deciding, setDeciding] = useState(false);
+  // 当下放进 state：挂载即取真实时间、标签页重新可见时刷新，避免"距复盘还有 N 天"过期。
+  const [nowMs, setNowMs] = useState(_bootNow);
+  useEffect(() => {
+    const update = () => setNowMs(Date.now());
+    update();
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
   const path = tree.paths.find((p) => p.id === pathId);
   const decision = path ? activeDecisionFor(tree, path.id) : null;
-  const daysUntilReview = decision ? daysUntil(decision.reviewDate) : 0;
+  const daysUntilReview = decision ? daysUntil(decision.reviewDate, nowMs) : 0;
   if (!path) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-12">

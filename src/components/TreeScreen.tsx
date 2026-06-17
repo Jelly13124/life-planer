@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { LifeMap } from "./LifeMap";
@@ -10,8 +10,8 @@ import { dueDecisions } from "@/domain/decisions";
 import { ReviewSheet } from "./ReviewSheet";
 import type { Decision } from "@/domain/types";
 
-// 模块加载时取一次"今天"，用于判断哪些决定到期（render 内不可调用 new Date）。
-const _todayISO = new Date().toISOString();
+// 导入时取一次"今天"作初值（render 内不可调用 new Date）；挂载后用 effect 刷新。
+const _bootISO = new Date().toISOString();
 
 export function TreeScreen() {
   const { tree, openPath, addBranch, reset, aiEnabled } = useApp();
@@ -20,10 +20,19 @@ export function TreeScreen() {
   // 在某条路的某个未来节点处加岔路（R6 递归）；null = 关闭
   const [fork, setFork] = useState<ForkContext | null>(null);
   const [reviewing, setReviewing] = useState<Decision | null>(null);
+  // "今天"放进 state：挂载即取真实当下，并在标签页重新可见时刷新——
+  // 避免长时间挂着的页面用过期的"今天"，导致到期的复盘提示不出现。
+  const [todayISO, setTodayISO] = useState(_bootISO);
+  useEffect(() => {
+    const update = () => setTodayISO(new Date().toISOString());
+    update();
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
 
   if (!tree) return null;
   const choiceCount = tree.paths.filter((p) => p.kind === "choice").length;
-  const due = dueDecisions(tree, _todayISO);
+  const due = dueDecisions(tree, todayISO);
 
   return (
     <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-8 sm:px-8">
