@@ -10,7 +10,8 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import type { LifePath, LifeTree, Profile, Scenario } from "@/domain/types";
+import type { Decision, LifePath, LifeTree, Profile, Scenario } from "@/domain/types";
+import { createDecision, upsertDecision, type DecisionInput } from "@/domain/decisions";
 import type { PathGenerator } from "@/domain/generator/types";
 import { localGenerator } from "@/domain/generator/localGenerator";
 import type { TreeRepository } from "@/domain/repository/types";
@@ -56,6 +57,7 @@ type Action =
   | { type: "setAiEnabled"; enabled: boolean }
   | { type: "openPath"; id: string }
   | { type: "backToTree" }
+  | { type: "patchTree"; tree: LifeTree }
   | { type: "reset" };
 
 function reducer(state: State, action: Action): State {
@@ -91,6 +93,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, activePathId: action.id, view: "detail" };
     case "backToTree":
       return { ...state, activePathId: null, view: "tree" };
+    case "patchTree":
+      return { ...state, tree: action.tree };
     case "reset":
       return { ...state, tree: null, activePathId: null, view: "onboarding", predicting: null };
     default:
@@ -115,6 +119,9 @@ interface AppApi {
   openPath: (id: string) => void;
   backToTree: () => void;
   reset: () => void;
+  makeDecision: (input: DecisionInput) => Decision;
+  commitDecision: (decision: Decision) => void; // 新建/覆盖同路活跃决定
+  updateDecision: (decision: Decision) => void; // 按 id 原地更新（勾选/复盘）
 }
 
 const AppContext = createContext<AppApi | null>(null);
@@ -281,6 +288,23 @@ export function AppProvider({
       reset: () => {
         repo().clear();
         dispatch({ type: "reset" });
+      },
+      makeDecision: (input) => createDecision(input, new Date().toISOString()),
+      commitDecision: (decision) => {
+        const base = treeRef.current;
+        if (!base) return;
+        dispatch({ type: "patchTree", tree: upsertDecision(base, decision) });
+      },
+      updateDecision: (decision) => {
+        const base = treeRef.current;
+        if (!base) return;
+        dispatch({
+          type: "patchTree",
+          tree: {
+            ...base,
+            decisions: base.decisions.map((d) => (d.id === decision.id ? decision : d)),
+          },
+        });
       },
     }),
     [
