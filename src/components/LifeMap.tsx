@@ -425,6 +425,10 @@ function PathCurve({
         const isFirst = i === 0; // 起点（分叉处）不再重复给加岔路
         const nodeHover = hoverNodeKey === key;
         const nDelay = reduced ? 0 : delay + 0.9 + i * 0.06;
+        // 当路径被聚焦时，标注位置在节点上方（偶数索引）或下方（奇数索引）以减少重叠
+        const labelAbove = i % 2 === 0;
+        const labelBaseY = labelAbove ? n.y - 12 : n.y + 20;
+        const ageY = labelAbove ? n.y - 24 : n.y + 32;
         return (
           <g
             key={key}
@@ -435,10 +439,10 @@ function PathCurve({
             <circle
               cx={n.x}
               cy={n.y}
-              r={nodeHover ? 7 : 4}
+              r={nodeHover ? 7 : active && !isFirst ? 5 : 4}
               fill={nodeHover ? color : "var(--bg-0)"}
-              stroke={nodeHover ? "#fff" : MOOD_RING[n.mood]}
-              strokeWidth={nodeHover ? 2 : 1.6}
+              stroke={nodeHover ? "#fff" : active && !isFirst ? color : MOOD_RING[n.mood]}
+              strokeWidth={nodeHover ? 2 : active && !isFirst ? 2 : 1.6}
               style={{
                 cursor: isFirst ? "default" : "pointer",
                 transition: "r .12s ease, fill .12s ease",
@@ -456,6 +460,32 @@ function PathCurve({
                 <title>{t("＋ 在这里加岔路（{age} 岁 · {title}）", { age: n.age, title: n.title })}</title>
               )}
             </circle>
+            {/* 聚焦路径：常显节点标注（标题 + 年龄） */}
+            {active && !isFirst && (
+              <g style={{ pointerEvents: "none" }}>
+                <text
+                  x={n.x}
+                  y={labelBaseY}
+                  textAnchor="middle"
+                  fontSize={10}
+                  fontWeight={600}
+                  fill={color}
+                  style={{ paintOrder: "stroke", stroke: "var(--bg-0)", strokeWidth: 3 }}
+                >
+                  {truncate(n.title, 6)}
+                </text>
+                <text
+                  x={n.x}
+                  y={ageY}
+                  textAnchor="middle"
+                  fontSize={9}
+                  fill="var(--fg-faint)"
+                  style={{ paintOrder: "stroke", stroke: "var(--bg-0)", strokeWidth: 3 }}
+                >
+                  {t("{age} 岁", { age: n.age })}
+                </text>
+              </g>
+            )}
             {/* hover 时浮出"加岔路"提示 */}
             {nodeHover && !isFirst && (
               <g style={{ pointerEvents: "none" }}>
