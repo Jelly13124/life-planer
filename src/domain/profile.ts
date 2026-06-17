@@ -1,10 +1,14 @@
 import {
   LIFE_AREAS,
+  type DebtBand,
   type EducationLevel,
+  type FamilyResponsibility,
   type LifeArea,
   type Profile,
   type RelationshipStatus,
+  type RiskAppetite,
   type SalaryBand,
+  type SavingsBand,
 } from "./types";
 
 // ---- 选项表（供 UI 下拉使用） ----
@@ -43,6 +47,46 @@ export const SALARY_LABELS: Record<SalaryBand, string> = Object.fromEntries(
 export const RELATIONSHIP_LABELS: Record<RelationshipStatus, string> = Object.fromEntries(
   RELATIONSHIP_OPTIONS.map((o) => [o.value, o.label]),
 ) as Record<RelationshipStatus, string>;
+
+export const SAVINGS_OPTIONS: { value: SavingsBand; label: string }[] = [
+  { value: "none", label: "几乎没有积蓄" },
+  { value: "lt1w", label: "1万以下" },
+  { value: "1to10w", label: "1万 - 10万" },
+  { value: "10to50w", label: "10万 - 50万" },
+  { value: "50to100w", label: "50万 - 100万" },
+  { value: "gt100w", label: "100万以上" },
+];
+export const DEBT_OPTIONS: { value: DebtBand; label: string }[] = [
+  { value: "none", label: "没有负债" },
+  { value: "lt10w", label: "10万以下" },
+  { value: "10to50w", label: "10万 - 50万" },
+  { value: "50to100w", label: "50万 - 100万" },
+  { value: "gt100w", label: "100万以上" },
+];
+export const FAMILY_OPTIONS: { value: FamilyResponsibility; label: string }[] = [
+  { value: "none", label: "暂无特别负担" },
+  { value: "kids", label: "要养孩子" },
+  { value: "parents", label: "要养父母" },
+  { value: "both", label: "上有老下有小" },
+];
+export const RISK_OPTIONS: { value: RiskAppetite; label: string }[] = [
+  { value: "conservative", label: "保守求稳" },
+  { value: "balanced", label: "稳健" },
+  { value: "aggressive", label: "进取敢冲" },
+];
+
+export const SAVINGS_LABELS: Record<SavingsBand, string> = Object.fromEntries(
+  SAVINGS_OPTIONS.map((o) => [o.value, o.label]),
+) as Record<SavingsBand, string>;
+export const DEBT_LABELS: Record<DebtBand, string> = Object.fromEntries(
+  DEBT_OPTIONS.map((o) => [o.value, o.label]),
+) as Record<DebtBand, string>;
+export const FAMILY_LABELS: Record<FamilyResponsibility, string> = Object.fromEntries(
+  FAMILY_OPTIONS.map((o) => [o.value, o.label]),
+) as Record<FamilyResponsibility, string>;
+export const RISK_LABELS: Record<RiskAppetite, string> = Object.fromEntries(
+  RISK_OPTIONS.map((o) => [o.value, o.label]),
+) as Record<RiskAppetite, string>;
 
 const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
 
@@ -113,5 +157,11 @@ export function buildSnapshot(p: ProfileInputs): string {
   if (p.hobbies.trim()) parts.push(`爱好${p.hobbies.trim()}`);
   parts.push(RELATIONSHIP_LABELS[p.relationship]);
   if (p.status.trim()) parts.push(p.status.trim());
+  if (p.skills?.trim()) parts.push(`技能：${p.skills.trim()}`);
+  if (p.savings) parts.push(`存款${SAVINGS_LABELS[p.savings]}`);
+  if (p.debt && p.debt !== "none") parts.push(`负债${DEBT_LABELS[p.debt]}`);
+  if (p.assets?.trim()) parts.push(`资产：${p.assets.trim()}`);
+  if (p.family && p.family !== "none") parts.push(FAMILY_LABELS[p.family]);
+  if (p.riskAppetite) parts.push(`风险偏好：${RISK_LABELS[p.riskAppetite]}`);
   return parts.join(" · ");
 }

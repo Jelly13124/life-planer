@@ -32,6 +32,10 @@ export type RelationshipStatus =
   | "married_kids"
   | "divorced"
   | "na";
+export type SavingsBand = "none" | "lt1w" | "1to10w" | "10to50w" | "50to100w" | "gt100w";
+export type DebtBand = "none" | "lt10w" | "10to50w" | "50to100w" | "gt100w";
+export type FamilyResponsibility = "none" | "kids" | "parents" | "both";
+export type RiskAppetite = "conservative" | "balanced" | "aggressive";
 
 export interface Profile {
   name: string;
@@ -49,6 +53,12 @@ export interface Profile {
   snapshot: string; // 由结构化信息自动汇总的现状描述
   areas: Record<LifeArea, number>; // 各领域起点 0-100，由上面信息推导
   crossroad: string; // 当前面临的岔路/纠结
+  skills?: string;        // 技能/专长（自由文本）
+  savings?: SavingsBand;  // 存款区间
+  debt?: DebtBand;        // 负债区间
+  assets?: string;        // 资产（自由文本，如 房/车/股票）
+  family?: FamilyResponsibility; // 家庭责任
+  riskAppetite?: RiskAppetite;   // 风险偏好
 }
 
 export interface MetricPoint {

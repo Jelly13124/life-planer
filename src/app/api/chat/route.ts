@@ -73,6 +73,12 @@ function buildSystem(body: ChatRequestBody): string {
   if (p.education) facts.push(`学历代码：${p.education}`);
   if (p.relationship) facts.push(`情感状态代码：${p.relationship}`);
   if (p.snapshot) facts.push(`自述：${p.snapshot}`);
+  if (p.skills) facts.push(`技能：${p.skills}`);
+  if (p.savings) facts.push(`存款档：${p.savings}`);
+  if (p.debt && p.debt !== "none") facts.push(`负债档：${p.debt}`);
+  if (p.assets) facts.push(`资产：${p.assets}`);
+  if (p.family && p.family !== "none") facts.push(`家庭责任：${p.family}`);
+  if (p.riskAppetite) facts.push(`风险偏好：${p.riskAppetite}`);
   lines.push(facts.join("；") + "。");
   lines.push("不要和这些已知事实矛盾。");
   lines.push("");

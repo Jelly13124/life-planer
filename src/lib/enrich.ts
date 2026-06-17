@@ -5,9 +5,13 @@
 import { z } from "zod";
 import type { CurveShape, PathKind, Profile } from "@/domain/types";
 import {
+  DEBT_LABELS,
   EDUCATION_LABELS,
+  FAMILY_LABELS,
   RELATIONSHIP_LABELS,
+  RISK_LABELS,
   SALARY_LABELS,
+  SAVINGS_LABELS,
 } from "@/domain/profile";
 
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
@@ -102,6 +106,12 @@ function buildUserPrompt(input: EnrichInput): string {
   if (p.hobbies) facts.push(`爱好：${p.hobbies}`);
   facts.push(`情感：${RELATIONSHIP_LABELS[p.relationship]}`);
   if (p.snapshot) facts.push(`自述：${p.snapshot}`);
+  if (p.skills?.trim()) facts.push(`技能：${p.skills.trim()}`);
+  if (p.savings) facts.push(`存款${SAVINGS_LABELS[p.savings]}`);
+  if (p.debt && p.debt !== "none") facts.push(`负债${DEBT_LABELS[p.debt]}`);
+  if (p.assets?.trim()) facts.push(`资产：${p.assets.trim()}`);
+  if (p.family && p.family !== "none") facts.push(FAMILY_LABELS[p.family]);
+  if (p.riskAppetite) facts.push(`风险偏好：${RISK_LABELS[p.riskAppetite]}`);
 
   const choiceText =
     input.kind === "status-quo" ? "维持现状、不做大的改变" : input.choiceLabel;
