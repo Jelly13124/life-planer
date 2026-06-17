@@ -22,6 +22,13 @@ export const QUICK_PROMPTS: string[] = [
   "有没有我没考虑过的路？",
 ];
 
+// 决策框架预设：点一下即把这个"想清楚"的问题抛给未来的自己。
+export const FRAMEWORK_PROMPTS: string[] = [
+  "后悔最小化：80 岁回头看，哪个更不后悔？",
+  "预演失败：三年后它失败了，最可能因为什么？",
+  "可逆性：这是单行道还是可回头？",
+];
+
 // 发一轮对话，返回未来自己的回复；失败或没接 AI 时返回 null。
 export async function sendChat(
   tree: LifeTree,

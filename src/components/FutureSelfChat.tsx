@@ -6,6 +6,7 @@ import {
   futureAgeOf,
   sendChat,
   QUICK_PROMPTS,
+  FRAMEWORK_PROMPTS,
   type ChatMessage,
 } from "@/lib/chatClient";
 import { useT } from "@/prefs/PreferencesContext";
@@ -186,6 +187,27 @@ export function FutureSelfChat({
                 {t(q)}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* 决策框架 */}
+        {messages.length === 0 && (
+          <div className="px-5 pb-3">
+            <div className="mb-1.5 text-[11px] uppercase tracking-wider text-[var(--fg-faint)]">
+              {t("想清楚这个决定")}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {FRAMEWORK_PROMPTS.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => send(q)}
+                  disabled={thinking}
+                  className="rounded-full border border-[var(--c-fuchsia)]/40 bg-[var(--c-fuchsia)]/5 px-3 py-1.5 text-xs text-[var(--c-fuchsia)] transition hover:bg-[var(--c-fuchsia)]/10 disabled:opacity-40"
+                >
+                  {t(q)}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
