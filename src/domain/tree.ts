@@ -51,6 +51,7 @@ export function createTree(
     profile,
     horizonYears,
     paths,
+    decisions: [],
     createdAt: now,
     updatedAt: now,
   };

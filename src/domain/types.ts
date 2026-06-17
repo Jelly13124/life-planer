@@ -124,11 +124,54 @@ export interface LifePath {
   scenario: Scenario; // 该分支属于哪种走向
 }
 
+export type Reversibility = "one-way" | "two-way"; // 单行道 / 可回头
+export type PlanHorizon = "30d" | "90d";
+
+export interface PlanStep {
+  id: string;
+  text: string;
+  done: boolean;
+}
+export interface Experiment {
+  id: string;
+  text: string;
+  done: boolean;
+}
+export interface Plan {
+  horizon: PlanHorizon;
+  steps: PlanStep[];
+  experiments: Experiment[];
+  generatedByAI: boolean;
+}
+
+export type ReviewOutcome = 1 | 2 | 3 | 4 | 5; // 1 远差于预期 … 5 远好于预期
+export interface Review {
+  reviewedAt: string;
+  whatHappened: string;
+  outcome: ReviewOutcome;
+  lesson: string;
+}
+
+export interface Decision {
+  id: string;
+  pathId: string;
+  choiceLabel: string;
+  createdAt: string;
+  rationale: string;
+  expectation: string;
+  confidence: number; // 0-100
+  reversibility: Reversibility;
+  reviewDate: string; // ISO = createdAt + horizon
+  plan: Plan;
+  review: Review | null;
+}
+
 export interface LifeTree {
   id: string;
   profile: Profile;
   horizonYears: number; // 推演跨度
   paths: LifePath[]; // 含 1 条 status-quo + N 条 choice
+  decisions: Decision[]; // 决策日志（看见→追问→选定→落地→复盘）
   createdAt: string;
   updatedAt: string;
 }
