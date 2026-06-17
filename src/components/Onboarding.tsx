@@ -2,17 +2,25 @@
 
 import { useState } from "react";
 import type {
+  DebtBand,
   EducationLevel,
+  FamilyResponsibility,
   Profile,
   RelationshipStatus,
+  RiskAppetite,
   SalaryBand,
+  SavingsBand,
 } from "@/domain/types";
 import {
   buildSnapshot,
   deriveAreas,
+  DEBT_OPTIONS,
   EDUCATION_OPTIONS,
+  FAMILY_OPTIONS,
   RELATIONSHIP_OPTIONS,
+  RISK_OPTIONS,
   SALARY_OPTIONS,
+  SAVINGS_OPTIONS,
 } from "@/domain/profile";
 import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
@@ -20,7 +28,7 @@ import { Button } from "./ui/Button";
 import { Field } from "./ui/Field";
 import { Select } from "./ui/Select";
 
-const TOTAL_STEPS = 3;
+const TOTAL_STEPS = 4;
 
 export function Onboarding() {
   const { completeOnboarding } = useApp();
@@ -38,10 +46,22 @@ export function Onboarding() {
   const [hasSideHustle, setHasSideHustle] = useState(false);
   const [sideHustle, setSideHustle] = useState("");
 
+  const [skills, setSkills] = useState("");
+  const [savings, setSavings] = useState<SavingsBand | "">("");
+  const [debt, setDebt] = useState<DebtBand | "">("");
+  const [assets, setAssets] = useState("");
+  const [family, setFamily] = useState<FamilyResponsibility | "">("");
+  const [riskAppetite, setRiskAppetite] = useState<RiskAppetite | "">("");
+
   const [relationship, setRelationship] = useState<RelationshipStatus>("single");
   const [hobbies, setHobbies] = useState("");
   const [status, setStatus] = useState("");
   const [crossroad, setCrossroad] = useState("");
+
+  const savingsOpts = [{ value: "" as SavingsBand | "", label: "(暂不填)" }, ...SAVINGS_OPTIONS];
+  const debtOpts = [{ value: "" as DebtBand | "", label: "(暂不填)" }, ...DEBT_OPTIONS];
+  const familyOpts = [{ value: "" as FamilyResponsibility | "", label: "(暂不填)" }, ...FAMILY_OPTIONS];
+  const riskOpts = [{ value: "" as RiskAppetite | "", label: "(暂不填)" }, ...RISK_OPTIONS];
 
   const step0Valid = name.trim().length > 0 && age >= 10 && age <= 100;
   const finalValid = crossroad.trim().length > 0;
@@ -61,6 +81,12 @@ export function Onboarding() {
       relationship,
       status: status.trim(),
       crossroad: crossroad.trim(),
+      skills: skills.trim() || undefined,
+      savings: savings || undefined,
+      debt: debt || undefined,
+      assets: assets.trim() || undefined,
+      family: family || undefined,
+      riskAppetite: riskAppetite || undefined,
     };
     const profile: Profile = {
       ...inputs,
@@ -209,6 +235,53 @@ export function Onboarding() {
 
         {step === 2 && (
           <>
+            <p className="text-sm text-[var(--fg-dim)]">
+              {t("再多说说你自己（可选，但越填越准）")}
+            </p>
+            <Field label={t("技能 / 专长")} hint={t("比如 编程、设计、英语、带团队")}>
+              <input
+                type="text"
+                value={skills}
+                onChange={(e) => setSkills(e.target.value)}
+                placeholder={t("比如 编程、设计、英语、带团队")}
+                className="px-4 py-3 text-base"
+                autoFocus
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label={t("存款")}>
+                <Select value={savings} onChange={setSavings} options={savingsOpts} />
+              </Field>
+              <Field label={t("负债")}>
+                <Select value={debt} onChange={setDebt} options={debtOpts} />
+              </Field>
+            </div>
+            <Field label={t("资产")} hint={t("比如 一套房、一辆车、些许股票")}>
+              <input
+                type="text"
+                value={assets}
+                onChange={(e) => setAssets(e.target.value)}
+                placeholder={t("比如 一套房、一辆车、些许股票")}
+                className="px-4 py-3 text-base"
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label={t("家庭责任")}>
+                <Select value={family} onChange={setFamily} options={familyOpts} />
+              </Field>
+              <Field label={t("风险偏好")}>
+                <Select value={riskAppetite} onChange={setRiskAppetite} options={riskOpts} />
+              </Field>
+            </div>
+            <div className="mt-2 flex items-center justify-between">
+              <Button variant="ghost" onClick={() => setStep(1)}>{t("← 返回")}</Button>
+              <Button variant="primary" onClick={() => setStep(3)}>{t("下一步 →")}</Button>
+            </div>
+          </>
+        )}
+
+        {step === 3 && (
+          <>
             <Field label={t("情感 / 婚姻状态")}>
               <Select
                 value={relationship}
@@ -251,7 +324,7 @@ export function Onboarding() {
               />
             </Field>
             <div className="mt-2 flex items-center justify-between">
-              <Button variant="ghost" onClick={() => setStep(1)}>
+              <Button variant="ghost" onClick={() => setStep(2)}>
                 {t("← 返回")}
               </Button>
               <Button variant="primary" disabled={!finalValid} onClick={submit}>
