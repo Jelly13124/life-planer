@@ -122,6 +122,7 @@ function buildUserPrompt(input: EnrichInput): string {
     lines.push(
       `请推演：${p.name} 从 ${fixedStart} 岁起（forkDelayYears 填 0），如果选择「${choiceText}」，往后约 ${input.horizonYears} 年会怎样。整体走向：${arcHint(input.curve)}`,
     );
+    lines.push("这是同一选择的另一种走向：前一两个关键时刻紧贴起点、与基准走向时间一致，分歧主要体现在后段经历与结局。");
   }
   if (input.scenario === "optimistic")
     lines.push("按偏顺利、运气较好但仍现实可信的走向来写。");

@@ -74,4 +74,10 @@ describe("applyEnrichment — AI decides the fork timing", () => {
     expect(out.forkAge).toBeLessThanOrEqual(CURRENT_AGE + 10);
     expect(out.forkAge).toBeGreaterThanOrEqual(CURRENT_AGE);
   });
+
+  it("does NOT retime a non-likely (conservative) root choice", () => {
+    const path = makePath({ parentId: null, kind: "choice", scenario: "conservative", forkAge: 32 });
+    const out = applyEnrichment(path, result(5, [33, 36, 39, 42]), CURRENT_AGE, HORIZON);
+    expect(out.forkAge).toBe(32); // conservative variant must inherit forkAge, not re-time
+  });
 });

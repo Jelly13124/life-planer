@@ -232,7 +232,6 @@ export function PathDetail({
                   p.kind === "choice" &&
                   p.choiceLabel === path.choiceLabel &&
                   p.parentId === path.parentId &&
-                  p.forkAge === path.forkAge &&
                   p.scenario === s.value,
               );
               const active = path.scenario === s.value;

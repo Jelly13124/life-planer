@@ -25,7 +25,7 @@ export const MAX_FORK_DELAY = 10;
 
 // 根分支的选择才允许 AI 重定时机；子分支(在某节点分叉)与维持现状的起点固定。
 function canRetime(path: LifePath): boolean {
-  return path.kind === "choice" && (path.parentId == null);
+  return path.kind === "choice" && path.parentId == null && path.scenario === "likely";
 }
 
 // 向后端请求某条路径的文案 + 分叉时机；失败/未接入则返回 null。
@@ -76,7 +76,7 @@ export function applyEnrichment(
   horizonYears: number,
 ): LifePath {
   // 由 AI 决定分叉时机：起点 = 现在年龄 + forkDelayYears（仅根分支的选择）。
-  const retime = path.kind === "choice" && path.parentId == null;
+  const retime = path.kind === "choice" && path.parentId == null && path.scenario === "likely";
   const delay = retime
     ? Math.max(0, Math.min(MAX_FORK_DELAY, Math.round(result.forkDelayYears ?? 0)))
     : 0;
