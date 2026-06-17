@@ -16,7 +16,7 @@ import { useT } from "@/prefs/PreferencesContext";
 import { MetricChart } from "./MetricChart";
 import { Button } from "./ui/Button";
 import { DecisionSheet } from "./DecisionSheet";
-import { activeDecisionFor, togglePlanItem } from "@/domain/decisions";
+import { activeDecisionFor, reviewedDecisionsFor, togglePlanItem } from "@/domain/decisions";
 
 /** 导入时取一次当下作初值（render 内不可调用 new Date）；组件挂载后用 effect 刷新。 */
 const _bootNow = new Date().getTime();
@@ -40,6 +40,14 @@ const MOOD_LABEL: Record<Mood, string> = {
   high: "高光",
   mid: "平稳",
   low: "低谷",
+};
+// 复盘结果（1-5）→ 简短标签
+const OUTCOME_LABELS: Record<number, string> = {
+  1: "比预期差很多",
+  2: "比预期差",
+  3: "和预期差不多",
+  4: "比预期好",
+  5: "比预期好很多",
 };
 
 export function PathDetail({
@@ -65,6 +73,7 @@ export function PathDetail({
   }, []);
   const path = tree.paths.find((p) => p.id === pathId);
   const decision = path ? activeDecisionFor(tree, path.id) : null;
+  const reviewed = path ? reviewedDecisionsFor(tree, path.id) : [];
   const daysUntilReview = decision ? daysUntil(decision.reviewDate, nowMs) : 0;
   if (!path) {
     return (
@@ -117,7 +126,7 @@ export function PathDetail({
 
       {/* 选定 → 落地：把这条路变成计划 */}
       {path.kind === "choice" && (
-        <div className="mt-6">
+        <div className="mt-6 space-y-3">
           {decision ? (
             <div className="rounded-2xl border border-[var(--line)] bg-white/5 p-4">
               <div className="flex items-center justify-between">
@@ -186,6 +195,26 @@ export function PathDetail({
             <Button variant="primary" onClick={() => setDeciding(true)}>
               {t("把这条路变成计划")}
             </Button>
+          )}
+
+          {/* 已复盘的决定：回看当时的判断与那一句校准（最新一条） */}
+          {reviewed.slice(-1).map((d) =>
+            d.review ? (
+              <div
+                key={d.id}
+                className="rounded-2xl border border-[var(--line)] bg-white/5 p-4"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs uppercase tracking-wider text-[var(--fg-faint)]">
+                    {t("已复盘")}
+                  </span>
+                  <span className="rounded-full bg-[var(--accent)]/15 px-2 py-0.5 text-[10px] text-[var(--accent)]">
+                    {t(OUTCOME_LABELS[d.review.outcome])}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--fg)]">{d.review.lesson}</p>
+              </div>
+            ) : null,
           )}
         </div>
       )}

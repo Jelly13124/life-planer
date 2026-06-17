@@ -8,6 +8,7 @@ import {
   togglePlanItem,
   recordReview,
   activeDecisionFor,
+  reviewedDecisionsFor,
   dueDecisions,
   calibrationNote,
   addDays,
@@ -77,6 +78,8 @@ describe("decisions domain", () => {
     tree = upsertDecision(tree, reviewed);
     expect(dueDecisions(tree, addDays(NOW, 91))).toHaveLength(0); // reviewed -> not due
     expect(activeDecisionFor(tree, "p1")).toBeNull();
+    expect(reviewedDecisionsFor(tree, "p1")).toHaveLength(1); // 复盘后归入"已复盘"
+    expect(reviewedDecisionsFor(tree, "p1")[0].review?.outcome).toBe(4);
   });
 
   it("calibrationNote reacts to confidence vs outcome", () => {

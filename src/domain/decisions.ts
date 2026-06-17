@@ -86,6 +86,11 @@ export function activeDecisionFor(tree: LifeTree, pathId: string): Decision | nu
   return tree.decisions.find((d) => d.pathId === pathId && d.review === null) ?? null;
 }
 
+// 这条路上已复盘的决定（最新在后），用于在详情页回看当时的判断与教训。
+export function reviewedDecisionsFor(tree: LifeTree, pathId: string): Decision[] {
+  return tree.decisions.filter((d) => d.pathId === pathId && d.review !== null);
+}
+
 export function dueDecisions(tree: LifeTree, today: string): Decision[] {
   return tree.decisions.filter((d) => d.review === null && d.reviewDate <= today);
 }
