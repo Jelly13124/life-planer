@@ -15,6 +15,15 @@ import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { MetricChart } from "./MetricChart";
 import { Button } from "./ui/Button";
+import { DecisionSheet } from "./DecisionSheet";
+import { activeDecisionFor, togglePlanItem } from "@/domain/decisions";
+
+/** Evaluated once at module load — outside any React render. */
+const _moduleNow = new Date().getTime();
+
+function daysUntil(reviewDate: string): number {
+  return Math.max(0, Math.ceil((new Date(reviewDate).getTime() - _moduleNow) / 86400000));
+}
 
 const SCENARIOS: { value: Scenario; label: string }[] = [
   { value: "optimistic", label: "乐观" },
@@ -42,10 +51,13 @@ export function PathDetail({
   pathId: string;
   onBack: () => void;
 }) {
-  const { addScenario, addBranch, openPath } = useApp();
+  const { addScenario, addBranch, openPath, updateDecision } = useApp();
   const { t } = useT();
   const [chatting, setChatting] = useState(false);
+  const [deciding, setDeciding] = useState(false);
   const path = tree.paths.find((p) => p.id === pathId);
+  const decision = path ? activeDecisionFor(tree, path.id) : null;
+  const daysUntilReview = decision ? daysUntil(decision.reviewDate) : 0;
   if (!path) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-12">
@@ -94,6 +106,81 @@ export function PathDetail({
           </Button>
         </div>
       </div>
+
+      {/* 选定 → 落地：把这条路变成计划 */}
+      {path.kind === "choice" && (
+        <div className="mt-6">
+          {decision ? (
+            <div className="rounded-2xl border border-[var(--line)] bg-white/5 p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase tracking-wider text-[var(--fg-faint)]">
+                  {t("你的决定")}
+                </span>
+                <span className="text-xs text-[var(--fg-faint)]">
+                  {t("距复盘还有 {n} 天", { n: daysUntilReview })}
+                </span>
+              </div>
+              {!decision.plan.generatedByAI && (
+                <p className="mt-2 text-xs text-[var(--fg-faint)]">
+                  {t("（没接上 AI，先用本地模板生成的计划）")}
+                </p>
+              )}
+              <div className="mt-3 text-xs font-semibold text-[var(--fg-dim)]">{t("近期行动")}</div>
+              <ul className="mt-1 space-y-1">
+                {decision.plan.steps.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      onClick={() => updateDecision(togglePlanItem(decision, s.id))}
+                      className="flex w-full items-start gap-2 text-left text-sm"
+                    >
+                      <span
+                        className={`mt-0.5 inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border ${
+                          s.done
+                            ? "border-[var(--c-emerald)] text-[var(--c-emerald)]"
+                            : "border-[var(--line)] text-transparent"
+                        }`}
+                      >
+                        ✓
+                      </span>
+                      <span className={s.done ? "text-[var(--fg-faint)] line-through" : "text-[var(--fg)]"}>
+                        {s.text}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-3 text-xs font-semibold text-[var(--fg-dim)]">{t("低成本试错")}</div>
+              <ul className="mt-1 space-y-1">
+                {decision.plan.experiments.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      onClick={() => updateDecision(togglePlanItem(decision, s.id))}
+                      className="flex w-full items-start gap-2 text-left text-sm"
+                    >
+                      <span
+                        className={`mt-0.5 inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border ${
+                          s.done
+                            ? "border-[var(--c-emerald)] text-[var(--c-emerald)]"
+                            : "border-[var(--line)] text-transparent"
+                        }`}
+                      >
+                        ✓
+                      </span>
+                      <span className={s.done ? "text-[var(--fg-faint)] line-through" : "text-[var(--fg)]"}>
+                        {s.text}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <Button variant="primary" onClick={() => setDeciding(true)}>
+              {t("把这条路变成计划")}
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* 多走向切换（乐观/最可能/保守） */}
       {path.kind === "choice" && (
@@ -212,6 +299,9 @@ export function PathDetail({
             })
           }
         />
+      )}
+      {deciding && (
+        <DecisionSheet tree={tree} path={path} onClose={() => setDeciding(false)} />
       )}
     </div>
   );
