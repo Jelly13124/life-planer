@@ -95,11 +95,12 @@ export function addScenarioVariant(
   const base = tree.paths.find((p) => p.id === basePathId);
   if (!base) return tree;
   // 已有同一选择+同一走向+同一父，则不重复生成
+  // 与 PathDetail 的变体查找保持一致：按 选择+父+走向 判重（不看 forkAge，
+  // 因为非 likely 变体继承 base.forkAge，加了反而可能误判而重复生成）。
   const exists = tree.paths.some(
     (p) =>
       p.choiceLabel === base.choiceLabel &&
       p.parentId === base.parentId &&
-      p.forkAge === base.forkAge &&
       p.scenario === scenario,
   );
   if (exists) return tree;
