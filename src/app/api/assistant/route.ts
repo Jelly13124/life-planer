@@ -1,5 +1,7 @@
 // 服务端：人生规划助手对话。帮处于迷茫期的人想清楚选择、提出没考虑过的可能。
 // 与 enrich/chat 一致地走 DeepSeek，没密钥则优雅降级。
+import { allowRequest } from "@/lib/rateLimit";
+
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
 
@@ -20,6 +22,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!allowRequest(request, Date.now())) {
+    return Response.json({ reply: null }, { status: 429 });
+  }
   const key = getKey();
   let body: AssistantBody;
   try {

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./Providers";
@@ -11,6 +11,19 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "人生规划 · Life Planner",
   description: "把“如果我做了不同选择”变成一棵会生长的人生树。",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-icon-180.png", sizes: "180x180" }],
+  },
+  appleWebApp: { capable: true, title: "人生树", statusBarStyle: "black-translucent" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0b1a",
 };
 
 // 首屏前把已保存的语言写到 <html lang>，避免中英闪烁。

@@ -50,3 +50,4 @@ next-env.d.ts
 .dev-server.log
 .playwright-mcp/
 .enrich-test-body.json
+.prod-server.log

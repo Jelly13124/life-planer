@@ -4,6 +4,7 @@
 // 没有 DEEPSEEK_API_KEY 或调用失败时返回 { reply: null }，前端给出友好提示。
 import type { Profile } from "@/domain/types";
 import { financialFacts } from "@/domain/profile";
+import { allowRequest } from "@/lib/rateLimit";
 
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
@@ -98,6 +99,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!allowRequest(request, Date.now())) {
+    return Response.json({ reply: null }, { status: 429 });
+  }
   const key = getKey();
   if (!key) return Response.json({ reply: null });
 

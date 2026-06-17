@@ -1,4 +1,6 @@
 // 服务端：把一个选择落地成 30/90 天计划 + 低成本试错。无 key/失败 → 空数组，前端本地兜底。
+import { allowRequest } from "@/lib/rateLimit";
+
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
 
@@ -26,6 +28,9 @@ function extractJson(text: string): string | null {
 }
 
 export async function POST(request: Request) {
+  if (!allowRequest(request, Date.now())) {
+    return Response.json({ steps: [], experiments: [] }, { status: 429 });
+  }
   const key = getKey();
   let body: Body;
   try {

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="30%" cy="18%" r="100%">
+      <stop offset="0%" stop-color="#1b1f3a"/>
+      <stop offset="45%" stop-color="#11132a"/>
+      <stop offset="100%" stop-color="#0a0b1a"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- 维持现状：灰色虚线基线 -->
+  <line x1="120" y1="300" x2="392" y2="300" stroke="#7681a3" stroke-width="10" stroke-linecap="round" stroke-dasharray="6 26" opacity="0.7"/>
+  <!-- 三条人生分叉：从“现在”长出 -->
+  <path d="M128 300 C 210 300 250 150 392 122" fill="none" stroke="#a78bfa" stroke-width="16" stroke-linecap="round"/>
+  <path d="M128 300 C 210 300 250 322 392 300" fill="none" stroke="#e879f9" stroke-width="16" stroke-linecap="round"/>
+  <path d="M128 300 C 210 300 252 408 384 430" fill="none" stroke="#34d399" stroke-width="16" stroke-linecap="round"/>
+  <!-- 终点光点 -->
+  <circle cx="392" cy="122" r="17" fill="#a78bfa"/>
+  <circle cx="392" cy="300" r="17" fill="#e879f9"/>
+  <circle cx="384" cy="430" r="17" fill="#34d399"/>
+  <!-- “现在”原点 -->
+  <circle cx="128" cy="300" r="22" fill="#11132a" stroke="#ffffff" stroke-width="9"/>
+</svg>

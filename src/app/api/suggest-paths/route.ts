@@ -1,5 +1,7 @@
 // 服务端：让规划助手"铺开几条值得探索的路"——返回结构化的候选选择，
 // 前端渲染成确认按钮，用户点一下才真正画上（确认优先）。
+import { allowRequest } from "@/lib/rateLimit";
+
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
 
@@ -23,6 +25,9 @@ function extractJson(text: string): string | null {
 }
 
 export async function POST(request: Request) {
+  if (!allowRequest(request, Date.now())) {
+    return Response.json({ suggestions: [] }, { status: 429 });
+  }
   const key = getKey();
   let body: Body;
   try {

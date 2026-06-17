@@ -2,8 +2,12 @@
 // t("中文") 在中文下原样返回；英文下查这里，命中则替换，未命中则回退中文。
 // {var} 占位由 t() 的第二参数插值。新增中文文案时，记得在此补一条英文。
 export const EN: Record<string, string> = {
-  // ── 偏好控件 ──
+  // ── 偏好控件 / PWA ──
   切换语言: "Switch language",
+  "把「人生树」加到主屏，像 app 一样用":
+    "Add Life Planner to your home screen for an app-like experience",
+  "点底部分享按钮，选「添加到主屏幕」": "Tap the Share button, then “Add to Home Screen”",
+  知道了: "Got it",
 
   // ── 引导 Onboarding ──
   "先认识一下": "First, meet ",

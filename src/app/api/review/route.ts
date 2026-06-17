@@ -1,4 +1,6 @@
 // 服务端：复盘——对照"当时预期/信心"与"真实发生"，给一句校准。无 key/失败 → null，前端本地兜底。
+import { allowRequest } from "@/lib/rateLimit";
+
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
 
@@ -18,6 +20,9 @@ function getKey(): string | null {
 }
 
 export async function POST(request: Request) {
+  if (!allowRequest(request, Date.now())) {
+    return Response.json({ lesson: null }, { status: 429 });
+  }
   const key = getKey();
   let body: Body;
   try {
