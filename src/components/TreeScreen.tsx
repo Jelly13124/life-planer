@@ -6,6 +6,12 @@ import { useT } from "@/prefs/PreferencesContext";
 import { LifeMap } from "./LifeMap";
 import { AddBranchSheet, type ForkContext } from "./AddBranchSheet";
 import { Button } from "./ui/Button";
+import { dueDecisions } from "@/domain/decisions";
+import { ReviewSheet } from "./ReviewSheet";
+import type { Decision } from "@/domain/types";
+
+// 模块加载时取一次"今天"，用于判断哪些决定到期（render 内不可调用 new Date）。
+const _todayISO = new Date().toISOString();
 
 export function TreeScreen() {
   const { tree, openPath, addBranch, reset, aiEnabled } = useApp();
@@ -13,9 +19,11 @@ export function TreeScreen() {
   const [adding, setAdding] = useState(false);
   // 在某条路的某个未来节点处加岔路（R6 递归）；null = 关闭
   const [fork, setFork] = useState<ForkContext | null>(null);
+  const [reviewing, setReviewing] = useState<Decision | null>(null);
 
   if (!tree) return null;
   const choiceCount = tree.paths.filter((p) => p.kind === "choice").length;
+  const due = dueDecisions(tree, _todayISO);
 
   return (
     <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-8 sm:px-8">
@@ -36,6 +44,15 @@ export function TreeScreen() {
               {t("✨ 由真实 AI 生成")}
             </div>
           ) : null}
+          {due.length > 0 && (
+            <button
+              onClick={() => setReviewing(due[0])}
+              className="mt-2 inline-flex items-center gap-2 rounded-full border border-[var(--c-amber)]/50 bg-[var(--c-amber)]/10 px-3 py-1 text-xs text-[var(--c-amber)] transition hover:bg-[var(--c-amber)]/20"
+            >
+              <span className="inline-block h-2 w-2 rounded-full bg-[var(--c-amber)]" />
+              {t("有 {n} 个决定该复盘了", { n: due.length })} · {t("去复盘")}
+            </button>
+          )}
         </div>
         <div className="flex gap-2">
           <Button variant="primary" onClick={() => setAdding(true)}>
@@ -82,6 +99,14 @@ export function TreeScreen() {
           onAdd={addBranch}
           onClose={() => setFork(null)}
           fork={fork}
+        />
+      )}
+
+      {reviewing && (
+        <ReviewSheet
+          decision={reviewing}
+          onClose={() => setReviewing(null)}
+          onReplan={(label) => addBranch(label)}
         />
       )}
     </div>
