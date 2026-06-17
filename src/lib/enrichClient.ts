@@ -75,8 +75,8 @@ export function applyEnrichment(
   startAge: number,
   horizonYears: number,
 ): LifePath {
-  // 由 AI 决定分叉时机：起点 = 现在年龄 + forkDelayYears（仅根分支的选择）。
-  const retime = path.kind === "choice" && path.parentId == null && path.scenario === "likely";
+  // 由 AI 决定分叉时机：起点 = 现在年龄 + forkDelayYears（仅根分支的"最可能"，见 canRetime）。
+  const retime = canRetime(path);
   const delay = retime
     ? Math.max(0, Math.min(MAX_FORK_DELAY, Math.round(result.forkDelayYears ?? 0)))
     : 0;

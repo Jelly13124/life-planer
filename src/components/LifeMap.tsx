@@ -442,7 +442,7 @@ function PathCurve({
               r={nodeHover ? 7 : active && !isFirst ? 5 : 4}
               fill={nodeHover ? color : "var(--bg-0)"}
               stroke={nodeHover ? "#fff" : active && !isFirst ? color : MOOD_RING[n.mood]}
-              strokeWidth={nodeHover ? 2 : active && !isFirst ? 2 : 1.6}
+              strokeWidth={nodeHover || (active && !isFirst) ? 2 : 1.6}
               style={{
                 cursor: isFirst ? "default" : "pointer",
                 transition: "r .12s ease, fill .12s ease",

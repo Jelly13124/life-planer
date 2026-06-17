@@ -30,6 +30,12 @@ import { Select } from "./ui/Select";
 
 const TOTAL_STEPS = 4;
 
+// 可选下拉选项（含"(暂不填)"占位）——静态表，放模块级避免每次 render 重建。
+const savingsOpts = [{ value: "" as SavingsBand | "", label: "(暂不填)" }, ...SAVINGS_OPTIONS];
+const debtOpts = [{ value: "" as DebtBand | "", label: "(暂不填)" }, ...DEBT_OPTIONS];
+const familyOpts = [{ value: "" as FamilyResponsibility | "", label: "(暂不填)" }, ...FAMILY_OPTIONS];
+const riskOpts = [{ value: "" as RiskAppetite | "", label: "(暂不填)" }, ...RISK_OPTIONS];
+
 export function Onboarding() {
   const { completeOnboarding } = useApp();
   const { t } = useT();
@@ -57,11 +63,6 @@ export function Onboarding() {
   const [hobbies, setHobbies] = useState("");
   const [status, setStatus] = useState("");
   const [crossroad, setCrossroad] = useState("");
-
-  const savingsOpts = [{ value: "" as SavingsBand | "", label: "(暂不填)" }, ...SAVINGS_OPTIONS];
-  const debtOpts = [{ value: "" as DebtBand | "", label: "(暂不填)" }, ...DEBT_OPTIONS];
-  const familyOpts = [{ value: "" as FamilyResponsibility | "", label: "(暂不填)" }, ...FAMILY_OPTIONS];
-  const riskOpts = [{ value: "" as RiskAppetite | "", label: "(暂不填)" }, ...RISK_OPTIONS];
 
   const step0Valid = name.trim().length > 0 && age >= 10 && age <= 100;
   const finalValid = crossroad.trim().length > 0;

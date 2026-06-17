@@ -3,6 +3,7 @@
 // 把用户的现状作为既定事实喂进去（不能矛盾），其余对话沿用前端传来的消息。
 // 没有 DEEPSEEK_API_KEY 或调用失败时返回 { reply: null }，前端给出友好提示。
 import type { Profile } from "@/domain/types";
+import { financialFacts } from "@/domain/profile";
 
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
@@ -73,12 +74,7 @@ function buildSystem(body: ChatRequestBody): string {
   if (p.education) facts.push(`学历代码：${p.education}`);
   if (p.relationship) facts.push(`情感状态代码：${p.relationship}`);
   if (p.snapshot) facts.push(`自述：${p.snapshot}`);
-  if (p.skills) facts.push(`技能：${p.skills}`);
-  if (p.savings) facts.push(`存款档：${p.savings}`);
-  if (p.debt && p.debt !== "none") facts.push(`负债档：${p.debt}`);
-  if (p.assets) facts.push(`资产：${p.assets}`);
-  if (p.family && p.family !== "none") facts.push(`家庭责任：${p.family}`);
-  if (p.riskAppetite) facts.push(`风险偏好：${p.riskAppetite}`);
+  facts.push(...financialFacts(p));
   lines.push(facts.join("；") + "。");
   lines.push("不要和这些已知事实矛盾。");
   lines.push("");

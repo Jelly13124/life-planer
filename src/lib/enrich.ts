@@ -5,13 +5,10 @@
 import { z } from "zod";
 import type { CurveShape, PathKind, Profile } from "@/domain/types";
 import {
-  DEBT_LABELS,
   EDUCATION_LABELS,
-  FAMILY_LABELS,
   RELATIONSHIP_LABELS,
-  RISK_LABELS,
   SALARY_LABELS,
-  SAVINGS_LABELS,
+  financialFacts,
 } from "@/domain/profile";
 
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
@@ -106,12 +103,7 @@ function buildUserPrompt(input: EnrichInput): string {
   if (p.hobbies) facts.push(`爱好：${p.hobbies}`);
   facts.push(`情感：${RELATIONSHIP_LABELS[p.relationship]}`);
   if (p.snapshot) facts.push(`自述：${p.snapshot}`);
-  if (p.skills?.trim()) facts.push(`技能：${p.skills.trim()}`);
-  if (p.savings) facts.push(`存款${SAVINGS_LABELS[p.savings]}`);
-  if (p.debt && p.debt !== "none") facts.push(`负债${DEBT_LABELS[p.debt]}`);
-  if (p.assets?.trim()) facts.push(`资产：${p.assets.trim()}`);
-  if (p.family && p.family !== "none") facts.push(FAMILY_LABELS[p.family]);
-  if (p.riskAppetite) facts.push(`风险偏好：${RISK_LABELS[p.riskAppetite]}`);
+  facts.push(...financialFacts(p));
 
   const choiceText =
     input.kind === "status-quo" ? "维持现状、不做大的改变" : input.choiceLabel;
@@ -132,7 +124,10 @@ function buildUserPrompt(input: EnrichInput): string {
     lines.push(
       `请推演：${p.name} 从 ${fixedStart} 岁起（forkDelayYears 填 0），如果选择「${choiceText}」，往后约 ${input.horizonYears} 年会怎样。整体走向：${arcHint(input.curve)}`,
     );
-    lines.push("这是同一选择的另一种走向：前一两个关键时刻紧贴起点、与基准走向时间一致，分歧主要体现在后段经历与结局。");
+    // 仅对"同一选择的另一种走向"(乐观/保守变体)才提示对齐基准；维持现状/子分支不适用。
+    if (input.scenario && input.scenario !== "likely") {
+      lines.push("这是同一选择的另一种走向：前一两个关键时刻紧贴起点、与基准走向时间一致，分歧主要体现在后段经历与结局。");
+    }
   }
   if (input.scenario === "optimistic")
     lines.push("按偏顺利、运气较好但仍现实可信的走向来写。");

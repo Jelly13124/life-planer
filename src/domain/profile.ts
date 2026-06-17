@@ -38,15 +38,14 @@ export const RELATIONSHIP_OPTIONS: { value: RelationshipStatus; label: string }[
   { value: "na", label: "不便透露" },
 ];
 
-export const EDUCATION_LABELS: Record<EducationLevel, string> = Object.fromEntries(
-  EDUCATION_OPTIONS.map((o) => [o.value, o.label]),
-) as Record<EducationLevel, string>;
-export const SALARY_LABELS: Record<SalaryBand, string> = Object.fromEntries(
-  SALARY_OPTIONS.map((o) => [o.value, o.label]),
-) as Record<SalaryBand, string>;
-export const RELATIONSHIP_LABELS: Record<RelationshipStatus, string> = Object.fromEntries(
-  RELATIONSHIP_OPTIONS.map((o) => [o.value, o.label]),
-) as Record<RelationshipStatus, string>;
+// value→label 表的统一构造，省掉每个 *_LABELS 的 Object.fromEntries 样板。
+function makeLabels<T extends string>(opts: { value: T; label: string }[]): Record<T, string> {
+  return Object.fromEntries(opts.map((o) => [o.value, o.label])) as Record<T, string>;
+}
+
+export const EDUCATION_LABELS = makeLabels(EDUCATION_OPTIONS);
+export const SALARY_LABELS = makeLabels(SALARY_OPTIONS);
+export const RELATIONSHIP_LABELS = makeLabels(RELATIONSHIP_OPTIONS);
 
 export const SAVINGS_OPTIONS: { value: SavingsBand; label: string }[] = [
   { value: "none", label: "几乎没有积蓄" },
@@ -75,18 +74,25 @@ export const RISK_OPTIONS: { value: RiskAppetite; label: string }[] = [
   { value: "aggressive", label: "进取敢冲" },
 ];
 
-export const SAVINGS_LABELS: Record<SavingsBand, string> = Object.fromEntries(
-  SAVINGS_OPTIONS.map((o) => [o.value, o.label]),
-) as Record<SavingsBand, string>;
-export const DEBT_LABELS: Record<DebtBand, string> = Object.fromEntries(
-  DEBT_OPTIONS.map((o) => [o.value, o.label]),
-) as Record<DebtBand, string>;
-export const FAMILY_LABELS: Record<FamilyResponsibility, string> = Object.fromEntries(
-  FAMILY_OPTIONS.map((o) => [o.value, o.label]),
-) as Record<FamilyResponsibility, string>;
-export const RISK_LABELS: Record<RiskAppetite, string> = Object.fromEntries(
-  RISK_OPTIONS.map((o) => [o.value, o.label]),
-) as Record<RiskAppetite, string>;
+export const SAVINGS_LABELS = makeLabels(SAVINGS_OPTIONS);
+export const DEBT_LABELS = makeLabels(DEBT_OPTIONS);
+export const FAMILY_LABELS = makeLabels(FAMILY_OPTIONS);
+export const RISK_LABELS = makeLabels(RISK_OPTIONS);
+
+// 财务/技能/家庭/风险这几项的"事实行"（有值才出）。供 buildSnapshot 与 enrich/chat
+// 提示词共用，避免同一段在三处各写一遍、且口径（用 label 而非原始码）保持一致。
+export function financialFacts(
+  p: Pick<Profile, "skills" | "savings" | "debt" | "assets" | "family" | "riskAppetite">,
+): string[] {
+  const out: string[] = [];
+  if (p.skills?.trim()) out.push(`技能：${p.skills.trim()}`);
+  if (p.savings) out.push(`存款${SAVINGS_LABELS[p.savings]}`);
+  if (p.debt && p.debt !== "none") out.push(`负债${DEBT_LABELS[p.debt]}`);
+  if (p.assets?.trim()) out.push(`资产：${p.assets.trim()}`);
+  if (p.family && p.family !== "none") out.push(FAMILY_LABELS[p.family]);
+  if (p.riskAppetite) out.push(`风险偏好：${RISK_LABELS[p.riskAppetite]}`);
+  return out;
+}
 
 const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
 
@@ -157,11 +163,6 @@ export function buildSnapshot(p: ProfileInputs): string {
   if (p.hobbies.trim()) parts.push(`爱好${p.hobbies.trim()}`);
   parts.push(RELATIONSHIP_LABELS[p.relationship]);
   if (p.status.trim()) parts.push(p.status.trim());
-  if (p.skills?.trim()) parts.push(`技能：${p.skills.trim()}`);
-  if (p.savings) parts.push(`存款${SAVINGS_LABELS[p.savings]}`);
-  if (p.debt && p.debt !== "none") parts.push(`负债${DEBT_LABELS[p.debt]}`);
-  if (p.assets?.trim()) parts.push(`资产：${p.assets.trim()}`);
-  if (p.family && p.family !== "none") parts.push(FAMILY_LABELS[p.family]);
-  if (p.riskAppetite) parts.push(`风险偏好：${RISK_LABELS[p.riskAppetite]}`);
+  parts.push(...financialFacts(p));
   return parts.join(" · ");
 }
