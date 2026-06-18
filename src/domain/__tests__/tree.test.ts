@@ -192,4 +192,16 @@ describe("LocalStorageRepository", () => {
     expect(loaded).not.toBeNull();
     expect(loaded!.decisions).toEqual([]);
   });
+
+  it("backfills goals: [] for old trees missing the field", () => {
+    const store = makeStore();
+    const t = createTree(profile, gen, NOW);
+    const legacy = { ...t } as Record<string, unknown>;
+    delete legacy.goals; // 模拟旧版没有 goals 的树
+    store.setItem("lifeplanner.tree.v3", JSON.stringify(legacy));
+    const repo = new LocalStorageRepository(store);
+    const loaded = repo.load();
+    expect(loaded).not.toBeNull();
+    expect(loaded!.goals).toEqual([]);
+  });
 });
