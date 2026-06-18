@@ -51,6 +51,9 @@ export const EN: Record<string, string> = {
     "e.g. quit to start a company / move cities / go to grad school",
   "写下一个你正在纠结的选择，它会成为第一条岔路":
     "Write a choice you're torn over — it becomes your first branch",
+  "你最近在纠结的一个选择？（可选）": "A choice you've been mulling over? (optional)",
+  "可留空。写下来的话，进去后能把它变成你的第一个目标":
+    "Leave it blank, or jot one down — you can turn it into your first goal inside.",
   "✨ 生成我的人生树": "✨ Generate my life tree",
 
   // ── 选项标签（学历/收入/情感） ──

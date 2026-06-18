@@ -65,7 +65,7 @@ export function Onboarding() {
   const [crossroad, setCrossroad] = useState("");
 
   const step0Valid = name.trim().length > 0 && age >= 10 && age <= 100;
-  const finalValid = crossroad.trim().length > 0;
+  // 单线起手：岔路改为可选——不再要求填、也不再自动分叉（之后能在「我的规划」里变成目标）。
 
   function submit() {
     const inputs = {
@@ -312,14 +312,14 @@ export function Onboarding() {
               />
             </Field>
             <Field
-              label={t("你现在面临的一个岔路是？")}
+              label={t("你最近在纠结的一个选择？（可选）")}
               hint={t("比如 要不要辞职创业 / 要不要换城市 / 要不要读研")}
             >
               <textarea
                 value={crossroad}
                 onChange={(e) => setCrossroad(e.target.value)}
                 rows={2}
-                placeholder={t("写下一个你正在纠结的选择，它会成为第一条岔路")}
+                placeholder={t("可留空。写下来的话，进去后能把它变成你的第一个目标")}
                 className="resize-none px-4 py-3 text-base"
                 autoFocus
               />
@@ -328,7 +328,7 @@ export function Onboarding() {
               <Button variant="ghost" onClick={() => setStep(2)}>
                 {t("← 返回")}
               </Button>
-              <Button variant="primary" disabled={!finalValid} onClick={submit}>
+              <Button variant="primary" onClick={submit}>
                 {t("✨ 生成我的人生树")}
               </Button>
             </div>
