@@ -44,10 +44,13 @@ export function linkGoalPath(tree: LifeTree, goalId: string, pathId: string): Li
   return { ...tree, goals: goals(tree).map((g) => (g.id === goalId ? { ...g, pathId } : g)) };
 }
 
+// 注意：这是"整段替换" actions（拆解/重拆都是全量覆盖，done 状态会重置）。
+// 先去空再编号，保证 id 连续（-a0、-a1…），避免过滤后留出空号。
 export function setGoalActions(goal: Goal, texts: string[]): Goal {
   const actions: GoalAction[] = texts
-    .map((t, i) => ({ id: `${goal.id}-a${i}`, text: t.trim(), done: false }))
-    .filter((a) => a.text);
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map((text, i) => ({ id: `${goal.id}-a${i}`, text, done: false }));
   return { ...goal, actions };
 }
 
@@ -97,6 +100,7 @@ export function completeGoal(tree: LifeTree, goalId: string, now: string): LifeT
 export function dropGoal(tree: LifeTree, goalId: string, now: string): LifeTree {
   const goal = goalById(tree, goalId);
   if (!goal) return tree;
+  // 结构是扁平的：长期目标 ⊃ 短期子目标（短期目标不再有子目标），故只级联一层。
   const removeIds = new Set<string>([goalId, ...childGoals(tree, goalId).map((g) => g.id)]);
   let next: LifeTree = {
     ...tree,

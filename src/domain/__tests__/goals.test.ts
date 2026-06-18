@@ -66,6 +66,7 @@ describe("goals domain", () => {
     const g2 = setGoalActions(g, ["背 20 个词", "  ", "看一集美剧"]);
     expect(g2.actions.map((a) => a.text)).toEqual(["背 20 个词", "看一集美剧"]);
     expect(g2.actions[0].id).toBe(`${g.id}-a0`);
+    expect(g2.actions[1].id).toBe(`${g.id}-a1`);
     const g3 = toggleGoalAction(g2, g2.actions[0].id);
     expect(g3.actions[0].done).toBe(true);
   });
