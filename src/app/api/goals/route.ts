@@ -12,7 +12,7 @@ interface Body {
   lang?: "zh" | "en";
 }
 
-export interface GoalSuggestionDTO {
+interface GoalSuggestionDTO {
   area: LifeArea;
   horizon: GoalHorizon;
   title: string;
@@ -56,8 +56,9 @@ function normalize(raw: { area?: unknown; horizon?: unknown; title?: unknown; wh
 }
 
 export async function POST(request: Request) {
+  // 限流命中：不调用大模型（仍保护 key），但仍返回通用兜底，让用户有东西可用。
   if (!allowRequest(request, Date.now())) {
-    return Response.json({ goals: FALLBACK }, { status: 429 });
+    return Response.json({ goals: FALLBACK });
   }
   let body: Body;
   try {
