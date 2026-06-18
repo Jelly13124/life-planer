@@ -272,6 +272,40 @@ export const EN: Record<string, string> = {
   "预演失败：三年后它失败了，最可能因为什么？": "Pre-mortem: if it fails in 3 years, why?",
   "可逆性：这是单行道还是可回头？": "Reversibility: one-way or two-way door?",
 
+  // ── 规划主线 PlanScreen ──
+  "🎯 我的规划": "🎯 My Plan",
+  我的规划: "My Plan",
+  "先定长期目标——它会在你的人生树上长出一条路；用短期目标和行动一步步逼近它。":
+    "Set a long-term goal — it grows a path on your life tree; close in on it with short-term goals and actions.",
+  "该回看目标了：有 {n} 个目标一周没动过了。":
+    "Time to review: {n} goal(s) haven't moved in a week.",
+  我回看过了: "I've reviewed",
+  "✨ 帮我想几个目标": "✨ Suggest some goals",
+  "正在想几个适合你的目标…": "Thinking of goals that fit you…",
+  "把「{label}」设成第一个长期目标": "Make “{label}” your first long-term goal",
+  "点「加入」才会进规划（长期目标会在树上长出一条路）":
+    "Tap “Add” to put it in your plan (a long-term goal grows a path on the tree)",
+  长期: "Long-term",
+  短期: "Short-term",
+  "✓ 已加入": "✓ Added",
+  加入: "Add",
+  长期目标: "Long-term goals",
+  短期目标: "Short-term goals",
+  "进度 {pct}%": "{pct}% done",
+  "📈 在树上看这条路": "📈 See this path on the tree",
+  "✨ 和达成目标的未来的你聊聊": "✨ Talk to the future you who got there",
+  "加一个短期目标（踏脚石）": "Add a short-term goal (stepping stone)",
+  "正在拆解…": "Breaking it down…",
+  "✨ 拆成行动": "✨ Break into actions",
+  "✅ 已达成": "✅ Achieved",
+  移除: "Remove",
+  "确定移除这个目标？长期目标会连同它在树上的分支一起删除。":
+    "Remove this goal? A long-term goal also deletes its branch on the tree.",
+  已达成的里程碑: "Milestones reached",
+  "已达成 · {area}+": "Achieved · {area}+",
+  "还没有目标。让 AI 帮你想几个，看着它们在你的人生树上长出来。":
+    "No goals yet. Let the AI suggest some, and watch them grow on your life tree.",
+
   // ── 引导 step 2：技能 / 财务 / 家庭 / 风险 ──
   "再多说说你自己（可选，但越填越准）": "A bit more about you (optional, the more the better)",
   "技能 / 专长": "Skills / strengths",
