@@ -10,7 +10,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import type { Decision, LifePath, LifeTree, Profile, Scenario } from "@/domain/types";
+import type { Decision, Goal, LifePath, LifeTree, Profile, Scenario } from "@/domain/types";
 import { createDecision, upsertDecision, type DecisionInput } from "@/domain/decisions";
 import type { PathGenerator } from "@/domain/generator/types";
 import { localGenerator } from "@/domain/generator/localGenerator";
@@ -28,8 +28,18 @@ import {
   fetchEnrichEnabled,
   fetchEnrichment,
 } from "@/lib/enrichClient";
+import {
+  completeGoal,
+  createGoal,
+  dropGoal,
+  dueGoalReviews,
+  recordGoalReview,
+  setGoalActions,
+  toggleGoalAction,
+  upsertGoal,
+} from "@/domain/goals";
 
-export type View = "onboarding" | "tree" | "detail";
+export type View = "onboarding" | "tree" | "detail" | "plan";
 
 // 一次"AI 正在推演"的进行态：在 AI 把这一批路全部写完之前，分支不落到树上。
 export interface Predicting {
@@ -57,6 +67,7 @@ type Action =
   | { type: "setAiEnabled"; enabled: boolean }
   | { type: "openPath"; id: string }
   | { type: "backToTree" }
+  | { type: "openPlan" }
   | { type: "patchTree"; tree: LifeTree }
   | { type: "reset" };
 
@@ -93,6 +104,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, activePathId: action.id, view: "detail" };
     case "backToTree":
       return { ...state, activePathId: null, view: "tree" };
+    case "openPlan":
+      return { ...state, activePathId: null, view: "plan" };
     case "patchTree":
       return { ...state, tree: action.tree };
     case "reset":
@@ -123,6 +136,14 @@ interface AppApi {
   commitDecision: (decision: Decision) => void; // 新建/覆盖同路活跃决定
   updateDecision: (decision: Decision) => void; // 按 id 原地更新（勾选/复盘）
   regeneratePath: (pathId: string, note: string) => void; // 带补充信息重新推演这条路
+  openPlan: () => void;
+  addLongTermGoal: (input: { area: Goal["area"]; title: string; why: string }) => void;
+  addShortTermGoal: (input: { area: Goal["area"]; title: string; why: string; parentGoalId?: string | null }) => void;
+  setGoalActionTexts: (goalId: string, texts: string[]) => void;
+  toggleGoalActionById: (goalId: string, actionId: string) => void;
+  completeGoalById: (goalId: string) => void;
+  dropGoalById: (goalId: string) => void;
+  markDueGoalsReviewed: () => void;
 }
 
 const AppContext = createContext<AppApi | null>(null);
@@ -354,6 +375,67 @@ export function AppProvider({
       regeneratePath: (pathId, note) => {
         if (predictingRef.current) return;
         void regenerateAndCommit(pathId, note);
+      },
+      openPlan: () => dispatch({ type: "openPlan" }),
+      addLongTermGoal: ({ area, title, why }) => {
+        if (predictingRef.current) return;
+        const baseTree = treeRef.current;
+        if (!baseTree || !title.trim()) return;
+        const ts = new Date().toISOString();
+        // 1) 在树上长出这条目标的分支（根分支，分叉年龄按选择推测，AI 可重定）
+        const working = addPath(baseTree, title, generator, ts);
+        if (working === baseTree) return;
+        const newPath = working.paths[working.paths.length - 1];
+        // 2) 建长期目标并关联这条分支
+        const goal = createGoal(
+          { area, horizon: "long", title, why, pathId: newPath.id },
+          ts,
+        );
+        const withGoal = upsertGoal(working, goal);
+        // 3) 推演这条分支（播动画、落到树上）。withGoal 含 goals，predictAndCommit 会保留。
+        void predictAndCommit(withGoal, [newPath], "branch");
+      },
+      addShortTermGoal: ({ area, title, why, parentGoalId }) => {
+        const baseTree = treeRef.current;
+        if (!baseTree || !title.trim()) return;
+        const goal = createGoal(
+          { area, horizon: "short", title, why, parentGoalId: parentGoalId ?? null },
+          new Date().toISOString(),
+        );
+        dispatch({ type: "patchTree", tree: upsertGoal(baseTree, goal) });
+      },
+      setGoalActionTexts: (goalId, texts) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        const goal = (baseTree.goals ?? []).find((g) => g.id === goalId);
+        if (!goal) return;
+        dispatch({ type: "patchTree", tree: upsertGoal(baseTree, setGoalActions(goal, texts)) });
+      },
+      toggleGoalActionById: (goalId, actionId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        const goal = (baseTree.goals ?? []).find((g) => g.id === goalId);
+        if (!goal) return;
+        dispatch({ type: "patchTree", tree: upsertGoal(baseTree, toggleGoalAction(goal, actionId)) });
+      },
+      completeGoalById: (goalId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: completeGoal(baseTree, goalId, new Date().toISOString()) });
+      },
+      dropGoalById: (goalId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: dropGoal(baseTree, goalId, new Date().toISOString()) });
+      },
+      markDueGoalsReviewed: () => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        const now = new Date().toISOString();
+        // 折叠到一棵树上单次 dispatch（逐条 dispatch 会因 treeRef 滞后只生效一条）。
+        let tt = baseTree;
+        for (const g of dueGoalReviews(baseTree, now)) tt = recordGoalReview(tt, g.id, now);
+        dispatch({ type: "patchTree", tree: tt });
       },
     }),
     [
