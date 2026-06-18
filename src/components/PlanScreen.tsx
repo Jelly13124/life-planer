@@ -53,9 +53,10 @@ export function PlanScreen() {
   }
 
   async function breakIntoActions(goal: Goal) {
-    if (busyActions) return;
+    const currentTree = tree;
+    if (busyActions || !currentTree) return;
     setBusyActions(goal.id);
-    const texts = await fetchGoalActions(goal, tree!.profile.snapshot || "");
+    const texts = await fetchGoalActions(goal, currentTree.profile.snapshot || "");
     setBusyActions(null);
     if (texts.length) setGoalActionTexts(goal.id, texts);
   }
