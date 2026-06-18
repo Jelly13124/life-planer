@@ -7,6 +7,7 @@ import { LifeMap } from "./LifeMap";
 import { AddBranchSheet, type ForkContext } from "./AddBranchSheet";
 import { Button } from "./ui/Button";
 import { dueDecisions } from "@/domain/decisions";
+import { achievedPathIds } from "@/domain/goals";
 import { ReviewSheet } from "./ReviewSheet";
 import type { Decision } from "@/domain/types";
 
@@ -33,6 +34,7 @@ export function TreeScreen() {
   if (!tree) return null;
   const choiceCount = tree.paths.filter((p) => p.kind === "choice").length;
   const due = dueDecisions(tree, todayISO);
+  const achieved = achievedPathIds(tree);
 
   return (
     <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-8 sm:px-8">
@@ -81,6 +83,7 @@ export function TreeScreen() {
         <div className="w-full overflow-hidden rounded-3xl border border-[var(--line)] bg-black/20 p-2 sm:p-4">
           <LifeMap
             tree={tree}
+            achievedIds={achieved}
             onSelectPath={openPath}
             onForkAtNode={(parentId, forkAge, atLabel) =>
               setFork({ parentId, forkAge, atLabel })

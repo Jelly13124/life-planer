@@ -48,10 +48,12 @@ export function LifeMap({
   tree,
   onSelectPath,
   onForkAtNode,
+  achievedIds,
 }: {
   tree: LifeTree;
   onSelectPath: (id: string) => void;
   onForkAtNode: (parentId: string, forkAge: number, atLabel: string) => void;
+  achievedIds?: Set<string>;
 }) {
   const reduced = usePrefersReducedMotion();
   const { t } = useT();
@@ -275,6 +277,7 @@ export function LifeMap({
               p={p}
               index={i}
               reduced={reduced}
+              achieved={Boolean(achievedIds?.has(p.id))}
               dim={Boolean(focusId) && !litChain.has(p.id)}
               active={focusId === p.id}
               onHoverIn={() => setHover(p.id)}
@@ -353,6 +356,7 @@ function PathCurve({
   p,
   index,
   reduced,
+  achieved,
   dim,
   active,
   onHoverIn,
@@ -365,6 +369,7 @@ function PathCurve({
   p: PathLayout;
   index: number;
   reduced: boolean;
+  achieved: boolean;
   dim: boolean;
   active: boolean;
   onHoverIn: () => void;
@@ -530,9 +535,9 @@ function PathCurve({
         <circle
           cx={p.end.x}
           cy={p.end.y}
-          r={active ? 7.5 : 5.5}
+          r={achieved ? (active ? 8.5 : 7) : active ? 7.5 : 5.5}
           fill={color}
-          style={{ filter: `drop-shadow(0 0 6px ${color})`, transition: "r .15s ease" }}
+          style={{ filter: `drop-shadow(0 0 ${achieved ? 11 : 6}px ${color})`, transition: "r .15s ease" }}
         />
         <text
           x={p.end.x + 14}
@@ -541,7 +546,7 @@ function PathCurve({
           fontWeight={700}
           fill={isSq ? "var(--fg-dim)" : "var(--fg)"}
         >
-          {truncate(t(p.choiceLabel), 12)}
+          {(achieved ? "🏆 " : "") + truncate(t(p.choiceLabel), 12)}
         </text>
         <text x={p.end.x + 14} y={p.end.y + 15} fontSize={12} fill="var(--fg-dim)">
           {truncate(p.summary, 20)}
