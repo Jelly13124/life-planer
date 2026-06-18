@@ -6,7 +6,7 @@ import {
   LocalStorageRepository,
   type KeyValueStore,
 } from "@/domain/repository/localStorageRepo";
-import type { Profile } from "@/domain/types";
+import type { Goal, Profile } from "@/domain/types";
 
 const profile: Profile = {
   name: "小林",
@@ -30,12 +30,12 @@ const gen = new LocalPathGenerator();
 const NOW = "2026-06-15T00:00:00.000Z";
 
 describe("tree operations", () => {
-  it("createTree has status-quo + one crossroad choice", () => {
-    const t = createTree(profile, gen, NOW);
-    expect(t.paths.length).toBe(2);
+  it("createTree starts single-line: only status-quo even if a crossroad is filled", () => {
+    const t = createTree(profile, gen, NOW); // profile.crossroad = "要不要换城市"
+    expect(t.paths.length).toBe(1);
     expect(t.paths[0].kind).toBe("status-quo");
-    expect(t.paths[1].kind).toBe("choice");
     expect(t.createdAt).toBe(NOW);
+    expect(t.goals).toEqual([]);
   });
 
   it("createTree with empty crossroad has only status-quo", () => {
@@ -47,9 +47,9 @@ describe("tree operations", () => {
   it("addPath appends without mutating original", () => {
     const t = createTree(profile, gen, NOW);
     const t2 = addPath(t, "辞职创业", gen, NOW);
-    expect(t.paths.length).toBe(2);
-    expect(t2.paths.length).toBe(3);
-    expect(t2.paths[2].choiceLabel).toBe("辞职创业");
+    expect(t.paths.length).toBe(1);
+    expect(t2.paths.length).toBe(2);
+    expect(t2.paths[1].choiceLabel).toBe("辞职创业");
   });
 
   it("addPath ignores empty label", () => {
@@ -126,6 +126,26 @@ describe("tree operations", () => {
     expect(t.decisions).toHaveLength(1);
     const t2 = removePath(t, choice.id, NOW);
     expect(t2.decisions).toHaveLength(0); // 删分支时连带清掉它的决定，避免幽灵复盘提示
+  });
+
+  it("removePath also prunes a long-term goal attached to the removed branch", () => {
+    let t = addPath(createTree(profile, gen, NOW), "去读研", gen, NOW);
+    const choice = t.paths.find((p) => p.kind === "choice")!;
+    const goal: Goal = {
+      id: "goal-x",
+      area: "career",
+      horizon: "long",
+      title: "读完研换赛道",
+      why: "",
+      status: "active",
+      createdAt: NOW,
+      parentGoalId: null,
+      pathId: choice.id,
+      actions: [],
+    };
+    t = { ...t, goals: [goal] };
+    const t2 = removePath(t, choice.id, NOW);
+    expect(t2.goals).toHaveLength(0); // 分支没了，挂在它上面的长期目标也清掉
   });
 });
 

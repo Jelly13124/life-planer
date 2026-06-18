@@ -28,30 +28,14 @@ export function createTree(
     index: 0,
   });
 
-  const paths: LifePath[] = [statusQuo];
-
-  // 用当前岔路生成第一条 choice 路径（若用户填了）。
-  // 分叉年龄按选择推测——它从现实的人生时间点长出，而不是都挤在"现在"。
-  const crossroad = profile.crossroad.trim();
-  if (crossroad) {
-    paths.push(
-      generator.generate({
-        profile,
-        choiceLabel: crossroad,
-        kind: "choice",
-        horizonYears,
-        index: 1,
-        forkAge: inferForkAge(profile, crossroad),
-      }),
-    );
-  }
-
+  // 单线起手：一开始只有"维持现状"。分叉只从长期目标或手动加的选择长出来。
   return {
     id,
     profile,
     horizonYears,
-    paths,
+    paths: [statusQuo],
     decisions: [],
+    goals: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -139,6 +123,7 @@ export function removePath(tree: LifeTree, pathId: string, now: string): LifeTre
     ...tree,
     paths: tree.paths.filter((p) => !toRemove.has(p.id)),
     decisions: tree.decisions.filter((d) => !toRemove.has(d.pathId)),
+    goals: (tree.goals ?? []).filter((g) => !(g.pathId && toRemove.has(g.pathId))),
     updatedAt: now,
   };
 }
