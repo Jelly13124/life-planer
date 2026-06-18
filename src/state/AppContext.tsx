@@ -396,6 +396,7 @@ export function AppProvider({
         void predictAndCommit(withGoal, [newPath], "branch");
       },
       addShortTermGoal: ({ area, title, why, parentGoalId }) => {
+        if (predictingRef.current) return;
         const baseTree = treeRef.current;
         if (!baseTree || !title.trim()) return;
         const goal = createGoal(
@@ -432,6 +433,7 @@ export function AppProvider({
         const baseTree = treeRef.current;
         if (!baseTree) return;
         const now = new Date().toISOString();
+        // 待复盘清单按 baseTree 快照一次性确定（不要改成 tt，否则会边盖时间戳边缩短清单）；
         // 折叠到一棵树上单次 dispatch（逐条 dispatch 会因 treeRef 滞后只生效一条）。
         let tt = baseTree;
         for (const g of dueGoalReviews(baseTree, now)) tt = recordGoalReview(tt, g.id, now);
