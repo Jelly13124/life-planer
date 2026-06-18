@@ -122,6 +122,7 @@ interface AppApi {
   makeDecision: (input: DecisionInput) => Decision;
   commitDecision: (decision: Decision) => void; // 新建/覆盖同路活跃决定
   updateDecision: (decision: Decision) => void; // 按 id 原地更新（勾选/复盘）
+  regeneratePath: (pathId: string, note: string) => void; // 带补充信息重新推演这条路
 }
 
 const AppContext = createContext<AppApi | null>(null);
@@ -222,6 +223,50 @@ export function AppProvider({
     [],
   );
 
+  // 带上用户补充信息，重新推演某条已存在的路（原地替换，停留在详情页）。
+  // 若重推的是"最可能"基准，顺带丢掉它的乐观/保守兄弟——下次切换时按新 forkAge 重生，
+  // 免得与基准时间错位。
+  const regenerateAndCommit = useCallback(
+    async (pathId: string, note: string): Promise<void> => {
+      const base = treeRef.current;
+      if (!base) return;
+      const target = base.paths.find((p) => p.id === pathId);
+      if (!target) return;
+      const noted: LifePath = { ...target, note: note.trim() || undefined };
+      dispatch({ type: "predictStart", labels: [noted.choiceLabel], total: 1, context: "branch" });
+
+      let finalP = noted;
+      await Promise.all([
+        (async () => {
+          if (aiEnabledRef.current) {
+            const result = await fetchEnrichment(base, noted);
+            if (result) finalP = applyEnrichment(noted, result, base.profile.age, base.horizonYears);
+          }
+          dispatch({ type: "predictTick" });
+        })(),
+        delay(MIN_PREDICT_MS),
+      ]);
+
+      const cur = treeRef.current ?? base;
+      const dropSiblings = finalP.scenario === "likely" && finalP.parentId == null;
+      const paths = cur.paths
+        .filter(
+          (p) =>
+            !(
+              dropSiblings &&
+              p.id !== finalP.id &&
+              p.choiceLabel === finalP.choiceLabel &&
+              p.parentId === finalP.parentId &&
+              p.scenario !== "likely"
+            ),
+        )
+        .map((p) => (p.id === finalP.id ? finalP : p));
+      dispatch({ type: "patchTree", tree: { ...cur, paths, updatedAt: new Date().toISOString() } });
+      dispatch({ type: "predictEnd" });
+    },
+    [],
+  );
+
   const api = useMemo<AppApi>(
     () => ({
       view: state.view,
@@ -306,6 +351,10 @@ export function AppProvider({
           },
         });
       },
+      regeneratePath: (pathId, note) => {
+        if (predictingRef.current) return;
+        void regenerateAndCommit(pathId, note);
+      },
     }),
     [
       state.view,
@@ -317,6 +366,7 @@ export function AppProvider({
       generator,
       repo,
       predictAndCommit,
+      regenerateAndCommit,
     ],
   );
 

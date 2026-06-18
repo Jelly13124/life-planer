@@ -16,6 +16,7 @@ import { useT } from "@/prefs/PreferencesContext";
 import { MetricChart } from "./MetricChart";
 import { Button } from "./ui/Button";
 import { DecisionSheet } from "./DecisionSheet";
+import { RegenerateSheet } from "./RegenerateSheet";
 import { activeDecisionFor, reviewedDecisionsFor, togglePlanItem } from "@/domain/decisions";
 
 /** 导入时取一次当下作初值（render 内不可调用 new Date）；组件挂载后用 effect 刷新。 */
@@ -63,6 +64,7 @@ export function PathDetail({
   const { t } = useT();
   const [chatting, setChatting] = useState(false);
   const [deciding, setDeciding] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   // 当下放进 state：挂载即取真实时间、标签页重新可见时刷新，避免"距复盘还有 N 天"过期。
   const [nowMs, setNowMs] = useState(_bootNow);
   useEffect(() => {
@@ -117,9 +119,12 @@ export function PathDetail({
         <p className="mt-2 text-xs text-[var(--fg-faint)]">
           {t("这是一种可能的人生，不是预测。数字代表综合状态感受，仅供想象与参考。")}
         </p>
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap gap-2">
           <Button variant="primary" onClick={() => setChatting(true)}>
             {t("✨ 和 {age} 岁的你聊聊", { age: futureAgeOf(path) })}
+          </Button>
+          <Button variant="subtle" onClick={() => setRegenerating(true)}>
+            {t("✏️ 不太对？补充信息重推")}
           </Button>
         </div>
       </div>
@@ -338,6 +343,9 @@ export function PathDetail({
       )}
       {deciding && (
         <DecisionSheet tree={tree} path={path} onClose={() => setDeciding(false)} />
+      )}
+      {regenerating && (
+        <RegenerateSheet path={path} onClose={() => setRegenerating(false)} />
       )}
     </div>
   );

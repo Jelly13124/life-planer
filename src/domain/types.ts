@@ -132,6 +132,7 @@ export interface LifePath {
   parentId: string | null; // 父分支 id；null = 从"现在"分叉
   forkAge: number; // 从哪一年分叉出来（根分支 = profile.age）
   scenario: Scenario; // 该分支属于哪种走向
+  note?: string; // 用户对这条路的补充/更正（喂回 AI 重新推演用）
 }
 
 export type Reversibility = "one-way" | "two-way"; // 单行道 / 可回头

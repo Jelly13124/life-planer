@@ -169,6 +169,13 @@ export const EN: Record<string, string> = {
   换个走向看看: "Try another trajectory",
   各方面随时间的变化: "How each area changes over time",
   这条路上的关键时刻: "Key moments on this path",
+  "✏️ 不太对？补充信息重推": "✏️ Not right? Add info & re-run",
+  "补充信息，重新推演": "Add info & re-run",
+  "哪里不对、漏说了什么？写下来，AI 会据此修正时间线重新推演。":
+    "What's off or missing? Note it and the AI will fix the timeline and re-run.",
+  "比如：我已经拿到 offer，23 岁就入学，不用备考":
+    "e.g. I already have an offer, I start at 23, no test prep needed",
+  "重新推演 →": "Re-run →",
 
   // ── 和未来的自己聊聊 FutureSelfChat ──
   "和 {age} 岁的你聊聊": "Talk to you at {age}",

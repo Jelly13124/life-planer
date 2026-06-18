@@ -48,6 +48,7 @@ export async function fetchEnrichment(
         scenario: path.scenario,
         canRetime: canRetime(path),
         lang: currentLocale(),
+        note: path.note,
       }),
     });
     if (!res.ok) return null;

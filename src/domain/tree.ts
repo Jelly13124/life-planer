@@ -114,7 +114,8 @@ export function addScenarioVariant(
     forkAge: base.forkAge,
     scenario,
   });
-  return { ...tree, paths: [...tree.paths, path], updatedAt: now };
+  // 继承基准路的用户补充，让乐观/保守也据此推演
+  return { ...tree, paths: [...tree.paths, { ...path, note: base.note }], updatedAt: now };
 }
 
 // 删除一条路径，并级联删除其所有后代分支（不可删除"维持现状"）。

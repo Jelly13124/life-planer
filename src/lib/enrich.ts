@@ -53,6 +53,7 @@ export interface EnrichInput {
   scenario?: "optimistic" | "likely" | "conservative"; // 走向变体
   canRetime?: boolean; // 是否允许 AI 决定"几年后才分叉"（根分支的选择=true）
   lang?: "zh" | "en"; // 生成语言：跟随用户界面语言
+  note?: string; // 用户补充/更正（最高优先级，用来修正时间/前提后重新推演）
 }
 
 // 系统提示：做"贴着真实的你"的推演——只往未来写、不和已知现状矛盾、守现实约束、克制可信。
@@ -113,6 +114,12 @@ function buildUserPrompt(input: EnrichInput): string {
   lines.push(`他现在 ${now} 岁${p.location ? `，生活在${p.location}` : ""}${p.status ? `，身份/阶段：${p.status}` : ""}。`);
   lines.push(`现状（既定事实，推演不能与之矛盾）：${facts.join("；")}。`);
   lines.push("");
+  if (input.note?.trim()) {
+    lines.push(
+      `【用户补充/更正——最高优先级，必须据此调整，尤其是时间起点与前提条件】：${input.note.trim()}`,
+    );
+    lines.push("");
+  }
   if (canRetime) {
     lines.push(
       `第一步·定时机：现实里，${p.name} 从现在（${now} 岁）算起，大约几年后才会真正走上「${choiceText}」这条路？综合筹备、积蓄、申请/签证周期、家庭与人生节奏，给一个现实的年数，填进 forkDelayYears（0 到 ${MAX_FORK_DELAY}；现在/今年就能开始填 0）。这条路的「起点年龄」= ${now} + forkDelayYears。`,
