@@ -177,12 +177,48 @@ export interface Decision {
   review: Review | null;
 }
 
+// ───────── 规划主线：目标（一个长期目标 = 树上一条分支） ─────────
+export type GoalHorizon = "short" | "long";
+export type GoalStatus = "active" | "done";
+
+export interface GoalAction {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
+export interface Goal {
+  id: string;
+  area: LifeArea; // 事业/财富/关系/健康/成长
+  horizon: GoalHorizon;
+  title: string;
+  why: string;
+  status: GoalStatus;
+  createdAt: string;
+  parentGoalId: string | null; // 短期目标挂到某个长期目标；长期目标为 null
+  pathId: string | null; // 仅长期目标：它在树上长出的那条分支 id
+  actions: GoalAction[];
+  completedAt?: string;
+  lastReviewedAt?: string;
+}
+
+// 新建目标的入参（id/status/createdAt/actions 由 createGoal 补全）
+export interface GoalInput {
+  area: LifeArea;
+  horizon: GoalHorizon;
+  title: string;
+  why: string;
+  parentGoalId?: string | null;
+  pathId?: string | null;
+}
+
 export interface LifeTree {
   id: string;
   profile: Profile;
   horizonYears: number; // 推演跨度
   paths: LifePath[]; // 含 1 条 status-quo + N 条 choice
   decisions: Decision[]; // 决策日志（看见→追问→选定→落地→复盘）
+  goals: Goal[]; // 规划主线：长期/短期目标
   createdAt: string;
   updatedAt: string;
 }
