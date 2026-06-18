@@ -4,6 +4,7 @@ import { AppProvider, useApp } from "@/state/AppContext";
 import { Onboarding } from "@/components/Onboarding";
 import { TreeScreen } from "@/components/TreeScreen";
 import { PathDetail } from "@/components/PathDetail";
+import { PlanScreen } from "@/components/PlanScreen";
 import { PlanningAssistant } from "@/components/PlanningAssistant";
 import { PredictionOverlay } from "@/components/PredictionOverlay";
 
@@ -43,6 +44,8 @@ function Screen() {
     <>
       {view === "detail" && activePathId ? (
         <PathDetail tree={tree} pathId={activePathId} onBack={backToTree} />
+      ) : view === "plan" ? (
+        <PlanScreen />
       ) : (
         <TreeScreen />
       )}
