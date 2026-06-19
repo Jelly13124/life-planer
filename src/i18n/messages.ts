@@ -366,6 +366,19 @@ export const EN: Record<string, string> = {
   "稳健": "Balanced",
   "进取敢冲": "Bold, go for it",
 
+  // ── 本周回顾 WeeklyReviewSheet ──
+  "📅 本周回顾": "📅 Weekly Review",
+  本周回顾: "Weekly Review",
+  "本周完成 {n} 件 · 活跃 {d} 天 · 🔥连续 {s} 天":
+    "{n} done this week · {d} active days · 🔥{s}-day streak",
+  本周达成: "Achieved this week",
+  该回看的目标: "Goals to revisit",
+  我都回看过了: "All reviewed",
+  该复盘的决定: "Decisions to review",
+  // 去复盘 and 关闭 already exist above (decisions + FutureSelfChat sections)
+  "停下来看看走过的一周，比一直往前更重要。":
+    "Pausing to reflect on the week matters more than always pushing forward.",
+
   // ── 危机关怀覆层 SafetyCare ──
   "听起来你正在经历很难熬的时刻，我很在意你。比起聊未来，现在更重要的是你的安全。":
     "It sounds like you're going through something really painful, and I care about that. Right now your safety matters more than talking about the future.",

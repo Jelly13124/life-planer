@@ -5,6 +5,7 @@ import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { Button } from "./ui/Button";
 import { LifeMap } from "./LifeMap";
+import { WeeklyReviewSheet } from "./WeeklyReviewSheet";
 import { AREA_LABELS } from "@/domain/types";
 import { branchPositionAge, currentStreak, heatmap, todayItems } from "@/domain/daily";
 import { fetchTodayPlan, localTodayStr, type TodayPick } from "@/lib/dailyClient";
@@ -12,7 +13,7 @@ import { fetchTodayPlan, localTodayStr, type TodayPick } from "@/lib/dailyClient
 const _bootToday = localTodayStr();
 
 export function DashboardScreen() {
-  const { tree, openPlan, openTree, openPath, toggleTodayAction, planActionToday, unplanActionToday } = useApp();
+  const { tree, openPlan, openTree, openPath, toggleTodayAction, planActionToday, unplanActionToday, markDueGoalsReviewed, addBranch } = useApp();
   const { t } = useT();
 
   const [today, setToday] = useState(_bootToday);
@@ -26,6 +27,7 @@ export function DashboardScreen() {
   const [picks, setPicks] = useState<TodayPick[]>([]);
   const [picking, setPicking] = useState(false);
   const [addedPick, setAddedPick] = useState<string[]>([]);
+  const [weeklyOpen, setWeeklyOpen] = useState(false);
 
   const items = useMemo(() => (tree ? todayItems(tree, today) : []), [tree, today]);
   const todayIds = useMemo(() => new Set(items.map((i) => i.action.id)), [items]);
@@ -64,6 +66,7 @@ export function DashboardScreen() {
   if (!tree) return null;
 
   const hasChoicePaths = tree.paths.some((p) => p.kind === "choice");
+
   const pendingById = new Map(pending.map((p) => [p.id, p]));
 
   async function suggestToday() {
@@ -93,6 +96,7 @@ export function DashboardScreen() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button variant="subtle" onClick={() => setWeeklyOpen(true)}>{t("📅 本周回顾")}</Button>
           <Button variant="primary" onClick={openPlan}>{t("🎯 我的规划")}</Button>
           <Button variant="ghost" onClick={openTree}>{t("看完整人生树 →")}</Button>
         </div>
@@ -201,6 +205,19 @@ export function DashboardScreen() {
           )}
         </div>
       </section>
+
+      {weeklyOpen && (
+        <WeeklyReviewSheet
+          tree={tree}
+          today={today}
+          onClose={() => setWeeklyOpen(false)}
+          onReviewedGoals={markDueGoalsReviewed}
+          onReplan={(label) => {
+            addBranch(label);
+            setWeeklyOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
