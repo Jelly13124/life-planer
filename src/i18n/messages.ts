@@ -93,6 +93,9 @@ export const EN: Record<string, string> = {
   保守: "Conservative",
 
   // ── 人生树主界面 TreeScreen ──
+  "📤 分享": "📤 Share",
+  "可能的人生，不是预测的命运": "Possible lives — not a predicted fate",
+  "人生树 · Life Planner": "Life Tree · Life Planner",
   "{name} 的人生树": "{name}'s Life Tree",
   "灰色虚线是维持现状，每条彩色曲线是一个不同的选择。点曲线看那段人生。":
     "The grey dashed line is the status quo; each colored curve is a different choice. Tap a curve to see that life.",

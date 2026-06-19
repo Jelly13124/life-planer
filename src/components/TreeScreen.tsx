@@ -9,6 +9,7 @@ import { Button } from "./ui/Button";
 import { dueDecisions } from "@/domain/decisions";
 import { achievedPathIds } from "@/domain/goals";
 import { ReviewSheet } from "./ReviewSheet";
+import { buildShareSvg, downloadShareSvg } from "@/lib/treeShareImage";
 import type { Decision } from "@/domain/types";
 
 // 导入时取一次"今天"作初值（render 内不可调用 new Date）；挂载后用 effect 刷新。
@@ -68,6 +69,14 @@ export function TreeScreen() {
         <div className="flex flex-wrap gap-2">
           <Button variant="ghost" onClick={openDashboard}>{t("← 今日")}</Button>
           <Button variant="ghost" onClick={openPlan}>{t("🎯 我的规划")}</Button>
+          <Button variant="ghost" onClick={() => {
+            const svg = buildShareSvg(tree, {
+              disclaimer: t("可能的人生，不是预测的命运"),
+              watermark: t("人生树 · Life Planner"),
+              now: t("现在"),
+            });
+            downloadShareSvg(svg, "我的人生树.svg");
+          }}>{t("📤 分享")}</Button>
           <Button variant="primary" onClick={() => setAdding(true)}>{t("＋ 添加岔路")}</Button>
           <Button variant="ghost" onClick={reset} title={t("清空并重新开始")}>{t("↺ 重置")}</Button>
         </div>
