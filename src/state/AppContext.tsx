@@ -34,12 +34,14 @@ import {
   dropGoal,
   dueGoalReviews,
   recordGoalReview,
+  setActionRepeat,
   setGoalActions,
   toggleGoalAction,
   upsertGoal,
 } from "@/domain/goals";
+import { completeAction, planToday, uncompleteAction, unplanToday, localDay } from "@/domain/daily";
 
-export type View = "onboarding" | "tree" | "detail" | "plan";
+export type View = "onboarding" | "tree" | "detail" | "plan" | "dashboard";
 
 // 一次"AI 正在推演"的进行态：在 AI 把这一批路全部写完之前，分支不落到树上。
 export interface Predicting {
@@ -68,6 +70,7 @@ type Action =
   | { type: "openPath"; id: string }
   | { type: "backToTree" }
   | { type: "openPlan" }
+  | { type: "openDashboard" }
   | { type: "patchTree"; tree: LifeTree }
   | { type: "reset" };
 
@@ -78,7 +81,7 @@ function reducer(state: State, action: Action): State {
         ...state,
         hydrated: true,
         tree: action.tree,
-        view: action.tree ? "tree" : "onboarding",
+        view: action.tree ? "dashboard" : "onboarding",
       };
     case "setTree":
       return { ...state, tree: action.tree, view: "tree" };
@@ -106,6 +109,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, activePathId: null, view: "tree" };
     case "openPlan":
       return { ...state, activePathId: null, view: "plan" };
+    case "openDashboard":
+      return { ...state, activePathId: null, view: "dashboard" };
     case "patchTree":
       return { ...state, tree: action.tree };
     case "reset":
@@ -144,6 +149,12 @@ interface AppApi {
   completeGoalById: (goalId: string) => void;
   dropGoalById: (goalId: string) => void;
   markDueGoalsReviewed: () => void;
+  openDashboard: () => void;
+  openTree: () => void;
+  planActionToday: (actionId: string) => void;
+  unplanActionToday: (actionId: string) => void;
+  toggleTodayAction: (actionId: string) => void;
+  setActionRepeatById: (goalId: string, actionId: string, repeat: "daily" | "weekly" | undefined) => void;
 }
 
 const AppContext = createContext<AppApi | null>(null);
@@ -438,6 +449,38 @@ export function AppProvider({
         let tt = baseTree;
         for (const g of dueGoalReviews(baseTree, now)) tt = recordGoalReview(tt, g.id, now);
         dispatch({ type: "patchTree", tree: tt });
+      },
+      openDashboard: () => dispatch({ type: "openDashboard" }),
+      openTree: () => dispatch({ type: "backToTree" }),
+      planActionToday: (actionId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: planToday(baseTree, actionId, localDay(new Date())) });
+      },
+      unplanActionToday: (actionId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: unplanToday(baseTree, actionId, localDay(new Date())) });
+      },
+      toggleTodayAction: (actionId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        const today = localDay(new Date());
+        const e = (baseTree.activity ?? []).find((a) => a.date === today);
+        const hit = (baseTree.goals ?? []).flatMap((g) => g.actions).find((a) => a.id === actionId);
+        // 重复行动看"今天是否记过"；一次性看 done。
+        const doneNow = hit?.repeat ? Boolean(e?.completedActionIds.includes(actionId)) : Boolean(hit?.done);
+        const next = doneNow
+          ? uncompleteAction(baseTree, actionId, today)
+          : completeAction(baseTree, actionId, today);
+        dispatch({ type: "patchTree", tree: next });
+      },
+      setActionRepeatById: (goalId, actionId, repeat) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        const goal = (baseTree.goals ?? []).find((g) => g.id === goalId);
+        if (!goal) return;
+        dispatch({ type: "patchTree", tree: upsertGoal(baseTree, setActionRepeat(goal, actionId, repeat)) });
       },
     }),
     [
