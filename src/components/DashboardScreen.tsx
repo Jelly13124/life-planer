@@ -28,6 +28,20 @@ export function DashboardScreen() {
   const [addedPick, setAddedPick] = useState<string[]>([]);
 
   const items = useMemo(() => (tree ? todayItems(tree, today) : []), [tree, today]);
+  const todayIds = useMemo(() => new Set(items.map((i) => i.action.id)), [items]);
+  const pending = useMemo(
+    () =>
+      tree
+        ? tree.goals
+            .filter((g) => g.status === "active")
+            .flatMap((g) =>
+              g.actions
+                .filter((a) => !a.repeat && !a.done && !todayIds.has(a.id))
+                .map((a) => ({ id: a.id, text: a.text, goalTitle: g.title })),
+            )
+        : [],
+    [tree, todayIds],
+  );
   const streak = useMemo(() => (tree ? currentStreak(tree, today) : 0), [tree, today]);
   const hm = useMemo(() => (tree ? heatmap(tree, 30, today) : []), [tree, today]);
 
@@ -50,14 +64,6 @@ export function DashboardScreen() {
   if (!tree) return null;
 
   const hasChoicePaths = tree.paths.some((p) => p.kind === "choice");
-  const todayIds = new Set(items.map((i) => i.action.id));
-  const pending = tree.goals
-    .filter((g) => g.status === "active")
-    .flatMap((g) =>
-      g.actions
-        .filter((a) => !a.repeat && !a.done && !todayIds.has(a.id))
-        .map((a) => ({ id: a.id, text: a.text, goalTitle: g.title })),
-    );
   const pendingById = new Map(pending.map((p) => [p.id, p]));
 
   async function suggestToday() {
@@ -66,6 +72,7 @@ export function DashboardScreen() {
     const list = await fetchTodayPlan(tree, pending);
     setPicking(false);
     setPicks(list);
+    setAddedPick([]);
   }
 
   function addPick(id: string) {
@@ -168,7 +175,14 @@ export function DashboardScreen() {
         </div>
         <div className="mt-2 overflow-hidden rounded-3xl border border-[var(--line)] bg-black/20 p-2">
           {hasChoicePaths ? (
-            <LifeMap tree={tree} compact markers={markers} onSelectPath={openPath} onForkAtNode={() => openTree()} />
+            <LifeMap
+              tree={tree}
+              compact
+              markers={markers}
+              onSelectPath={openPath}
+              // 紧凑图里点节点不在原地加岔路，直接进完整人生树
+              onForkAtNode={() => openTree()}
+            />
           ) : (
             <p className="px-4 py-10 text-center text-sm text-[var(--fg-faint)]">
               {t("还没有路。去「我的规划」加一个长期目标，它会在树上长出一条路。")}
