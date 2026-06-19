@@ -17,7 +17,7 @@ import { Button } from "./ui/Button";
 // 常驻浮窗的规划助手（P4）：帮你理清选择、提出新可能、一键加进树。
 // 也能"铺开几条路"：建议多条候选，但每条都要你点一下才画上（确认优先）。
 export function PlanningAssistant() {
-  const { tree, addBranch, addBranches } = useApp();
+  const { tree, addBranch, addBranches, addLongTermGoal } = useApp();
   const { t } = useT();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -25,9 +25,11 @@ export function PlanningAssistant() {
   const [thinking, setThinking] = useState(false);
   const [failed, setFailed] = useState(false);
   const [added, setAdded] = useState<string | null>(null);
+  const [addedGoal, setAddedGoal] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<PathSuggestion[]>([]);
   const [suggesting, setSuggesting] = useState(false);
   const [drawn, setDrawn] = useState<string[]>([]); // 已画上的候选 label
+  const [goalDrawn, setGoalDrawn] = useState<string[]>([]); // 已设成目标的候选 label
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,6 +74,14 @@ export function PlanningAssistant() {
     if (drawn.includes(label)) return;
     addBranch(label); // 画上（生成一条根分支）；确认优先——点了才画
     setDrawn((d) => [...d, label]);
+  }
+
+  // 把某个候选设成长期目标：建目标 + 在树上长出一条分支。PathSuggestion 没有 area，
+  // 默认 career，用户可在「我的规划」里改类。确认优先——点了才设。
+  function makeGoal(s: PathSuggestion) {
+    if (goalDrawn.includes(s.label)) return;
+    addLongTermGoal({ area: "career", title: s.label, why: s.why });
+    setGoalDrawn((g) => [...g, s.label]);
   }
 
   // 一次画上所有还没画的候选：走 addBranches（单次提交），否则逐条 addBranch
@@ -154,6 +164,7 @@ export function PlanningAssistant() {
             </div>
             {suggestions.map((s) => {
               const isDrawn = drawn.includes(s.label);
+              const isGoal = goalDrawn.includes(s.label);
               return (
                 <div
                   key={s.label}
@@ -168,17 +179,30 @@ export function PlanningAssistant() {
                       {t("🕒 分叉时机由 AI 按现实推演决定")}
                     </div>
                   </div>
-                  <button
-                    onClick={() => draw(s.label)}
-                    disabled={isDrawn}
-                    className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] transition ${
-                      isDrawn
-                        ? "text-[var(--c-emerald)]"
-                        : "border border-[var(--accent)]/50 text-[var(--accent)] hover:bg-[var(--accent)]/15"
-                    }`}
-                  >
-                    {isDrawn ? t("✓ 已画") : t("＋ 画这条")}
-                  </button>
+                  <div className="flex flex-shrink-0 flex-col items-stretch gap-1">
+                    <button
+                      onClick={() => draw(s.label)}
+                      disabled={isDrawn}
+                      className={`rounded-full px-2.5 py-1 text-[11px] transition ${
+                        isDrawn
+                          ? "text-[var(--c-emerald)]"
+                          : "border border-[var(--accent)]/50 text-[var(--accent)] hover:bg-[var(--accent)]/15"
+                      }`}
+                    >
+                      {isDrawn ? t("✓ 已画") : t("＋ 画这条")}
+                    </button>
+                    <button
+                      onClick={() => makeGoal(s)}
+                      disabled={isGoal}
+                      className={`rounded-full px-2.5 py-1 text-[11px] transition ${
+                        isGoal
+                          ? "text-[var(--c-emerald)]"
+                          : "border border-[var(--c-fuchsia)]/50 text-[var(--c-fuchsia)] hover:bg-[var(--c-fuchsia)]/10"
+                      }`}
+                    >
+                      {isGoal ? t("🎯 已设成目标") : t("🎯 设成目标")}
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -212,27 +236,44 @@ export function PlanningAssistant() {
         </button>
       </div>
 
-      {/* 把聊出的选择加进树 */}
-      {(input.trim() || added) && (
+      {/* 把聊出的选择加进树 / 设成目标 */}
+      {(input.trim() || added || addedGoal) && (
         <div className="flex items-center justify-between gap-2 border-t border-[var(--line)] px-4 pt-2 text-xs">
           {added ? (
             <span className="text-[var(--c-emerald)]">{t("🌱 已加进人生树：{label}", { label: added })}</span>
+          ) : addedGoal ? (
+            <span className="text-[var(--c-emerald)]">{t("🎯 已设成目标：{label}", { label: addedGoal })}</span>
           ) : (
             <>
               <span className="truncate text-[var(--fg-faint)]">{t("加「{label}」当一条新岔路？", { label: input.trim() })}</span>
-              <button
-                onClick={() => {
-                  const v = input.trim();
-                  if (!v) return;
-                  addBranch(v);
-                  setInput("");
-                  setAdded(v);
-                  setTimeout(() => setAdded(null), 2600);
-                }}
-                className="flex-shrink-0 rounded-full border border-[var(--c-fuchsia)]/50 px-2.5 py-1 text-[var(--c-fuchsia)] transition hover:bg-[var(--c-fuchsia)]/10"
-              >
-                {t("＋ 加进树")}
-              </button>
+              <div className="flex flex-shrink-0 items-center gap-1.5">
+                <button
+                  onClick={() => {
+                    const v = input.trim();
+                    if (!v) return;
+                    addLongTermGoal({ area: "career", title: v, why: "" });
+                    setInput("");
+                    setAddedGoal(v);
+                    setTimeout(() => setAddedGoal(null), 2600);
+                  }}
+                  className="rounded-full border border-[var(--accent)]/50 px-2.5 py-1 text-[var(--accent)] transition hover:bg-[var(--accent)]/15"
+                >
+                  {t("🎯 设成目标")}
+                </button>
+                <button
+                  onClick={() => {
+                    const v = input.trim();
+                    if (!v) return;
+                    addBranch(v);
+                    setInput("");
+                    setAdded(v);
+                    setTimeout(() => setAdded(null), 2600);
+                  }}
+                  className="rounded-full border border-[var(--c-fuchsia)]/50 px-2.5 py-1 text-[var(--c-fuchsia)] transition hover:bg-[var(--c-fuchsia)]/10"
+                >
+                  {t("＋ 加进树")}
+                </button>
+              </div>
             </>
           )}
         </div>
