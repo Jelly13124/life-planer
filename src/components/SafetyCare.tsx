@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useT } from "@/prefs/PreferencesContext";
 import { CRISIS_RESOURCES } from "@/domain/safety";
 import { Button } from "./ui/Button";
@@ -10,6 +11,11 @@ export interface SafetyCareProps {
 
 export function SafetyCare({ onContinue }: SafetyCareProps) {
   const { t } = useT();
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    btnRef.current?.focus();
+  }, []);
 
   return (
     <div
@@ -23,6 +29,12 @@ export function SafetyCare({ onContinue }: SafetyCareProps) {
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         animation: "sc-enter .45s ease both",
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Tab") {
+          e.preventDefault();
+          btnRef.current?.focus();
+        }
       }}
     >
       <div
@@ -97,6 +109,7 @@ export function SafetyCare({ onContinue }: SafetyCareProps) {
         {/* Continue button */}
         <div className="mt-6">
           <Button
+            ref={btnRef}
             variant="ghost"
             className="w-full"
             onClick={onContinue}
@@ -105,14 +118,6 @@ export function SafetyCare({ onContinue }: SafetyCareProps) {
           </Button>
         </div>
       </div>
-
-      <style>{`
-        @keyframes sc-enter { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes sc-rise {
-          from { opacity: 0; transform: translateY(14px) }
-          to   { opacity: 1; transform: translateY(0) }
-        }
-      `}</style>
     </div>
   );
 }

@@ -509,6 +509,7 @@ export function AppProvider({
       },
       safetyHold: state.safetyHold,
       continueAfterSafety: () => {
+        if (predictingRef.current) return;
         const p = state.safetyHold;
         if (!p) return;
         dispatch({ type: "clearSafety" });

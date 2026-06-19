@@ -1,6 +1,6 @@
 "use client";
 
-import type { ButtonHTMLAttributes } from "react";
+import { forwardRef, type ButtonHTMLAttributes } from "react";
 
 type Variant = "primary" | "ghost" | "subtle";
 
@@ -12,15 +12,15 @@ const styles: Record<Variant, string> = {
   subtle: "bg-white/5 text-[var(--fg)] hover:bg-white/10 border border-[var(--line)]",
 };
 
-export function Button({
-  variant = "primary",
-  className = "",
-  ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
+export const Button = forwardRef<
+  HTMLButtonElement,
+  ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }
+>(function Button({ variant = "primary", className = "", ...props }, ref) {
   return (
     <button
+      ref={ref}
       className={`inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm transition disabled:opacity-40 disabled:cursor-not-allowed ${styles[variant]} ${className}`}
       {...props}
     />
   );
-}
+});

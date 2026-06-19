@@ -62,7 +62,6 @@ function Screen() {
       {/* 常驻规划助手（有树时才出现） */}
       <PlanningAssistant />
       {overlay}
-      {safetyOverlay}
     </>
   );
 }
