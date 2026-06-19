@@ -99,7 +99,8 @@ export function completeAction(tree: LifeTree, actionId: string, today: string):
 // 取消完成：从当天 completed 移除；一次性行动同时 done=false。
 export function uncompleteAction(tree: LifeTree, actionId: string, today: string): LifeTree {
   const hit = findAction(tree, actionId);
-  const recurring = Boolean(hit?.action.repeat);
+  if (!hit) return tree;
+  const recurring = Boolean(hit.action.repeat);
   const t = recurring ? tree : setActionDone(tree, actionId, false);
   const e = dayEntry(t, today);
   return putDay(t, { ...e, completedActionIds: e.completedActionIds.filter((x) => x !== actionId) });

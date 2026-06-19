@@ -88,6 +88,12 @@ describe("daily domain", () => {
     expect(recurringDueToday(tree, T).map((x) => x.action.id).sort()).toEqual([a0, a1].sort());
     const t = completeAction(tree, a1, T);
     expect(recurringDueToday(t, T).map((x) => x.action.id)).toEqual([a0]);
+    // weekly window boundary: completed at today-6 (still inside 7-day window) → still hidden;
+    // completed at today-7 (outside window) → due again.
+    const at6 = completeAction(tree, a1, addDays(T, -6));
+    expect(recurringDueToday(at6, T).map((x) => x.action.id)).not.toContain(a1);
+    const at7 = completeAction(tree, a1, addDays(T, -7));
+    expect(recurringDueToday(at7, T).map((x) => x.action.id)).toContain(a1);
   });
 
   it("todayItems = manual one-shot ∪ recurring-due, each with doneToday", () => {
