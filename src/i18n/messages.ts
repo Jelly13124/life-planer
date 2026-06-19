@@ -362,6 +362,9 @@ export const EN: Record<string, string> = {
   "进取敢冲": "Bold, go for it",
 
   // ── 危机关怀覆层 SafetyCare ──
+  "听起来你正在经历很难熬的时刻，我很在意你。比起聊未来，现在更重要的是你的安全。":
+    "It sounds like you're going through something really painful, and I care about that. Right now your safety matters more than talking about the future.",
+  "如果你愿意，我随时在这里。": "I'm here whenever you're ready.",
   "先停一下，照顾好自己": "Take a moment — look after yourself",
   "看起来你正在经历很艰难的时刻。你的感受很重要，也值得被认真对待。预测未来可以晚点再说——此刻，先和能帮到你的人聊聊。":
     "It looks like you're going through something really hard right now. What you feel matters and deserves to be taken seriously. The future can wait — for now, please reach out to someone who can help.",

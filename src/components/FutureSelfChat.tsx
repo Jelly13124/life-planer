@@ -10,6 +10,8 @@ import {
   type ChatMessage,
 } from "@/lib/chatClient";
 import { useT } from "@/prefs/PreferencesContext";
+import { detectCrisisSignal } from "@/domain/safety";
+import { crisisCareText } from "@/lib/crisisMessage";
 import { Button } from "./ui/Button";
 
 export function FutureSelfChat({
@@ -53,6 +55,12 @@ export function FutureSelfChat({
   async function send(text: string) {
     const content = text.trim();
     if (!content || thinking) return;
+
+    if (detectCrisisSignal(content)) {
+      setMessages([...messages, { role: "user", content }, { role: "assistant", content: crisisCareText(t) }]);
+      setInput("");
+      return;
+    }
 
     setFailed(false);
     setInput("");

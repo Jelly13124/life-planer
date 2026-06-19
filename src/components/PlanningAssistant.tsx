@@ -10,6 +10,8 @@ import {
   type PathSuggestion,
 } from "@/lib/assistantClient";
 import { useT } from "@/prefs/PreferencesContext";
+import { detectCrisisSignal } from "@/domain/safety";
+import { crisisCareText } from "@/lib/crisisMessage";
 import { Button } from "./ui/Button";
 
 // 常驻浮窗的规划助手（P4）：帮你理清选择、提出新可能、一键加进树。
@@ -38,6 +40,13 @@ export function PlanningAssistant() {
   async function send(text: string) {
     const content = text.trim();
     if (!content || thinking || !tree) return;
+
+    if (detectCrisisSignal(content)) {
+      setMessages([...messages, { role: "user", content }, { role: "assistant", content: crisisCareText(t) }]);
+      setInput("");
+      return;
+    }
+
     setFailed(false);
     setInput("");
     const next: ChatMessage[] = [...messages, { role: "user", content }];
