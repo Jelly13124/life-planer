@@ -275,6 +275,30 @@ export const EN: Record<string, string> = {
   "预演失败：三年后它失败了，最可能因为什么？": "Pre-mortem: if it fails in 3 years, why?",
   "可逆性：这是单行道还是可回头？": "Reversibility: one-way or two-way door?",
 
+  // ── 激励闭环 / 仪表盘 v2 ──
+  今天: "Today",
+  "连续 {n} 天": "{n}-day streak",
+  最近完成情况: "Recent activity",
+  "看完整人生树 →": "See full life tree →",
+  "你真的做到了：{title}": "You actually did it: {title}",
+  和未来的你说一声: "Tell your future self",
+  今日计划: "Today's plan",
+  "✨ 建议今天做什么": "✨ Suggest today's focus",
+  "正在想…": "Thinking…",
+  "今天还没安排。让 AI 建议，或去「我的规划」把目标的行动挑进今天。":
+    "Nothing planned yet. Let AI suggest, or pick actions into today from My plan.",
+  "建议今天做这几件（点「加入今天」）": "Suggested for today (tap “Add to today”)",
+  "＋ 加入今天": "+ Add to today",
+  你的人生树: "Your life tree",
+  "还没有路。去「我的规划」加一个长期目标，它会在树上长出一条路。":
+    "No paths yet. Add a long-term goal in My plan and it grows a branch here.",
+  你在这里: "You are here",
+  "← 今日": "← Today",
+  "＋今天": "+ Today",
+  "🔁重复": "🔁 Repeat",
+  "🔁每天": "🔁 Daily",
+  "🔁每周": "🔁 Weekly",
+
   // ── 规划主线 PlanScreen ──
   "🎯 我的规划": "🎯 My Plan",
   我的规划: "My Plan",
