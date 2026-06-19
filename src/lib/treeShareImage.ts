@@ -76,7 +76,7 @@ export function buildShareSvg(tree: LifeTree, labels: ShareLabels): string {
   // ── paths ─────────────────────────────────────────────────────────────────
   for (const it of layout.items) {
     const isSq = it.kind === "status-quo";
-    const stroke = isSq ? SQ_STROKE : it.color;
+    const stroke = isSq ? SQ_STROKE : esc(it.color);
     const dash = isSq ? `stroke-dasharray="8 8"` : ``;
     const filter = isSq ? `` : `filter="url(#glow)"`;
     lines.push(

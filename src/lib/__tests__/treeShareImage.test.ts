@@ -142,14 +142,26 @@ describe("buildShareSvg", () => {
     expect(svg).not.toContain("10to50w");
   });
 
-  it("does NOT leak the debt band code", () => {
-    // profile.debt = "none" is a common word but we check the specific structured enum
-    // More importantly: no structured field keys should be rendered
-    const svg = buildShareSvg(makeTree(), LABELS);
-    // The raw enum value "none" for debt could collide, so we check debt band indirectly.
-    // We assert the SVG does not contain any of the other clearly private enum codes.
-    expect(svg).not.toContain("10to50w");
-    expect(svg).not.toContain("10to20");
+  it("does NOT leak skills or snapshot private fields", () => {
+    const tree = makeTree();
+    tree.profile.skills = "PYTHONSECRET";
+    tree.profile.snapshot = "SNAPSHOTSECRET";
+    const svg = buildShareSvg(tree, LABELS);
+    expect(svg).not.toContain("PYTHONSECRET");
+    expect(svg).not.toContain("SNAPSHOTSECRET");
+  });
+
+  it("escapes XML-special characters in choiceLabel", () => {
+    const tree = makeTree();
+    // Mutate the choice path's choiceLabel to contain XML-special chars
+    const choicePath = tree.paths.find((p) => p.kind === "choice");
+    if (!choicePath) throw new Error("choice path not found");
+    choicePath.choiceLabel = 'A<B&C"D';
+    const svg = buildShareSvg(tree, LABELS);
+    // esc() encodes: & → &amp;  < → &lt;  > → &gt;  " → &quot;
+    expect(svg).toContain("&lt;");
+    expect(svg).toContain("&amp;");
+    expect(svg).not.toContain("A<B");
   });
 
   it("does NOT leak assets free-text", () => {
