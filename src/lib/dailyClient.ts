@@ -25,7 +25,9 @@ export async function fetchTodayPlan(
     });
     if (!res.ok) return [];
     const data = (await res.json()) as { pick?: TodayPick[] };
-    return Array.isArray(data.pick) ? data.pick.filter((p) => p && typeof p.id === "string") : [];
+    return Array.isArray(data.pick)
+      ? data.pick.filter((p) => p && typeof p.id === "string" && typeof p.why === "string")
+      : [];
   } catch {
     return [];
   }

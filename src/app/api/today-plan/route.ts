@@ -53,7 +53,8 @@ export async function POST(request: Request) {
   if (!pending.length) return Response.json({ pick: [] });
 
   const key = getKey();
-  if (!allowRequest(request, Date.now()) || !key) {
+  if (!key) return Response.json({ pick: localPick(pending, body.lang) });
+  if (!allowRequest(request, Date.now())) {
     return Response.json({ pick: localPick(pending, body.lang) });
   }
 
