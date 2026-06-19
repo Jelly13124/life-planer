@@ -1,5 +1,6 @@
 import type { LifeTree } from "../types";
 import type { TreeRepository } from "./types";
+import { normalizeLoadedTree } from "./normalize";
 
 // v3：分支改为"从各自现实的人生时间点分叉"（forkAge 不再都等于当前年龄）。
 // 旧树的分叉与节点年龄都钉在"现在"，无法在不产生年龄/文案错位的情况下平滑迁移，
@@ -52,12 +53,7 @@ export class LocalStorageRepository implements TreeRepository {
     const raw = this.store.getItem(STORAGE_KEY);
     if (!raw) return null;
     try {
-      const parsed = JSON.parse(raw) as LifeTree;
-      if (!parsed || !Array.isArray(parsed.paths) || !parsed.profile) return null;
-      if (!Array.isArray(parsed.decisions)) parsed.decisions = []; // 旧树兼容：补字段，不清库
-      if (!Array.isArray(parsed.goals)) parsed.goals = []; // 旧树兼容：补 goals
-      if (!Array.isArray(parsed.activity)) parsed.activity = []; // 旧树兼容：补 activity
-      return parsed;
+      return normalizeLoadedTree(JSON.parse(raw)); // 校验 + 旧树补字段（共享逻辑）
     } catch {
       return null; // 数据损坏 -> 当作没有，UI 回退到重新引导
     }
