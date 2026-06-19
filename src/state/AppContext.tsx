@@ -39,7 +39,7 @@ import {
   toggleGoalAction,
   upsertGoal,
 } from "@/domain/goals";
-import { completeAction, planToday, uncompleteAction, unplanToday, localDay } from "@/domain/daily";
+import { completeAction, isActionDoneToday, planToday, uncompleteAction, unplanToday, localDay } from "@/domain/daily";
 
 export type View = "onboarding" | "tree" | "detail" | "plan" | "dashboard";
 
@@ -466,10 +466,9 @@ export function AppProvider({
         const baseTree = treeRef.current;
         if (!baseTree) return;
         const today = localDay(new Date());
-        const e = (baseTree.activity ?? []).find((a) => a.date === today);
         const hit = (baseTree.goals ?? []).flatMap((g) => g.actions).find((a) => a.id === actionId);
-        // 重复行动看"今天是否记过"；一次性看 done。
-        const doneNow = hit?.repeat ? Boolean(e?.completedActionIds.includes(actionId)) : Boolean(hit?.done);
+        // 用同一套口径判断"今天是否已完成"（一次性=done；daily=今天；weekly=本周内）。
+        const doneNow = hit ? isActionDoneToday(baseTree, hit, today) : false;
         const next = doneNow
           ? uncompleteAction(baseTree, actionId, today)
           : completeAction(baseTree, actionId, today);
