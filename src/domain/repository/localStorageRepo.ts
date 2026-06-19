@@ -56,6 +56,7 @@ export class LocalStorageRepository implements TreeRepository {
       if (!parsed || !Array.isArray(parsed.paths) || !parsed.profile) return null;
       if (!Array.isArray(parsed.decisions)) parsed.decisions = []; // 旧树兼容：补字段，不清库
       if (!Array.isArray(parsed.goals)) parsed.goals = []; // 旧树兼容：补 goals
+      if (!Array.isArray(parsed.activity)) parsed.activity = []; // 旧树兼容：补 activity
       return parsed;
     } catch {
       return null; // 数据损坏 -> 当作没有，UI 回退到重新引导

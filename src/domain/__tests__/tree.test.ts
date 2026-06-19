@@ -128,6 +128,11 @@ describe("tree operations", () => {
     expect(t2.decisions).toHaveLength(0); // 删分支时连带清掉它的决定，避免幽灵复盘提示
   });
 
+  it("createTree starts with empty activity", () => {
+    const t = createTree(profile, gen, NOW);
+    expect(t.activity).toEqual([]);
+  });
+
   it("removePath also prunes a long-term goal attached to the removed branch", () => {
     let t = addPath(createTree(profile, gen, NOW), "去读研", gen, NOW);
     const choice = t.paths.find((p) => p.kind === "choice")!;

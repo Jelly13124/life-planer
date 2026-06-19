@@ -185,6 +185,7 @@ export interface GoalAction {
   id: string;
   text: string;
   done: boolean;
+  repeat?: "daily" | "weekly"; // 缺省=一次性（里程碑，计入进度）；重复行动=日常纪律，不计入进度
 }
 
 export interface Goal {
@@ -212,6 +213,14 @@ export interface GoalInput {
   pathId?: string | null;
 }
 
+// ───────── 每日激励闭环：今日计划 / 连续天数 / 完成热力图 ─────────
+// 一天的活动：当天挑进"今天"的行动 id + 当天勾掉完成的行动 id。date 用本地日 YYYY-MM-DD。
+export interface ActivityDay {
+  date: string; // 本地日期 YYYY-MM-DD（由 state 层注入，不在领域层取 new Date）
+  plannedActionIds: string[];
+  completedActionIds: string[];
+}
+
 export interface LifeTree {
   id: string;
   profile: Profile;
@@ -219,6 +228,7 @@ export interface LifeTree {
   paths: LifePath[]; // 含 1 条 status-quo + N 条 choice
   decisions: Decision[]; // 决策日志（看见→追问→选定→落地→复盘）
   goals: Goal[]; // 规划主线：长期/短期目标
+  activity: ActivityDay[]; // 每日激励闭环：今日计划/完成记录
   createdAt: string;
   updatedAt: string;
 }
