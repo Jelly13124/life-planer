@@ -15,7 +15,7 @@ import type { Decision } from "@/domain/types";
 const _bootISO = new Date().toISOString();
 
 export function TreeScreen() {
-  const { tree, openPath, addBranch, reset, aiEnabled, openPlan } = useApp();
+  const { tree, openPath, addBranch, reset, aiEnabled, openDashboard, openPlan } = useApp();
   const { t } = useT();
   const [adding, setAdding] = useState(false);
   // 在某条路的某个未来节点处加岔路（R6 递归）；null = 关闭
@@ -65,16 +65,11 @@ export function TreeScreen() {
             </button>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={openPlan}>
-            {t("🎯 我的规划")}
-          </Button>
-          <Button variant="primary" onClick={() => setAdding(true)}>
-            {t("＋ 添加岔路")}
-          </Button>
-          <Button variant="ghost" onClick={reset} title={t("清空并重新开始")}>
-            {t("↺ 重置")}
-          </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="ghost" onClick={openDashboard}>{t("← 今日")}</Button>
+          <Button variant="ghost" onClick={openPlan}>{t("🎯 我的规划")}</Button>
+          <Button variant="primary" onClick={() => setAdding(true)}>{t("＋ 添加岔路")}</Button>
+          <Button variant="ghost" onClick={reset} title={t("清空并重新开始")}>{t("↺ 重置")}</Button>
         </div>
       </header>
 

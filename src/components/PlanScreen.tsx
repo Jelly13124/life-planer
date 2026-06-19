@@ -12,7 +12,7 @@ import { fetchGoalActions, fetchGoalSuggestions, type GoalSuggestion } from "@/l
 const _bootISO = new Date().toISOString();
 
 export function PlanScreen() {
-  const { tree, backToTree, openPath, addLongTermGoal, addShortTermGoal, setGoalActionTexts, toggleGoalActionById, completeGoalById, dropGoalById, markDueGoalsReviewed } = useApp();
+  const { tree, openDashboard, openPath, addLongTermGoal, addShortTermGoal, setGoalActionTexts, toggleGoalActionById, completeGoalById, dropGoalById, markDueGoalsReviewed, planActionToday, setActionRepeatById } = useApp();
   const { t } = useT();
 
   const [todayISO, setTodayISO] = useState(_bootISO);
@@ -67,8 +67,8 @@ export function PlanScreen() {
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-8 sm:px-8">
       <header className="animate-fade">
-        <button onClick={backToTree} className="text-sm text-[var(--fg-dim)] transition hover:text-[var(--fg)]">
-          {t("← 返回人生树")}
+        <button onClick={openDashboard} className="text-sm text-[var(--fg-dim)] transition hover:text-[var(--fg)]">
+          {t("← 今日")}
         </button>
         <h1 className="mt-2 text-2xl font-bold sm:text-3xl">{t("我的规划")}</h1>
         <p className="mt-1 text-sm text-[var(--fg-dim)]">
@@ -149,6 +149,8 @@ export function PlanScreen() {
                 if (confirm(t("确定移除这个目标？长期目标会连同它在树上的分支一起删除。"))) dropGoalById(g.id);
               }}
               onAddShort={(title) => addShortTermGoal({ area: g.area, title, why: "", parentGoalId: g.id })}
+              onPlanToday={(aid) => planActionToday(aid)}
+              onSetRepeat={(aid, r) => setActionRepeatById(g.id, aid, r)}
             />
           ))}
         </section>
@@ -167,6 +169,8 @@ export function PlanScreen() {
               onToggle={(aid) => toggleGoalActionById(g.id, aid)}
               onComplete={() => completeGoalById(g.id)}
               onDrop={() => dropGoalById(g.id)}
+              onPlanToday={(aid) => planActionToday(aid)}
+              onSetRepeat={(aid, r) => setActionRepeatById(g.id, aid, r)}
             />
           ))}
         </section>
@@ -198,6 +202,11 @@ export function PlanScreen() {
 
 type TFn = (zh: string, vars?: Record<string, string | number>) => string;
 
+const REPEAT_LABEL = (t: TFn, r: "daily" | "weekly" | undefined) =>
+  r === "daily" ? t("🔁每天") : r === "weekly" ? t("🔁每周") : t("🔁重复");
+const NEXT_REPEAT = (r: "daily" | "weekly" | undefined): "daily" | "weekly" | undefined =>
+  r === undefined ? "daily" : r === "daily" ? "weekly" : undefined;
+
 function ProgressBar({ value }: { value: number }) {
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
@@ -206,18 +215,36 @@ function ProgressBar({ value }: { value: number }) {
   );
 }
 
-function Actions({ goal, t, onToggle }: { goal: Goal; t: TFn; onToggle: (actionId: string) => void }) {
+function Actions({
+  goal, t, onToggle, onPlanToday, onSetRepeat,
+}: {
+  goal: Goal; t: TFn;
+  onToggle: (actionId: string) => void;
+  onPlanToday: (actionId: string) => void;
+  onSetRepeat: (actionId: string, repeat: "daily" | "weekly" | undefined) => void;
+}) {
   if (goal.actions.length === 0) return null;
   return (
     <ul className="mt-2 space-y-1">
       {goal.actions.map((a) => (
-        <li key={a.id}>
-          <button onClick={() => onToggle(a.id)} className="flex w-full items-center gap-2 text-left text-sm text-[var(--fg)]">
+        <li key={a.id} className="flex items-center gap-2">
+          <button onClick={() => onToggle(a.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm text-[var(--fg)]">
             <span className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border text-[10px] ${a.done ? "border-[var(--c-emerald)] bg-[var(--c-emerald)]/20 text-[var(--c-emerald)]" : "border-[var(--line)]"}`}>
               {a.done ? "✓" : ""}
             </span>
             <span className={a.done ? "text-[var(--fg-faint)] line-through" : ""}>{a.text}</span>
           </button>
+          <button
+            onClick={() => onSetRepeat(a.id, NEXT_REPEAT(a.repeat))}
+            className={`flex-shrink-0 rounded-full border px-2 py-0.5 text-[10px] transition ${a.repeat ? "border-[var(--accent)]/60 text-[var(--accent)]" : "border-[var(--line)] text-[var(--fg-faint)] hover:text-[var(--fg-dim)]"}`}
+          >
+            {REPEAT_LABEL(t, a.repeat)}
+          </button>
+          {!a.repeat && !a.done && (
+            <button onClick={() => onPlanToday(a.id)} className="flex-shrink-0 rounded-full border border-[var(--line)] px-2 py-0.5 text-[10px] text-[var(--fg-dim)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]">
+              {t("＋今天")}
+            </button>
+          )}
         </li>
       ))}
     </ul>
@@ -225,11 +252,12 @@ function Actions({ goal, t, onToggle }: { goal: Goal; t: TFn; onToggle: (actionI
 }
 
 function LongGoalCard({
-  goal, progress, kids, breaking, t, onOpenPath, onBreak, onToggle, onComplete, onDrop, onAddShort,
+  goal, progress, kids, breaking, t, onOpenPath, onBreak, onToggle, onComplete, onDrop, onAddShort, onPlanToday, onSetRepeat,
 }: {
   goal: Goal; progress: number; kids: Goal[]; breaking: boolean; t: TFn;
   onOpenPath: () => void; onBreak: () => void; onToggle: (actionId: string) => void;
   onComplete: () => void; onDrop: () => void; onAddShort: (title: string) => void;
+  onPlanToday: (actionId: string) => void; onSetRepeat: (actionId: string, repeat: "daily" | "weekly" | undefined) => void;
 }) {
   const [newKid, setNewKid] = useState("");
   return (
@@ -272,7 +300,7 @@ function LongGoalCard({
         </ul>
       )}
 
-      <Actions goal={goal} t={t} onToggle={onToggle} />
+      <Actions goal={goal} t={t} onToggle={onToggle} onPlanToday={onPlanToday} onSetRepeat={onSetRepeat} />
 
       <div className="mt-3 flex items-center gap-2">
         <input
@@ -300,10 +328,11 @@ function LongGoalCard({
 }
 
 function ShortGoalRow({
-  goal, breaking, t, onBreak, onToggle, onComplete, onDrop,
+  goal, breaking, t, onBreak, onToggle, onComplete, onDrop, onPlanToday, onSetRepeat,
 }: {
   goal: Goal; breaking: boolean; t: TFn;
   onBreak: () => void; onToggle: (actionId: string) => void; onComplete: () => void; onDrop: () => void;
+  onPlanToday: (actionId: string) => void; onSetRepeat: (actionId: string, repeat: "daily" | "weekly" | undefined) => void;
 }) {
   return (
     <div className="rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] p-4">
@@ -316,7 +345,7 @@ function ShortGoalRow({
           {t(AREA_LABELS[goal.area])}
         </span>
       </div>
-      <Actions goal={goal} t={t} onToggle={onToggle} />
+      <Actions goal={goal} t={t} onToggle={onToggle} onPlanToday={onPlanToday} onSetRepeat={onSetRepeat} />
       <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--line)] pt-3 text-xs">
         <button onClick={onBreak} disabled={breaking} className="rounded-full border border-[var(--accent)]/50 px-3 py-1 text-[var(--accent)] transition hover:bg-[var(--accent)]/15 disabled:opacity-50">
           {breaking ? t("正在拆解…") : t("✨ 拆成行动")}

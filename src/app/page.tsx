@@ -5,6 +5,7 @@ import { Onboarding } from "@/components/Onboarding";
 import { TreeScreen } from "@/components/TreeScreen";
 import { PathDetail } from "@/components/PathDetail";
 import { PlanScreen } from "@/components/PlanScreen";
+import { DashboardScreen } from "@/components/DashboardScreen";
 import { PlanningAssistant } from "@/components/PlanningAssistant";
 import { PredictionOverlay } from "@/components/PredictionOverlay";
 
@@ -46,8 +47,10 @@ function Screen() {
         <PathDetail tree={tree} pathId={activePathId} onBack={backToTree} />
       ) : view === "plan" ? (
         <PlanScreen />
-      ) : (
+      ) : view === "tree" ? (
         <TreeScreen />
+      ) : (
+        <DashboardScreen />
       )}
       {/* 常驻规划助手（有树时才出现） */}
       <PlanningAssistant />
