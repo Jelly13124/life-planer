@@ -61,6 +61,18 @@ export function toggleGoalAction(goal: Goal, actionId: string): Goal {
   };
 }
 
+// 设置/清除某行动的重复标记（关→每天→每周→关 由 UI 决定）。
+export function setActionRepeat(
+  goal: Goal,
+  actionId: string,
+  repeat: GoalAction["repeat"],
+): Goal {
+  return {
+    ...goal,
+    actions: goal.actions.map((a) => (a.id === actionId ? { ...a, repeat } : a)),
+  };
+}
+
 // 某个长期目标下的短期子目标（按创建时间）。
 export function childGoals(tree: LifeTree, longGoalId: string): Goal[] {
   return goals(tree)
@@ -68,17 +80,18 @@ export function childGoals(tree: LifeTree, longGoalId: string): Goal[] {
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
-// 进度 0–1：长期目标 = (done 子目标 + done 行动) / (子目标 + 行动)；短期 = done 行动比例。
+// 进度 0–1：只数"一次性行动(里程碑)"+子目标；重复行动是日常纪律，不计入进度。
 export function goalProgress(tree: LifeTree, goal: Goal): number {
+  const milestones = goal.actions.filter((a) => !a.repeat);
   if (goal.horizon === "long") {
     const kids = childGoals(tree, goal.id);
-    const total = kids.length + goal.actions.length;
+    const total = kids.length + milestones.length;
     if (total === 0) return 0;
-    const done = kids.filter((k) => k.status === "done").length + goal.actions.filter((a) => a.done).length;
+    const done = kids.filter((k) => k.status === "done").length + milestones.filter((a) => a.done).length;
     return done / total;
   }
-  if (goal.actions.length === 0) return 0;
-  return goal.actions.filter((a) => a.done).length / goal.actions.length;
+  if (milestones.length === 0) return 0;
+  return milestones.filter((a) => a.done).length / milestones.length;
 }
 
 // 达成目标：标 done + 时间戳；长期目标顺带给它的人生面加分（影响之后的预测）。

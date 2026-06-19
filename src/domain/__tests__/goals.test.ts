@@ -14,6 +14,7 @@ import {
   dueGoalReviews,
   recordGoalReview,
   AREA_BUMP,
+  setActionRepeat,
 } from "@/domain/goals";
 import { createTree, addPath } from "@/domain/tree";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
@@ -177,5 +178,26 @@ describe("goals domain", () => {
     t = upsertGoal(t, g);
     t = completeGoal(t, g.id, NOW);
     expect(dueGoalReviews(t, "2027-01-01T00:00:00.000Z")).toHaveLength(0);
+  });
+
+  it("goalProgress ignores recurring actions (they are daily discipline, not milestones)", () => {
+    let g = createGoal({ area: "growth", horizon: "short", title: "学英语", why: "" }, NOW);
+    g = setGoalActions(g, ["写完简历", "每天背单词"]); // a0 一次性, a1 将设为重复
+    g = setActionRepeat(g, g.actions[1].id, "daily");
+    g = toggleGoalAction(g, g.actions[1].id); // 勾了重复那条，也不该算进度
+    const t = upsertGoal(base(), g);
+    expect(goalProgress(t, g)).toBe(0); // 只有一次性那条算分母，且它没完成
+    const g2 = toggleGoalAction(g, g.actions[0].id); // 完成一次性那条
+    const t2 = upsertGoal(base(), g2);
+    expect(goalProgress(t2, g2)).toBe(1); // 1/1
+  });
+
+  it("setActionRepeat sets and clears the repeat flag", () => {
+    let g = createGoal({ area: "health", horizon: "short", title: "运动", why: "" }, NOW);
+    g = setGoalActions(g, ["跑步"]);
+    g = setActionRepeat(g, g.actions[0].id, "weekly");
+    expect(g.actions[0].repeat).toBe("weekly");
+    g = setActionRepeat(g, g.actions[0].id, undefined);
+    expect(g.actions[0].repeat).toBeUndefined();
   });
 });
