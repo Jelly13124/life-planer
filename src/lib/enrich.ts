@@ -66,6 +66,8 @@ const SYSTEM = [
   "2. 只写未来：所有时刻的年龄都必须 ≥ 这条路的起点、且不小于他现在的年龄，绝不重写、不编造、不否定他的过去。",
   "3. 绝不与他已知的现状矛盾——他已达成的、身份/签证、所在地都要当作既定事实。例：他已读完研、在国外持工作签，就不要写他辍学、还在读、或无视签证限制。",
   "4. 尊重现实规律：签证身份、行业现实、时间、金钱、年龄阶段都要讲得通。",
+  "5. 【禁用词表——出现任意一个即判为不合格，必须重写】：进了大厂、走上人生巅峰、实现逆袭、财务自由、开启新篇章、迎来转机、被更多人看见、走出自己的路、命运的齿轮、人生赢家、稳步上升、一路高歌。要写高薪/升职/买房/成功，一律换成具体数字+具体主体（公司名/职级/城市/金额/年份），不准用形容词代替事实。",
+  "6. 禁止预言腔：不准用一定、必然、注定、铁定、命中注定等保证性措辞；统一用很可能、大概率、也许这类概率语气。",
   "风格：克制、可信，普通人真实生活的质感。可以有起伏和转折，但不要爽文/逆袭套路（别动不动就辍学创业然后上市）。像一段真实的人生，不是电影。",
   "可以自由发挥的是：具体经历、遇到的人、起落与结局——只要都扎根在他的真实处境里。",
   "只输出 JSON 本身，不要用代码块包裹，不要任何解释文字。",
@@ -85,6 +87,19 @@ function arcHint(curve: CurveShape): string {
       return "起伏不大，大体平稳。";
   }
 }
+
+// 仅当现状里出现美国/工作签/绿卡等线索时，才注入这套真实时间线，避免对不相关的路写错事实。
+function isUSVisa(p: Profile): boolean {
+  const s = `${p.location} ${p.status}`.toLowerCase();
+  return /美国|united states|\bus\b|usa|h1b|h-1b|opt|绿卡|green card|签证|visa|移民/.test(s);
+}
+const VISA_US_FACTS = [
+  "【美国工作签事实校准——按此推演，不得写错时间线】：",
+  "H1B 抽签命中率近年约 25–30%，可能多年抽不中；中签后身份最长 6 年；STEM OPT 最长 3 年。",
+  "绿卡流程顺序：雇主 PERM 劳工证（约 1–2 年，可能被审计）→ I-140 → 排期（priority date）→ I-485/绿卡；绿卡满 5 年方可入籍。",
+  "排期按出生国分：非中印（ROW）通常 1–3 年内可办；中国大陆 EB2/EB3 约 4–7 年；印度 EB2/EB3 普遍 8 年以上。若不知出生国，就把这种依赖关系写进故事（如排期取决于出生国）。",
+  "换雇主多数要重走 PERM。把 identity 维度的每个时刻落在上述真实里程碑上，并写出对应年份。",
+].join("\n");
 
 function buildUserPrompt(input: EnrichInput): string {
   const p = input.profile;
@@ -113,6 +128,7 @@ function buildUserPrompt(input: EnrichInput): string {
   lines.push(`主角姓名：${p.name}（全程用这个名字）。`);
   lines.push(`他现在 ${now} 岁${p.location ? `，生活在${p.location}` : ""}${p.status ? `，身份/阶段：${p.status}` : ""}。`);
   lines.push(`现状（既定事实，推演不能与之矛盾）：${facts.join("；")}。`);
+  if (isUSVisa(p)) lines.push(VISA_US_FACTS);
   lines.push("");
   if (input.note?.trim()) {
     lines.push(
@@ -137,7 +153,7 @@ function buildUserPrompt(input: EnrichInput): string {
     }
   }
   if (input.scenario === "optimistic")
-    lines.push("按偏顺利、运气较好但仍现实可信的走向来写。");
+    lines.push("按偏顺利、运气较好但仍现实可信的走向来写；即便如此，整条仍至少保留 2 处真实挫折（顺利不等于无摩擦）。");
   else if (input.scenario === "conservative")
     lines.push("按偏不顺、磕磕绊绊、运气一般但依然真实的走向来写。");
   lines.push("");
@@ -154,10 +170,25 @@ function buildUserPrompt(input: EnrichInput): string {
     "- 现实锚点：用具体、真实、可核对的细节，禁止空话（如“进了大厂/走上巅峰/逆袭”）。涉及签证就写真实里程碑（H1B 6 年上限/抽签/PERM/I-140/绿卡排期/入籍）；涉及薪资写真实档位与数字；写真实的职业层级、城市、行业现实。",
   );
   lines.push(
+    "- 现实锚点（整条至少全部满足）：(a) 若涉及签证/移民，至少 2 个真实身份里程碑并写出大致年份；(b) 至少 2 处具体收入数字（职级+金额+币种，如 L5 总包约 $360k）；(c) 至少 1 个真实公司/机构名或同量级的具体描述；(d) 至少 2 个具体城市/地点。缺任一项即不合格。",
+  );
+  lines.push(
+    "- 每个涉及晋升/跳槽的时刻必须写出真实职级名称（科技 IC：SWE→Senior→Staff→Senior Staff；管理：EM→Senior EM→Director；金融：Analyst→Associate→VP；学术：博后→AP→tenure），并写出对应收入变化，禁止只写升职了/薪资翻倍。",
+  );
+  lines.push(
     `- 每段 story 要 3-5 句，含至少：一个具体的人或机构、一个具体数字、一处内心或细节；并标注 dimensions（从 career/finance/relationships/health/housing/identity/growth 选 1-2 个该时刻主要触及的维度）。`,
   );
   lines.push(
     "- 多维度：整条至少覆盖 4 个不同维度；finance（财务）必须出现；若他在国外/有签证，identity（身份/签证）也必须出现。",
+  );
+  lines.push(
+    "- 真实摩擦（每条至少 2 处，乐观路也不例外）：从签证没中要再等、晋升被卡或被 PIP、裁员/组被裁、排期倒退、房租房价压力、异地恋/分手、健康透支中至少选 2 个写成有后果的事件，而非一笔带过。",
+  );
+  lines.push(
+    "- 因果承接：从第 2 个时刻起，每段开头点明它是前一时刻的直接结果（如：因为上一年 PERM 卡在审计，这一年……），不要互不相干的片段。",
+  );
+  lines.push(
+    "- 金额一律用当地货币（在美国用美元年总包），不要套用表单里的人民币月薪区间。",
   );
   lines.push("- 克制可信、扎根现实，有真实的摩擦（如抽签没中、晋升卡壳），不要爽文。");
   lines.push("");
