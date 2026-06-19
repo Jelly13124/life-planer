@@ -11,7 +11,7 @@ import {
 } from "react";
 import type { LifeTree, Mood } from "@/domain/types";
 import { useT } from "@/prefs/PreferencesContext";
-import { layoutMap, type MapLayout, type MapNode, type PathLayout } from "./mapLayout";
+import { cubicYAtX, layoutMap, type MapLayout, type MapNode, type PathLayout } from "./mapLayout";
 
 const MIN_K = 0.4;
 const MAX_K = 2.5;
@@ -49,19 +49,23 @@ export function LifeMap({
   onSelectPath,
   onForkAtNode,
   achievedIds,
+  markers,
+  compact = false,
 }: {
   tree: LifeTree;
   onSelectPath: (id: string) => void;
   onForkAtNode: (parentId: string, forkAge: number, atLabel: string) => void;
   achievedIds?: Set<string>;
+  markers?: { pathId: string; age: number; label?: string }[];
+  compact?: boolean;
 }) {
   const reduced = usePrefersReducedMotion();
   const { t } = useT();
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   const layout: MapLayout = useMemo(
-    () => layoutMap(tree.paths, tree.profile.age, tree.horizonYears),
-    [tree.paths, tree.profile.age, tree.horizonYears],
+    () => layoutMap(tree.paths, tree.profile.age, tree.horizonYears, compact ? { height: 380 } : {}),
+    [tree.paths, tree.profile.age, tree.horizonYears, compact],
   );
 
   // 祖先链：用于 hover/选中时高亮"这条路 + 它的来路"，其余淡化
@@ -191,6 +195,21 @@ export function LifeMap({
   );
 
   const { width: W, height: H, origin } = layout;
+
+  const markerPts = useMemo(() => {
+    if (!markers?.length) return [];
+    const byId = new Map(layout.items.map((it) => [it.id, it]));
+    return markers
+      .map((m) => {
+        const it = byId.get(m.pathId);
+        if (!it) return null;
+        const x = layout.xFor(m.age);
+        const y = cubicYAtX(it.start, it.c1, it.c2, it.end, x);
+        return { x, y, color: it.color, label: m.label };
+      })
+      .filter((p): p is { x: number; y: number; color: string; label: string | undefined } => p !== null);
+  }, [markers, layout]);
+
   const name = tree.profile.name || "你";
 
   // 时间轴刻度（每 ~5 年一根）
@@ -323,6 +342,32 @@ export function LifeMap({
               {name}
             </text>
           </g>
+
+          {markerPts.map((m, i) => (
+            <g key={`marker-${i}`} aria-hidden>
+              <circle
+                cx={m.x}
+                cy={m.y}
+                r={6}
+                fill={m.color}
+                stroke="#fff"
+                strokeWidth={2}
+                className={reduced ? undefined : "lp-origin"}
+                style={{ filter: `drop-shadow(0 0 8px ${m.color})` }}
+              />
+              <text
+                x={m.x}
+                y={m.y - 12}
+                textAnchor="middle"
+                fontSize={10}
+                fontWeight={700}
+                fill="var(--fg)"
+                style={{ paintOrder: "stroke", stroke: "var(--bg-0)", strokeWidth: 3 }}
+              >
+                {m.label ?? t("你在这里")}
+              </text>
+            </g>
+          ))}
         </g>
       </svg>
 
@@ -344,9 +389,11 @@ export function LifeMap({
       </div>
 
       {/* 操作提示（地图语义） */}
-      <div className="pointer-events-none absolute bottom-2 left-3 text-[11px] text-[var(--fg-faint)]">
-        {t("拖动平移 · 滚轮缩放 · 点曲线看那段人生 · 点节点在那里加岔路")}
-      </div>
+      {!compact && (
+        <div className="pointer-events-none absolute bottom-2 left-3 text-[11px] text-[var(--fg-faint)]">
+          {t("拖动平移 · 滚轮缩放 · 点曲线看那段人生 · 点节点在那里加岔路")}
+        </div>
+      )}
     </div>
   );
 }
