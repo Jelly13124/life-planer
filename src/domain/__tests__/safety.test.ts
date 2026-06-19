@@ -53,8 +53,8 @@ describe("detectCrisisSignal — positive (high-confidence crisis signals)", () 
     expect(detectCrisisSignal("想结束自己的生命")).toBe(true);
   });
 
-  it("detects 了结自己", () => {
-    expect(detectCrisisSignal("想了结自己")).toBe(true);
+  it("detects 了结自己的生命", () => {
+    expect(detectCrisisSignal("我想了结自己的生命")).toBe(true);
   });
 
   it("detects kill myself", () => {
@@ -71,14 +71,6 @@ describe("detectCrisisSignal — positive (high-confidence crisis signals)", () 
 
   it("detects self-harm", () => {
     expect(detectCrisisSignal("I've been doing self-harm")).toBe(true);
-  });
-
-  it("detects hurt myself", () => {
-    expect(detectCrisisSignal("I want to hurt myself")).toBe(true);
-  });
-
-  it("detects cut myself", () => {
-    expect(detectCrisisSignal("I cut myself again")).toBe(true);
   });
 
   it("detects don't want to live", () => {
@@ -147,6 +139,22 @@ describe("detectCrisisSignal — negative (no false positives on hyperbole)", ()
 
   it("does NOT detect whitespace-only string", () => {
     expect(detectCrisisSignal("  ")).toBe(false);
+  });
+
+  it("does NOT detect 我了结自己的债务 (debt idiom)", () => {
+    expect(detectCrisisSignal("我了结自己的债务")).toBe(false);
+  });
+
+  it("does NOT detect 了结自己的事情 (errand idiom)", () => {
+    expect(detectCrisisSignal("了结自己的事情")).toBe(false);
+  });
+
+  it("does NOT detect I cut myself shaving (physical injury)", () => {
+    expect(detectCrisisSignal("I cut myself shaving")).toBe(false);
+  });
+
+  it("does NOT detect I hurt myself at the gym (physical injury)", () => {
+    expect(detectCrisisSignal("I hurt myself at the gym")).toBe(false);
   });
 });
 

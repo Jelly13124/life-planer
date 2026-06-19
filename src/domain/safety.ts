@@ -6,6 +6,12 @@
 //    等高频夸张口语，也不包含"要我命"/"杀时间"等习语。
 //  · detectCrisisSignal 是纯函数：deterministic，无副作用，无网络/IO。
 //  · 不含医疗建议：CRISIS_RESOURCES 只提供求助热线等展示文本。
+//
+// 关于保守偏差（conservative bias）：
+//  · 少数强语义短语（如「自杀」「want to die」）在极罕见场景下可能误触发
+//    （例如学术研究、预防教育措辞，或夸张玩笑）。
+//  · 这是可接受的取舍：触发后展示的 UI 是温和且可关闭的；
+//    宁可偶尔误报，也不漏掉真实的求助信号。
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface CrisisResource {
@@ -20,22 +26,9 @@ export interface CrisisResource {
  * 数据来自公开发布的公益热线；建议结合最新官方渠道核实。
  */
 export const CRISIS_RESOURCES: CrisisResource[] = [
-  {
-    label: "北京心理危机研究与干预中心",
-    contact: "010-82951332",
-  },
-  {
-    label: "全国心理援助热线（24小时）",
-    contact: "400-161-9995",
-  },
-  {
-    label: "希望24热线",
-    contact: "400-161-9995",
-  },
-  {
-    label: "紧急情况",
-    contact: "请立即联系当地急救（120）或可信赖的人",
-  },
+  { label: "希望24热线（24小时）", contact: "400-161-9995" },
+  { label: "北京心理危机研究与干预中心", contact: "010-82951332" },
+  { label: "紧急情况", contact: "请立即联系当地急救（如 120）或你信任的人" },
 ];
 
 // ─── 高置信度危机信号短语列表 ─────────────────────────────────────────────
@@ -54,7 +47,7 @@ const ZH_PHRASES: readonly string[] = [
   "结束自己的生命",
   "结束生命",
   "轻生",
-  "了结自己",
+  "了结自己的生命",
 ];
 
 const EN_PHRASES_LOWER: readonly string[] = [
@@ -69,8 +62,6 @@ const EN_PHRASES_LOWER: readonly string[] = [
   "don't want to live",
   "dont want to live",
   "self-harm",
-  "hurt myself",
-  "cut myself",
 ];
 
 /**
