@@ -8,9 +8,10 @@ import { PlanScreen } from "@/components/PlanScreen";
 import { DashboardScreen } from "@/components/DashboardScreen";
 import { PlanningAssistant } from "@/components/PlanningAssistant";
 import { PredictionOverlay } from "@/components/PredictionOverlay";
+import { SafetyCare } from "@/components/SafetyCare";
 
 function Screen() {
-  const { view, tree, activePathId, hydrated, backToTree, predicting, aiEnabled } = useApp();
+  const { view, tree, activePathId, hydrated, backToTree, predicting, aiEnabled, safetyHold, continueAfterSafety } = useApp();
 
   // 首帧还没读取本地数据时给个安静的占位，避免闪烁
   if (!hydrated) {
@@ -32,11 +33,17 @@ function Screen() {
     />
   ) : null;
 
+  // 危机信号检测到时展示的温和关怀覆层（z-[70]，高于推演动画）
+  const safetyOverlay = safetyHold ? (
+    <SafetyCare onContinue={continueAfterSafety} />
+  ) : null;
+
   if (view === "onboarding" || !tree) {
     return (
       <>
         <Onboarding />
         {overlay}
+        {safetyOverlay}
       </>
     );
   }
@@ -55,6 +62,7 @@ function Screen() {
       {/* 常驻规划助手（有树时才出现） */}
       <PlanningAssistant />
       {overlay}
+      {safetyOverlay}
     </>
   );
 }

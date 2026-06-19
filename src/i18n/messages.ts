@@ -360,4 +360,11 @@ export const EN: Record<string, string> = {
   "保守求稳": "Play it safe",
   "稳健": "Balanced",
   "进取敢冲": "Bold, go for it",
+
+  // ── 危机关怀覆层 SafetyCare ──
+  "先停一下，照顾好自己": "Take a moment — look after yourself",
+  "看起来你正在经历很艰难的时刻。你的感受很重要，也值得被认真对待。预测未来可以晚点再说——此刻，先和能帮到你的人聊聊。":
+    "It looks like you're going through something really hard right now. What you feel matters and deserves to be taken seriously. The future can wait — for now, please reach out to someone who can help.",
+  "可以联系：": "You can reach:",
+  "我没事，继续": "I'm okay, continue",
 };

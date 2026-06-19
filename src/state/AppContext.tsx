@@ -40,6 +40,7 @@ import {
   upsertGoal,
 } from "@/domain/goals";
 import { completeAction, isActionDoneToday, planToday, uncompleteAction, unplanToday, localDay } from "@/domain/daily";
+import { anyCrisisSignal } from "@/domain/safety";
 
 export type View = "onboarding" | "tree" | "detail" | "plan" | "dashboard";
 
@@ -58,6 +59,7 @@ interface State {
   hydrated: boolean;
   predicting: Predicting | null; // 非空 = 正在推演，显示全屏动画
   aiEnabled: boolean; // 后端是否接入了真实大模型
+  safetyHold: Profile | null; // 非空 = 检测到危机信号，暂停推演，等用户确认
 }
 
 type Action =
@@ -72,7 +74,9 @@ type Action =
   | { type: "openPlan" }
   | { type: "openDashboard" }
   | { type: "patchTree"; tree: LifeTree }
-  | { type: "reset" };
+  | { type: "reset" }
+  | { type: "safetyHold"; profile: Profile }
+  | { type: "clearSafety" };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -114,7 +118,11 @@ function reducer(state: State, action: Action): State {
     case "patchTree":
       return { ...state, tree: action.tree };
     case "reset":
-      return { ...state, tree: null, activePathId: null, view: "onboarding", predicting: null };
+      return { ...state, tree: null, activePathId: null, view: "onboarding", predicting: null, safetyHold: null };
+    case "safetyHold":
+      return { ...state, safetyHold: action.profile };
+    case "clearSafety":
+      return { ...state, safetyHold: null };
     default:
       return state;
   }
@@ -155,6 +163,8 @@ interface AppApi {
   unplanActionToday: (actionId: string) => void;
   toggleTodayAction: (actionId: string) => void;
   setActionRepeatById: (goalId: string, actionId: string, repeat: "daily" | "weekly" | undefined) => void;
+  safetyHold: Profile | null;
+  continueAfterSafety: () => void;
 }
 
 const AppContext = createContext<AppApi | null>(null);
@@ -179,6 +189,7 @@ export function AppProvider({
     hydrated: false,
     predicting: null,
     aiEnabled: false,
+    safetyHold: null,
   });
 
   const repoRef = useRef<TreeRepository | null>(repository ?? null);
@@ -309,6 +320,21 @@ export function AppProvider({
       aiEnabled: state.aiEnabled,
       completeOnboarding: (profile) => {
         if (predictingRef.current) return;
+        const crisis = anyCrisisSignal([
+          profile.name,
+          profile.snapshot,
+          profile.crossroad,
+          profile.status,
+          profile.occupation,
+          profile.hobbies,
+          profile.skills,
+          profile.assets,
+          profile.sideHustle,
+        ]);
+        if (crisis) {
+          dispatch({ type: "safetyHold", profile });
+          return;
+        }
         const tree = createTree(profile, generator, new Date().toISOString());
         void predictAndCommit(tree, tree.paths, "onboarding");
       },
@@ -481,6 +507,14 @@ export function AppProvider({
         if (!goal) return;
         dispatch({ type: "patchTree", tree: upsertGoal(baseTree, setActionRepeat(goal, actionId, repeat)) });
       },
+      safetyHold: state.safetyHold,
+      continueAfterSafety: () => {
+        const p = state.safetyHold;
+        if (!p) return;
+        dispatch({ type: "clearSafety" });
+        const tree = createTree(p, generator, new Date().toISOString());
+        void predictAndCommit(tree, tree.paths, "onboarding");
+      },
     }),
     [
       state.view,
@@ -489,6 +523,7 @@ export function AppProvider({
       state.hydrated,
       state.predicting,
       state.aiEnabled,
+      state.safetyHold,
       generator,
       repo,
       predictAndCommit,
