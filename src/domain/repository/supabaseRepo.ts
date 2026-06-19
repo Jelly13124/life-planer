@@ -4,7 +4,7 @@ import { normalizeLoadedTree } from "./normalize";
 
 // 我们只依赖这一小撮能力 —— 真正的 supabase 客户端在边缘适配成它（见 docs/supabase-setup.md）。便于 mock 测试。
 export interface CloudStore {
-  getTree(userId: string): Promise<unknown | null>; // 返回存储的 LifeTree JSON（或 null）
+  getTree(userId: string): Promise<unknown>; // 返回存储的 LifeTree JSON；不存在时实现应返回 null
   putTree(userId: string, tree: LifeTree): Promise<void>;
   deleteTree(userId: string): Promise<void>;
 }
