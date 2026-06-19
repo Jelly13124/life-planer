@@ -183,6 +183,7 @@ export function DashboardScreen() {
           <h2 className="text-sm font-bold text-[var(--fg-dim)]">{t("你的人生树")}</h2>
           <button onClick={openTree} className="text-xs text-[var(--fg-dim)] transition hover:text-[var(--fg)]">{t("看完整人生树 →")}</button>
         </div>
+        <p className="mt-1 text-[11px] text-[var(--fg-faint)]">{t("「你在这里」会随你完成里程碑前进；每日习惯不移动它。")}</p>
         <div className="mt-2 overflow-hidden rounded-3xl border border-[var(--line)] bg-black/20 p-2">
           {hasChoicePaths ? (
             <LifeMap

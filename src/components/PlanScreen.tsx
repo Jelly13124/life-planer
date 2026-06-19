@@ -55,6 +55,7 @@ export function PlanScreen() {
   async function breakIntoActions(goal: Goal) {
     const currentTree = tree;
     if (busyActions || !currentTree) return;
+    if (goal.actions.length > 0 && !confirm(t("重新拆解会覆盖现有行动（包括已设的重复和完成状态）。继续？"))) return;
     setBusyActions(goal.id);
     const texts = await fetchGoalActions(goal, currentTree.profile.snapshot || "");
     setBusyActions(null);

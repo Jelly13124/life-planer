@@ -290,6 +290,7 @@ export const EN: Record<string, string> = {
   "建议今天做这几件（点「加入今天」）": "Suggested for today (tap “Add to today”)",
   "＋ 加入今天": "+ Add to today",
   你的人生树: "Your life tree",
+  "「你在这里」会随你完成里程碑前进；每日习惯不移动它。": "“You are here” advances as you complete milestones; daily habits don’t move it.",
   "还没有路。去「我的规划」加一个长期目标，它会在树上长出一条路。":
     "No paths yet. Add a long-term goal in My plan and it grows a branch here.",
   你在这里: "You are here",
@@ -301,6 +302,7 @@ export const EN: Record<string, string> = {
   从今天移除: "Remove from today",
 
   // ── 规划主线 PlanScreen ──
+  "重新拆解会覆盖现有行动（包括已设的重复和完成状态）。继续？": "Re-breaking will replace the current actions (including repeat flags and done state). Continue?",
   "🎯 我的规划": "🎯 My Plan",
   我的规划: "My Plan",
   "先定长期目标——它会在你的人生树上长出一条路；用短期目标和行动一步步逼近它。":
