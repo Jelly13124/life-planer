@@ -12,7 +12,7 @@ import { fetchTodayPlan, localTodayStr, type TodayPick } from "@/lib/dailyClient
 const _bootToday = localTodayStr();
 
 export function DashboardScreen() {
-  const { tree, openPlan, openTree, openPath, toggleTodayAction, planActionToday } = useApp();
+  const { tree, openPlan, openTree, openPath, toggleTodayAction, planActionToday, unplanActionToday } = useApp();
   const { t } = useT();
 
   const [today, setToday] = useState(_bootToday);
@@ -51,9 +51,9 @@ export function DashboardScreen() {
       .filter((g) => g.horizon === "long" && g.status === "active" && g.pathId)
       .map((g) => {
         const age = branchPositionAge(tree, g);
-        return age == null ? null : { pathId: g.pathId as string, age };
+        return age == null ? null : { pathId: g.pathId as string, age, label: g.title };
       })
-      .filter((m): m is { pathId: string; age: number } => m !== null);
+      .filter((m): m is { pathId: string; age: number; label: string } => m !== null);
   }, [tree]);
 
   const doneLong = useMemo(
@@ -129,8 +129,8 @@ export function DashboardScreen() {
         ) : (
           <ul className="mt-3 space-y-1.5">
             {items.map(({ goal, action, doneToday }) => (
-              <li key={action.id}>
-                <button onClick={() => toggleTodayAction(action.id)} className="flex w-full items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3 text-left transition hover:border-[var(--accent)]/50">
+              <li key={action.id} className="flex items-center gap-1">
+                <button onClick={() => toggleTodayAction(action.id)} className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3 text-left transition hover:border-[var(--accent)]/50">
                   <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border text-[11px] ${doneToday ? "border-[var(--c-emerald)] bg-[var(--c-emerald)]/20 text-[var(--c-emerald)]" : "border-[var(--line)]"}`}>
                     {doneToday ? "✓" : ""}
                   </span>
@@ -140,6 +140,16 @@ export function DashboardScreen() {
                     <span className="ml-2 text-[11px] text-[var(--fg-faint)]">{t(AREA_LABELS[goal.area])} · {goal.title}</span>
                   </span>
                 </button>
+                {!doneToday && !action.repeat && (
+                  <button
+                    onClick={() => unplanActionToday(action.id)}
+                    aria-label={t("从今天移除")}
+                    title={t("从今天移除")}
+                    className="flex-shrink-0 rounded-full border border-[var(--line)] px-2 py-1 text-xs text-[var(--fg-faint)] transition hover:border-[var(--c-rose)] hover:text-[var(--c-rose)]"
+                  >
+                    ✕
+                  </button>
+                )}
               </li>
             ))}
           </ul>

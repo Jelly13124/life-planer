@@ -298,6 +298,7 @@ export const EN: Record<string, string> = {
   "🔁重复": "🔁 Repeat",
   "🔁每天": "🔁 Daily",
   "🔁每周": "🔁 Weekly",
+  从今天移除: "Remove from today",
 
   // ── 规划主线 PlanScreen ──
   "🎯 我的规划": "🎯 My Plan",
