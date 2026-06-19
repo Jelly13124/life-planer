@@ -13,6 +13,7 @@ import { useT } from "@/prefs/PreferencesContext";
 import { detectCrisisSignal } from "@/domain/safety";
 import { crisisCareText } from "@/lib/crisisMessage";
 import { Button } from "./ui/Button";
+import { useApp } from "@/state/AppContext";
 
 export function FutureSelfChat({
   tree,
@@ -26,12 +27,14 @@ export function FutureSelfChat({
   onAddBranch?: (label: string) => void; // R7：把聊出来的选择加进人生树
 }) {
   const { t } = useT();
+  const { regeneratePath } = useApp();
   const fAge = futureAgeOf(path);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const [failed, setFailed] = useState(false);
   const [branched, setBranched] = useState<string | null>(null);
+  const [retuning, setRetuning] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -248,6 +251,36 @@ export function FutureSelfChat({
             )}
           </div>
         )}
+
+        {/* 据对话重推这条路 */}
+        {(() => {
+          const userTurns = messages
+            .filter((m) => m.role === "user")
+            .map((m) => m.content.trim())
+            .filter(Boolean);
+          if (userTurns.length === 0) return null;
+          return (
+            <div className="border-t border-[var(--line)] px-5 py-3">
+              <button
+                disabled={retuning}
+                onClick={() => {
+                  if (retuning) return;
+                  setRetuning(true);
+                  const note = userTurns.join("；").slice(0, 600);
+                  regeneratePath(path.id, note);
+                  onClose();
+                }}
+                className="w-full rounded-2xl border border-[var(--accent)]/50 bg-[var(--accent)]/8 px-4 py-2.5 text-sm font-medium text-[var(--accent)] transition hover:bg-[var(--accent)]/15 disabled:opacity-50"
+                style={{ borderColor: `${accent}66`, backgroundColor: `${accent}14`, color: accent }}
+              >
+                {t("🔄 据我们聊的，重推这条路")}
+              </button>
+              <p className="mt-1.5 text-center text-[11px] text-[var(--fg-faint)]">
+                {t("会把你在这里说的补充给未来的自己，重新推演这条路。")}
+              </p>
+            </div>
+          );
+        })()}
 
         {/* 输入区 */}
         <div className="flex items-center gap-2 border-t border-[var(--line)] px-5 py-4">

@@ -190,6 +190,9 @@ export const EN: Record<string, string> = {
   "对方正在回想…": "They're thinking back…",
   "（没接上 AI，先聊不了——确认 .env.local 里配了 DEEPSEEK_API_KEY）":
     "(No AI connected — set DEEPSEEK_API_KEY in .env.local)",
+  "🔄 据我们聊的，重推这条路": "🔄 Re-run this path from our chat",
+  "会把你在这里说的补充给未来的自己，重新推演这条路。":
+    "Sends what you said here to your future self and re-runs this path.",
   "把「{label}」当作一个新选择？": "Make “{label}” a new choice?",
   "🌱 已把「{label}」加进你的人生树": "🌱 Added “{label}” to your life tree",
   "＋ 加进人生树": "＋ Add to tree",
