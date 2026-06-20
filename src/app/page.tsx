@@ -5,7 +5,7 @@ import { Onboarding } from "@/components/Onboarding";
 import { TreeScreen } from "@/components/TreeScreen";
 import { PathDetail } from "@/components/PathDetail";
 import { PlanScreen } from "@/components/PlanScreen";
-import { DashboardScreen } from "@/components/DashboardScreen";
+import { CalendarPlannerScreen } from "@/components/CalendarPlannerScreen";
 import { PlanningAssistant } from "@/components/PlanningAssistant";
 import { PredictionOverlay } from "@/components/PredictionOverlay";
 import { SafetyCare } from "@/components/SafetyCare";
@@ -57,7 +57,7 @@ function Screen() {
       ) : view === "tree" ? (
         <TreeScreen />
       ) : (
-        <DashboardScreen />
+        <CalendarPlannerScreen />
       )}
       {/* 常驻规划助手（有树时才出现） */}
       <PlanningAssistant />
