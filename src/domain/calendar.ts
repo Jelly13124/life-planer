@@ -44,7 +44,7 @@ export function actionsOnDay(
     for (const action of goal.actions) {
       let kind: DayActionKind | null = null;
       if (action.repeat === "daily") kind = "daily";
-      else if (action.repeat === "weekly") kind = action.repeatWeekday === wd ? "weekly" : null;
+      else if (action.repeat === "weekly") kind = (action.repeatWeekday ?? 1) === wd ? "weekly" : null;
       else if (action.scheduledDate === date) kind = "scheduled";
       if (kind) out.push({ goal, action, kind, done: isActionDoneToday(tree, action, date) });
     }

@@ -54,8 +54,9 @@ describe("calendar domain", () => {
   });
 
   it("actionsOnDay: scheduled one-shot only on its date", () => {
-    const { a } = withActions();
-    let { tree } = withActions();
+    const w = withActions();
+    let tree = w.tree;
+    const a = w.a;
     tree = setActionScheduledDate(tree, a[0], "2026-06-22");
     expect(actionsOnDay(tree, "2026-06-22").map((x) => x.action.id)).toContain(a[0]);
     expect(actionsOnDay(tree, "2026-06-23").map((x) => x.action.id)).not.toContain(a[0]);
@@ -63,8 +64,10 @@ describe("calendar domain", () => {
   });
 
   it("actionsOnDay: daily every day; weekly only on its anchor weekday", () => {
-    const { goalId, a } = withActions();
-    let { tree } = withActions();
+    const w = withActions();
+    let tree = w.tree;
+    const a = w.a;
+    const goalId = w.goalId;
     tree = setAction(tree, goalId, a[1], { repeat: "daily" });
     tree = setAction(tree, goalId, a[2], { repeat: "weekly", repeatWeekday: 1 }); // Monday
     expect(actionsOnDay(tree, "2026-06-22").map((x) => x.action.id)).toEqual(expect.arrayContaining([a[1], a[2]])); // Mon
@@ -74,24 +77,28 @@ describe("calendar domain", () => {
   });
 
   it("actionsOnDay: done flag reflects completion on that day", () => {
-    const { a } = withActions();
-    let { tree } = withActions();
+    const w = withActions();
+    let tree = w.tree;
+    const a = w.a;
     tree = setActionScheduledDate(tree, a[0], "2026-06-22");
     tree = completeAction(tree, a[0], "2026-06-22");
     expect(actionsOnDay(tree, "2026-06-22").find((x) => x.action.id === a[0])!.done).toBe(true);
   });
 
   it("unscheduledActions: active one-shot, not done, no scheduledDate", () => {
-    const { goalId, a } = withActions();
-    let { tree } = withActions();
+    const w = withActions();
+    let tree = w.tree;
+    const a = w.a;
+    const goalId = w.goalId;
     tree = setActionScheduledDate(tree, a[0], "2026-06-22"); // scheduled → excluded
     tree = setAction(tree, goalId, a[1], { repeat: "daily" }); // recurring → excluded
     expect(unscheduledActions(tree).map((x) => x.action.id)).toEqual([a[2]]);
   });
 
   it("setActionScheduledDate sets and clears", () => {
-    const { a } = withActions();
-    let { tree } = withActions();
+    const w = withActions();
+    let tree = w.tree;
+    const a = w.a;
     tree = setActionScheduledDate(tree, a[0], "2026-06-22");
     expect(actionsOnDay(tree, "2026-06-22").length).toBe(1);
     tree = setActionScheduledDate(tree, a[0], null);
