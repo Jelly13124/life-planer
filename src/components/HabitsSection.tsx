@@ -48,6 +48,10 @@ export function HabitsSection() {
             const done = isActionDoneToday(tree, action, today);
             const streak = habitStreak(tree, action, today);
             const repeatLabel = action.repeat === "daily" ? t("每天") : t("每周");
+            const streakLabel =
+              action.repeat === "weekly"
+                ? t("🔥 连续 {n} 周", { n: streak })
+                : t("🔥 连续 {n} 天", { n: streak });
             return (
               <li key={action.id}>
                 <button
@@ -87,7 +91,7 @@ export function HabitsSection() {
                   {/* Streak */}
                   {streak > 0 && (
                     <span className="flex-shrink-0 text-[11px] text-[var(--c-amber)]">
-                      {t("🔥 连续 {n}", { n: streak })}
+                      {streakLabel}
                     </span>
                   )}
                 </button>

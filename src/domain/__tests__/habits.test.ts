@@ -145,5 +145,16 @@ describe("habits domain", () => {
       // window 0 = this week (done), window 1 = last week (none) → stops at 1
       expect(habitStreak(t, action, TODAY)).toBe(1);
     });
+
+    it("weekly grace over 2 prior weeks: window 0 empty, window 1 and window 2 both done → streak 2", () => {
+      const { tree, a1 } = buildTree();
+      const action = tree.goals[0].actions.find((a) => a.id === a1)!;
+      // window 0 (this week): nothing — grace kicks in, start counting from window 1
+      // window 1 (last week): today-7 = 2026-06-13
+      // window 2 (two weeks ago): today-14 = 2026-06-06
+      let t = completeAction(tree, a1, "2026-06-13"); // window 1
+      t = completeAction(t, a1, "2026-06-06");        // window 2
+      expect(habitStreak(t, action, TODAY)).toBe(2);
+    });
   });
 });

@@ -431,4 +431,6 @@ export const EN: Record<string, string> = {
   每天: "Daily",
   每周: "Weekly",
   "🔥 连续 {n}": "🔥 {n}-day streak",
+  "🔥 连续 {n} 天": "🔥 {n}-day streak",
+  "🔥 连续 {n} 周": "🔥 {n}-week streak",
 };
