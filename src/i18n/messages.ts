@@ -432,6 +432,19 @@ export const EN: Record<string, string> = {
   "{n} 个习惯": "{n} habit(s)",
   "各个维度还没有目标，去规划一个吧。": "No goals in any area yet — go set one.",
 
+  // ── 洞察 InsightsSection ──
+  "过去 90 天的行动轨迹与坚持力量": "Your action trail and consistency over the last 90 days",
+  当前连续: "Current streak",
+  最长连续: "Longest streak",
+  近90天完成: "Done (90 days)",
+  活跃天数: "Active days",
+  坚持度: "Consistency",
+  "近 90 天完成热力图": "90-day completion heatmap",
+  "还没有记录。完成一些行动，这里就会亮起来。": "No record yet. Complete some actions and this will light up.",
+  无记录: "None",
+  "1 件": "1",
+  "2 件+": "2+",
+
   // ── 习惯 HabitsSection ──
   "坚持重复，构成你真正的生活方式。": "Repeat consistently — that's what shapes your real lifestyle.",
   "还没有习惯。去「我的规划」把某条行动设成每天或每周重复。":
