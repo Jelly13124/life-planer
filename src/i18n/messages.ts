@@ -284,6 +284,23 @@ export const EN: Record<string, string> = {
   "预演失败：三年后它失败了，最可能因为什么？": "Pre-mortem: if it fails in 3 years, why?",
   "可逆性：这是单行道还是可回头？": "Reversibility: one-way or two-way door?",
 
+  // ── 日历规划首页 CalendarPlannerScreen / MonthCalendar ──
+  规划: "Plan",
+  "{y}年 {m}月": "{y}-{m}",
+  回到今天: "Today",
+  上个月: "Previous month",
+  下个月: "Next month",
+  "周{w}": "{w}",
+  "未排期 · 拖到某天，或点一下再点日子": "Unscheduled · drag to a day, or tap then tap a day",
+  点一个日子放下它: "Tap a day to drop it",
+  没有未排期的行动: "No unscheduled actions",
+  "{d} 这天": "{d}",
+  "这天还没有安排。把未排期的行动拖/点过来。": "Nothing on this day yet. Drag or tap an unscheduled action here.",
+  移回未排期: "Move back to unscheduled",
+  目标: "Goals",
+  "还没有长期目标。去「我的规划」加一个。": "No long-term goals yet. Add one in My plan.",
+  "未来预测 ·「你在这里」随里程碑前进": "Forecast · “you are here” advances with milestones",
+
   // ── 激励闭环 / 仪表盘 v2 ──
   今天: "Today",
   "连续 {n} 天": "{n}-day streak",
