@@ -109,7 +109,7 @@ function NavList({
 }
 
 export function AppShell({ active, children }: { active: View; children: ReactNode }) {
-  const { openDashboard, openPlan, openHabits, openAreas, openInsights, openTree, reset } = useApp();
+  const { openDashboard, openPlan, openHabits, openAreas, openInsights, openTree } = useApp();
   const { t } = useT();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -152,23 +152,6 @@ export function AppShell({ active, children }: { active: View; children: ReactNo
         <NavList items={items} onNavigate={onNavigate} />
       </div>
 
-      <div className="mt-auto px-2 pt-4">
-        <div className="mb-3 h-px bg-[var(--line)]" />
-        <button
-          type="button"
-          onClick={() => {
-            if (confirm(t("清空并重新开始")) ) {
-              reset();
-              onNavigate();
-            }
-          }}
-          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-[var(--fg-faint)] transition hover:bg-white/[0.04] hover:text-[var(--c-rose)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
-          title={t("清空并重新开始")}
-        >
-          <span aria-hidden="true" className="text-sm">↺</span>
-          <span>{t("重置")}</span>
-        </button>
-      </div>
     </div>
   );
 

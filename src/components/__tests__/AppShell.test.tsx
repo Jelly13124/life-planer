@@ -11,7 +11,6 @@ const nav = {
   openAreas: vi.fn(),
   openInsights: vi.fn(),
   openTree: vi.fn(),
-  reset: vi.fn(),
 };
 
 vi.mock("@/state/AppContext", () => ({
