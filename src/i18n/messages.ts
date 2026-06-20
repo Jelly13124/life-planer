@@ -423,4 +423,12 @@ export const EN: Record<string, string> = {
   打开菜单: "Open menu",
   // 关闭 already exists above (FutureSelfChat section)
   这一块马上就好: "This part is coming right up",
+
+  // ── 习惯 HabitsSection ──
+  "坚持重复，构成你真正的生活方式。": "Repeat consistently — that's what shapes your real lifestyle.",
+  "还没有习惯。去「我的规划」把某条行动设成每天或每周重复。":
+    "No habits yet. Go to My Plan and set an action to 🔁 daily or weekly repeat.",
+  每天: "Daily",
+  每周: "Weekly",
+  "🔥 连续 {n}": "🔥 {n}-day streak",
 };
