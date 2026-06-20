@@ -186,6 +186,8 @@ export interface GoalAction {
   text: string;
   done: boolean;
   repeat?: "daily" | "weekly"; // 缺省=一次性（里程碑，计入进度）；重复行动=日常纪律，不计入进度
+  scheduledDate?: string;   // 一次性行动排到的本地日 YYYY-MM-DD（未排期则无）
+  repeatWeekday?: number;   // 仅 weekly：锚定星期几 0=周日…6=周六（用于在月历上落位）
 }
 
 export interface Goal {
