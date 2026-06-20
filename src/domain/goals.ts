@@ -62,14 +62,20 @@ export function toggleGoalAction(goal: Goal, actionId: string): Goal {
 }
 
 // 设置/清除某行动的重复标记（关→每天→每周→关 由 UI 决定）。
+// weekly 时可传 weekday（0=周日…6=周六）锚定星期几，不传则保留旧值或默认周一(1)。
 export function setActionRepeat(
   goal: Goal,
   actionId: string,
   repeat: GoalAction["repeat"],
+  weekday?: number,
 ): Goal {
   return {
     ...goal,
-    actions: goal.actions.map((a) => (a.id === actionId ? { ...a, repeat } : a)),
+    actions: goal.actions.map((a) =>
+      a.id === actionId
+        ? { ...a, repeat, repeatWeekday: repeat === "weekly" ? (weekday ?? a.repeatWeekday ?? 1) : undefined }
+        : a,
+    ),
   };
 }
 

@@ -40,6 +40,7 @@ import {
   upsertGoal,
 } from "@/domain/goals";
 import { completeAction, isActionDoneToday, planToday, uncompleteAction, unplanToday, localDay } from "@/domain/daily";
+import { setActionScheduledDate } from "@/domain/calendar";
 import { anyCrisisSignal } from "@/domain/safety";
 
 export type View = "onboarding" | "tree" | "detail" | "plan" | "dashboard";
@@ -163,6 +164,8 @@ interface AppApi {
   unplanActionToday: (actionId: string) => void;
   toggleTodayAction: (actionId: string) => void;
   setActionRepeatById: (goalId: string, actionId: string, repeat: "daily" | "weekly" | undefined) => void;
+  scheduleAction: (actionId: string, date: string | null) => void;
+  toggleActionOn: (actionId: string, date: string) => void;
   safetyHold: Profile | null;
   continueAfterSafety: () => void;
 }
@@ -505,7 +508,24 @@ export function AppProvider({
         if (!baseTree) return;
         const goal = (baseTree.goals ?? []).find((g) => g.id === goalId);
         if (!goal) return;
-        dispatch({ type: "patchTree", tree: upsertGoal(baseTree, setActionRepeat(goal, actionId, repeat)) });
+        const weekday = new Date().getUTCDay(); // anchor weekly to today's weekday (state boundary)
+        dispatch({ type: "patchTree", tree: upsertGoal(baseTree, setActionRepeat(goal, actionId, repeat, weekday)) });
+      },
+      scheduleAction: (actionId, date) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: setActionScheduledDate(baseTree, actionId, date) });
+      },
+      toggleActionOn: (actionId, date) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        const hit = (baseTree.goals ?? []).flatMap((g) => g.actions).find((a) => a.id === actionId);
+        if (!hit) return;
+        const done = isActionDoneToday(baseTree, hit, date);
+        const next = done
+          ? uncompleteAction(baseTree, actionId, date)
+          : completeAction(baseTree, actionId, date);
+        dispatch({ type: "patchTree", tree: next });
       },
       safetyHold: state.safetyHold,
       continueAfterSafety: () => {
