@@ -5,9 +5,10 @@ import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { Button } from "./ui/Button";
 import { LifeMap } from "./LifeMap";
+import { WeeklyReviewSheet } from "./WeeklyReviewSheet";
 import { MonthCalendar } from "./MonthCalendar";
 import { AREA_LABELS } from "@/domain/types";
-import { branchPositionAge, currentStreak } from "@/domain/daily";
+import { branchPositionAge, currentStreak, heatmap } from "@/domain/daily";
 import { actionsOnDay, unscheduledActions } from "@/domain/calendar";
 import { goalProgress } from "@/domain/goals";
 import { localTodayStr } from "@/lib/dailyClient";
@@ -15,7 +16,7 @@ import { localTodayStr } from "@/lib/dailyClient";
 const _bootToday = localTodayStr();
 
 export function CalendarPlannerScreen() {
-  const { tree, openPlan, openTree, openPath, scheduleAction, toggleActionOn } = useApp();
+  const { tree, openPlan, openTree, openPath, scheduleAction, toggleActionOn, markDueGoalsReviewed, addBranch } = useApp();
   const { t } = useT();
 
   const [today, setToday] = useState(_bootToday);
@@ -32,10 +33,13 @@ export function CalendarPlannerScreen() {
   }));
   const [selectedDay, setSelectedDay] = useState<string>(_bootToday);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+  const [weeklyOpen, setWeeklyOpen] = useState(false);
 
   const goals = tree?.goals ?? [];
   const activeLong = useMemo(() => goals.filter((g) => g.horizon === "long" && g.status === "active"), [goals]);
   const streak = useMemo(() => (tree ? currentStreak(tree, today) : 0), [tree, today]);
+  const hm = useMemo(() => (tree ? heatmap(tree, 30, today) : []), [tree, today]);
+  const doneLong = useMemo(() => (tree ? tree.goals.filter((g) => g.horizon === "long" && g.status === "done") : []), [tree]);
   const unsched = useMemo(() => (tree ? unscheduledActions(tree) : []), [tree]);
   const dayActs = useMemo(() => (tree ? actionsOnDay(tree, selectedDay) : []), [tree, selectedDay]);
   const markers = useMemo(() => {
@@ -76,13 +80,33 @@ export function CalendarPlannerScreen() {
         <div>
           <div className="text-xs uppercase tracking-[3px] text-[var(--fg-faint)]">Life Planner</div>
           <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{t("规划")}</h1>
-          <div className="mt-1 text-sm text-[var(--c-amber)]">🔥 {t("连续 {n} 天", { n: streak })}</div>
+          <div className="mt-1 flex items-center gap-3 text-sm text-[var(--fg-dim)]">
+            <span className="inline-flex items-center gap-1 text-[var(--c-amber)]">🔥 {t("连续 {n} 天", { n: streak })}</span>
+            <HeatStrip days={hm} t={t} />
+          </div>
         </div>
         <div className="flex gap-2">
+          <Button variant="subtle" onClick={() => setWeeklyOpen(true)}>{t("📅 本周回顾")}</Button>
           <Button variant="primary" onClick={openPlan}>{t("🎯 我的规划")}</Button>
           <Button variant="ghost" onClick={openTree}>{t("看完整人生树 →")}</Button>
         </div>
       </header>
+
+      {doneLong.length > 0 && (
+        <div className="mt-4 space-y-1.5">
+          {doneLong.map((g) => (
+            <div key={g.id} className="flex items-center gap-2 rounded-2xl border border-[var(--c-emerald)]/40 bg-[var(--c-emerald)]/10 px-4 py-2.5 text-sm">
+              <span>🏆</span>
+              <span className="text-[var(--fg)]">{t("你真的做到了：{title}", { title: g.title })}</span>
+              {g.pathId && (
+                <button onClick={() => openPath(g.pathId as string)} className="ml-auto flex-shrink-0 rounded-full border border-[var(--accent)]/50 px-3 py-1 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/15">
+                  {t("和未来的你说一声")}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="flex flex-col gap-4 lg:flex-row">
         {/* LEFT: calendar */}
@@ -185,6 +209,29 @@ export function CalendarPlannerScreen() {
           </div>
         </div>
       </div>
+
+      {weeklyOpen && (
+        <WeeklyReviewSheet
+          tree={tree}
+          today={today}
+          onClose={() => setWeeklyOpen(false)}
+          onReviewedGoals={markDueGoalsReviewed}
+          onReplan={(label) => { addBranch(label); setWeeklyOpen(false); }}
+        />
+      )}
     </div>
+  );
+}
+
+type TFn = (zh: string, vars?: Record<string, string | number>) => string;
+
+function HeatStrip({ days, t }: { days: { date: string; count: number }[]; t: TFn }) {
+  const shade = (c: number) => (c <= 0 ? "var(--line)" : c === 1 ? "var(--accent)" : "var(--c-fuchsia)");
+  return (
+    <span className="inline-flex items-end gap-0.5" aria-label={t("最近完成情况")}>
+      {days.map((d) => (
+        <span key={d.date} title={`${d.date}: ${d.count}`} className="inline-block h-3 w-1.5 rounded-[1px]" style={{ backgroundColor: shade(d.count), opacity: d.count > 0 ? 1 : 0.5 }} />
+      ))}
+    </span>
   );
 }
