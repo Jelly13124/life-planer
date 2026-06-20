@@ -411,4 +411,16 @@ export const EN: Record<string, string> = {
     "It looks like you're going through something really hard right now. What you feel matters and deserves to be taken seriously. The future can wait — for now, please reach out to someone who can help.",
   "可以联系：": "You can reach:",
   "我没事，继续": "I'm okay, continue",
+
+  // ── 应用外壳 / 侧栏导航 AppShell ──
+  人生树: "Life Tree",
+  日历: "Calendar",
+  // 目标 already exists above (CalendarPlannerScreen section)
+  习惯: "Habits",
+  人生面: "Life Areas",
+  洞察: "Insights",
+  重置: "Reset",
+  打开菜单: "Open menu",
+  // 关闭 already exists above (FutureSelfChat section)
+  这一块马上就好: "This part is coming right up",
 };

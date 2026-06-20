@@ -6,6 +6,10 @@ import { TreeScreen } from "@/components/TreeScreen";
 import { PathDetail } from "@/components/PathDetail";
 import { PlanScreen } from "@/components/PlanScreen";
 import { CalendarPlannerScreen } from "@/components/CalendarPlannerScreen";
+import { AppShell } from "@/components/AppShell";
+import { HabitsSection } from "@/components/HabitsSection";
+import { AreasSection } from "@/components/AreasSection";
+import { InsightsSection } from "@/components/InsightsSection";
 import { PlanningAssistant } from "@/components/PlanningAssistant";
 import { PredictionOverlay } from "@/components/PredictionOverlay";
 import { SafetyCare } from "@/components/SafetyCare";
@@ -48,17 +52,35 @@ function Screen() {
     );
   }
 
+  // 详情页是聚焦子视图，不进外壳：它有自己的返回按钮，全屏沉浸。
+  if (view === "detail" && activePathId) {
+    return (
+      <>
+        <PathDetail tree={tree} pathId={activePathId} onBack={backToTree} />
+        <PlanningAssistant />
+        {overlay}
+      </>
+    );
+  }
+
+  // 主区块都套进左侧栏外壳；section 由当前 view 决定。
   return (
     <>
-      {view === "detail" && activePathId ? (
-        <PathDetail tree={tree} pathId={activePathId} onBack={backToTree} />
-      ) : view === "plan" ? (
-        <PlanScreen />
-      ) : view === "tree" ? (
-        <TreeScreen />
-      ) : (
-        <CalendarPlannerScreen />
-      )}
+      <AppShell active={view}>
+        {view === "plan" ? (
+          <PlanScreen />
+        ) : view === "tree" ? (
+          <TreeScreen />
+        ) : view === "habits" ? (
+          <HabitsSection />
+        ) : view === "areas" ? (
+          <AreasSection />
+        ) : view === "insights" ? (
+          <InsightsSection />
+        ) : (
+          <CalendarPlannerScreen />
+        )}
+      </AppShell>
       {/* 常驻规划助手（有树时才出现） */}
       <PlanningAssistant />
       {overlay}

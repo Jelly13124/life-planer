@@ -43,7 +43,15 @@ import { completeAction, isActionDoneToday, planToday, uncompleteAction, unplanT
 import { setActionScheduledDate } from "@/domain/calendar";
 import { anyCrisisSignal } from "@/domain/safety";
 
-export type View = "onboarding" | "tree" | "detail" | "plan" | "dashboard";
+export type View =
+  | "onboarding"
+  | "tree"
+  | "detail"
+  | "plan"
+  | "dashboard"
+  | "habits"
+  | "areas"
+  | "insights";
 
 // 一次"AI 正在推演"的进行态：在 AI 把这一批路全部写完之前，分支不落到树上。
 export interface Predicting {
@@ -74,6 +82,9 @@ type Action =
   | { type: "backToTree" }
   | { type: "openPlan" }
   | { type: "openDashboard" }
+  | { type: "openHabits" }
+  | { type: "openAreas" }
+  | { type: "openInsights" }
   | { type: "patchTree"; tree: LifeTree }
   | { type: "reset" }
   | { type: "safetyHold"; profile: Profile }
@@ -116,6 +127,12 @@ function reducer(state: State, action: Action): State {
       return { ...state, activePathId: null, view: "plan" };
     case "openDashboard":
       return { ...state, activePathId: null, view: "dashboard" };
+    case "openHabits":
+      return { ...state, activePathId: null, view: "habits" };
+    case "openAreas":
+      return { ...state, activePathId: null, view: "areas" };
+    case "openInsights":
+      return { ...state, activePathId: null, view: "insights" };
     case "patchTree":
       return { ...state, tree: action.tree };
     case "reset":
@@ -159,6 +176,9 @@ interface AppApi {
   dropGoalById: (goalId: string) => void;
   markDueGoalsReviewed: () => void;
   openDashboard: () => void;
+  openHabits: () => void;
+  openAreas: () => void;
+  openInsights: () => void;
   openTree: () => void;
   planActionToday: (actionId: string) => void;
   unplanActionToday: (actionId: string) => void;
@@ -480,6 +500,9 @@ export function AppProvider({
         dispatch({ type: "patchTree", tree: tt });
       },
       openDashboard: () => dispatch({ type: "openDashboard" }),
+      openHabits: () => dispatch({ type: "openHabits" }),
+      openAreas: () => dispatch({ type: "openAreas" }),
+      openInsights: () => dispatch({ type: "openInsights" }),
       openTree: () => dispatch({ type: "backToTree" }),
       planActionToday: (actionId) => {
         const baseTree = treeRef.current;
