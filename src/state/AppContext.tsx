@@ -36,6 +36,7 @@ import {
   recordGoalReview,
   setActionRepeat,
   setGoalActions,
+  setGoalDeadline,
   toggleGoalAction,
   upsertGoal,
 } from "@/domain/goals";
@@ -194,6 +195,7 @@ interface AppApi {
   unplanActionToday: (actionId: string) => void;
   toggleTodayAction: (actionId: string) => void;
   setActionRepeatById: (goalId: string, actionId: string, repeat: "daily" | "weekly" | undefined) => void;
+  setGoalDeadlineById: (goalId: string, date: string | null) => void;
   scheduleAction: (actionId: string, date: string | null) => void;
   toggleActionOn: (actionId: string, date: string) => void;
   safetyHold: Profile | null;
@@ -579,6 +581,11 @@ export function AppProvider({
         if (!goal) return;
         const weekday = new Date().getUTCDay(); // anchor weekly to today's weekday (state boundary)
         dispatch({ type: "patchTree", tree: upsertGoal(baseTree, setActionRepeat(goal, actionId, repeat, weekday)) });
+      },
+      setGoalDeadlineById: (goalId, date) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: setGoalDeadline(baseTree, goalId, date) });
       },
       scheduleAction: (actionId, date) => {
         const baseTree = treeRef.current;

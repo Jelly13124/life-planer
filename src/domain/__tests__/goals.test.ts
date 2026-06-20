@@ -15,6 +15,8 @@ import {
   recordGoalReview,
   AREA_BUMP,
   setActionRepeat,
+  setGoalDeadline,
+  daysUntilDeadline,
 } from "@/domain/goals";
 import { createTree, addPath } from "@/domain/tree";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
@@ -199,5 +201,55 @@ describe("goals domain", () => {
     expect(g.actions[0].repeat).toBe("weekly");
     g = setActionRepeat(g, g.actions[0].id, undefined);
     expect(g.actions[0].repeat).toBeUndefined();
+  });
+
+  describe("setGoalDeadline", () => {
+    it("sets a deadline on a goal", () => {
+      let t = base();
+      const g = createGoal({ area: "career", horizon: "short", title: "交报告", why: "" }, NOW);
+      t = upsertGoal(t, g);
+      t = setGoalDeadline(t, g.id, "2026-07-01");
+      expect(goalById(t, g.id)!.deadline).toBe("2026-07-01");
+    });
+
+    it("clears a deadline when passed null (deadline becomes undefined)", () => {
+      let t = base();
+      const g = createGoal({ area: "career", horizon: "short", title: "交报告", why: "" }, NOW);
+      t = upsertGoal(t, g);
+      t = setGoalDeadline(t, g.id, "2026-07-01");
+      t = setGoalDeadline(t, g.id, null);
+      expect(goalById(t, g.id)!.deadline).toBeUndefined();
+    });
+
+    it("leaves other goals untouched", () => {
+      let t = base();
+      const g1 = createGoal({ area: "career", horizon: "short", title: "A", why: "" }, NOW);
+      const g2 = createGoal({ area: "health", horizon: "short", title: "B", why: "" }, NOW);
+      t = upsertGoal(upsertGoal(t, g1), g2);
+      t = setGoalDeadline(t, g1.id, "2026-08-01");
+      expect(goalById(t, g2.id)!.deadline).toBeUndefined();
+    });
+  });
+
+  describe("daysUntilDeadline", () => {
+    it("returns null when goal has no deadline", () => {
+      const g = createGoal({ area: "career", horizon: "short", title: "X", why: "" }, NOW);
+      expect(daysUntilDeadline(g, "2026-06-20")).toBeNull();
+    });
+
+    it("returns positive number when deadline is in the future", () => {
+      const g = { ...createGoal({ area: "career", horizon: "short", title: "X", why: "" }, NOW), deadline: "2026-06-25" };
+      expect(daysUntilDeadline(g, "2026-06-20")).toBe(5);
+    });
+
+    it("returns 0 when deadline is today", () => {
+      const g = { ...createGoal({ area: "career", horizon: "short", title: "X", why: "" }, NOW), deadline: "2026-06-20" };
+      expect(daysUntilDeadline(g, "2026-06-20")).toBe(0);
+    });
+
+    it("returns negative number when deadline is in the past (overdue)", () => {
+      const g = { ...createGoal({ area: "career", horizon: "short", title: "X", why: "" }, NOW), deadline: "2026-06-15" };
+      expect(daysUntilDeadline(g, "2026-06-20")).toBe(-5);
+    });
   });
 });

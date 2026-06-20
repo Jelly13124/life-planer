@@ -461,6 +461,12 @@ export const EN: Record<string, string> = {
   "设成短期目标": "Make short-term goal",
   "删除": "Delete",
 
+  // ── 目标截止日 deadline display ──
+  "截止": "Due",
+  "剩 {n} 天": "{n}d left",
+  "今天截止": "Due today",
+  "逾期 {n} 天": "{n}d overdue",
+
   // ── 习惯 HabitsSection ──
   "坚持重复，构成你真正的生活方式。": "Repeat consistently — that's what shapes your real lifestyle.",
   "还没有习惯。去「我的规划」把某条行动设成每天或每周重复。":

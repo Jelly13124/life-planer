@@ -8,14 +8,15 @@ import { Card } from "./ui/Card";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
 import { AREA_LABELS, type Goal } from "@/domain/types";
-import { childGoals, dueGoalReviews, goalProgress } from "@/domain/goals";
+import { childGoals, daysUntilDeadline, dueGoalReviews, goalProgress } from "@/domain/goals";
+import { localDay } from "@/domain/daily";
 import { fetchGoalActions, fetchGoalSuggestions, type GoalSuggestion } from "@/lib/goalClient";
 
 // 导入时取一次"今天"作初值（render 内不可调用 new Date）；挂载后用 effect 刷新。
 const _bootISO = new Date().toISOString();
 
 export function PlanScreen() {
-  const { tree, openPath, addLongTermGoal, addShortTermGoal, setGoalActionTexts, toggleGoalActionById, completeGoalById, dropGoalById, markDueGoalsReviewed, planActionToday, setActionRepeatById } = useApp();
+  const { tree, openPath, addLongTermGoal, addShortTermGoal, setGoalActionTexts, toggleGoalActionById, completeGoalById, dropGoalById, markDueGoalsReviewed, planActionToday, setActionRepeatById, setGoalDeadlineById } = useApp();
   const { t } = useT();
 
   const [todayISO, setTodayISO] = useState(_bootISO);
@@ -30,6 +31,9 @@ export function PlanScreen() {
   const [suggesting, setSuggesting] = useState(false);
   const [added, setAdded] = useState<string[]>([]); // 已加入的候选 title
   const [busyActions, setBusyActions] = useState<string | null>(null); // 正在拆行动的 goalId
+
+  // todayDay は effect-backed todayISO から derive する（render 内で new Date() 不可）
+  const todayDay = localDay(new Date(todayISO));
 
   const goals = useMemo(() => tree?.goals ?? [], [tree]);
   const longGoals = goals.filter((g) => g.horizon === "long");
@@ -141,6 +145,7 @@ export function PlanScreen() {
               kids={childGoals(tree, g.id)}
               breaking={busyActions === g.id}
               t={t}
+              todayDay={todayDay}
               onOpenPath={() => g.pathId && openPath(g.pathId)}
               onBreak={() => breakIntoActions(g)}
               onToggle={(aid) => toggleGoalActionById(g.id, aid)}
@@ -151,6 +156,7 @@ export function PlanScreen() {
               onAddShort={(title) => addShortTermGoal({ area: g.area, title, why: "", parentGoalId: g.id })}
               onPlanToday={(aid) => planActionToday(aid)}
               onSetRepeat={(aid, r) => setActionRepeatById(g.id, aid, r)}
+              onSetDeadline={(date) => setGoalDeadlineById(g.id, date)}
             />
           ))}
         </section>
@@ -165,12 +171,14 @@ export function PlanScreen() {
               goal={g}
               breaking={busyActions === g.id}
               t={t}
+              todayDay={todayDay}
               onBreak={() => breakIntoActions(g)}
               onToggle={(aid) => toggleGoalActionById(g.id, aid)}
               onComplete={() => completeGoalById(g.id)}
               onDrop={() => dropGoalById(g.id)}
               onPlanToday={(aid) => planActionToday(aid)}
               onSetRepeat={(aid, r) => setActionRepeatById(g.id, aid, r)}
+              onSetDeadline={(date) => setGoalDeadlineById(g.id, date)}
             />
           ))}
         </section>
@@ -259,13 +267,50 @@ function Actions({
   );
 }
 
-function LongGoalCard({
-  goal, progress, kids, breaking, t, onOpenPath, onBreak, onToggle, onComplete, onDrop, onAddShort, onPlanToday, onSetRepeat,
+function DeadlineControl({
+  goal, todayDay, t, onSetDeadline,
 }: {
-  goal: Goal; progress: number; kids: Goal[]; breaking: boolean; t: TFn;
+  goal: Goal; todayDay: string; t: TFn; onSetDeadline: (date: string | null) => void;
+}) {
+  const days = daysUntilDeadline(goal, todayDay);
+  return (
+    <div className="mt-2 flex items-center gap-2 text-xs">
+      <span className="text-[var(--fg-faint)]">{t("截止")}</span>
+      <input
+        type="date"
+        value={goal.deadline ?? ""}
+        onChange={(e) => onSetDeadline(e.target.value || null)}
+        className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-2 py-0.5 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:dark]"
+      />
+      {days !== null && (
+        <span
+          className={
+            days < 0
+              ? "text-[var(--c-rose)]"
+              : days === 0
+                ? "text-[var(--c-amber)]"
+                : "text-[var(--fg-dim)]"
+          }
+        >
+          {days > 0
+            ? t("剩 {n} 天", { n: days })
+            : days === 0
+              ? t("今天截止")
+              : t("逾期 {n} 天", { n: -days })}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function LongGoalCard({
+  goal, progress, kids, breaking, t, todayDay, onOpenPath, onBreak, onToggle, onComplete, onDrop, onAddShort, onPlanToday, onSetRepeat, onSetDeadline,
+}: {
+  goal: Goal; progress: number; kids: Goal[]; breaking: boolean; t: TFn; todayDay: string;
   onOpenPath: () => void; onBreak: () => void; onToggle: (actionId: string) => void;
   onComplete: () => void; onDrop: () => void; onAddShort: (title: string) => void;
   onPlanToday: (actionId: string) => void; onSetRepeat: (actionId: string, repeat: "daily" | "weekly" | undefined) => void;
+  onSetDeadline: (date: string | null) => void;
 }) {
   const [newKid, setNewKid] = useState("");
   return (
@@ -284,6 +329,8 @@ function LongGoalCard({
         <ProgressBar value={progress} />
         <span className="flex-shrink-0 text-xs text-[var(--fg-faint)]">{t("进度 {pct}%", { pct: Math.round(progress * 100) })}</span>
       </div>
+
+      <DeadlineControl goal={goal} todayDay={todayDay} t={t} onSetDeadline={onSetDeadline} />
 
       <div className="mt-2 flex flex-wrap gap-2">
         {goal.pathId && (
@@ -336,11 +383,12 @@ function LongGoalCard({
 }
 
 function ShortGoalRow({
-  goal, breaking, t, onBreak, onToggle, onComplete, onDrop, onPlanToday, onSetRepeat,
+  goal, breaking, t, todayDay, onBreak, onToggle, onComplete, onDrop, onPlanToday, onSetRepeat, onSetDeadline,
 }: {
-  goal: Goal; breaking: boolean; t: TFn;
+  goal: Goal; breaking: boolean; t: TFn; todayDay: string;
   onBreak: () => void; onToggle: (actionId: string) => void; onComplete: () => void; onDrop: () => void;
   onPlanToday: (actionId: string) => void; onSetRepeat: (actionId: string, repeat: "daily" | "weekly" | undefined) => void;
+  onSetDeadline: (date: string | null) => void;
 }) {
   return (
     <Card pad="md">
@@ -353,6 +401,7 @@ function ShortGoalRow({
           {t(AREA_LABELS[goal.area])}
         </span>
       </div>
+      <DeadlineControl goal={goal} todayDay={todayDay} t={t} onSetDeadline={onSetDeadline} />
       <Actions goal={goal} t={t} onToggle={onToggle} onPlanToday={onPlanToday} onSetRepeat={onSetRepeat} />
       <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--line)] pt-3 text-xs">
         <button onClick={onBreak} disabled={breaking} className="rounded-full border border-[var(--accent)]/50 px-3 py-1 text-[var(--accent)] transition hover:bg-[var(--accent)]/15 disabled:opacity-50">

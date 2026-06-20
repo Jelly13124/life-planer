@@ -156,3 +156,21 @@ export function recordGoalReview(tree: LifeTree, goalId: string, now: string): L
     goals: goals(tree).map((g) => (g.id === goalId ? { ...g, lastReviewedAt: now } : g)),
   };
 }
+
+// 设置/清除目标的截止日（本地日 YYYY-MM-DD）。null → 清除（deadline 字段变为 undefined）。
+export function setGoalDeadline(tree: LifeTree, goalId: string, date: string | null): LifeTree {
+  return {
+    ...tree,
+    goals: goals(tree).map((g) => (g.id === goalId ? { ...g, deadline: date ?? undefined } : g)),
+  };
+}
+
+// 距截止天数：>0 还剩，=0 今天，<0 逾期。today/deadline 均 YYYY-MM-DD，按 UTC 解析。null deadline → null。
+export function daysUntilDeadline(goal: Goal, today: string): number | null {
+  if (!goal.deadline) return null;
+  const day = (s: string) => {
+    const [y, m, d] = s.split("-").map(Number);
+    return Math.floor(Date.UTC(y, m - 1, d) / 86_400_000);
+  };
+  return day(goal.deadline) - day(today);
+}
