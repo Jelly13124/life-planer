@@ -6,6 +6,9 @@ import { AREA_LABELS } from "@/domain/types";
 import { areaSummaries, type AreaSummary } from "@/domain/areas";
 import { goalProgress } from "@/domain/goals";
 import type { Goal, LifeTree } from "@/domain/types";
+import { Card } from "./ui/Card";
+import { SectionHeader } from "./ui/SectionHeader";
+import { EmptyState } from "./ui/EmptyState";
 
 // 人生面各领域的色彩主题（内联 CSS 变量引用）
 const AREA_COLORS: Record<string, string> = {
@@ -73,8 +76,9 @@ function AreaCard({ summary, tree }: { summary: AreaSummary; tree: LifeTree }) {
   const label = t(AREA_LABELS[summary.area]);
 
   return (
-    <div
-      className="flex flex-col gap-3 rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] p-4"
+    <Card
+      pad="md"
+      className="flex flex-col gap-3"
       style={{ "--area-color": color } as React.CSSProperties}
     >
       {/* Header */}
@@ -127,7 +131,7 @@ function AreaCard({ summary, tree }: { summary: AreaSummary; tree: LifeTree }) {
           {t("{n} 个习惯", { n: summary.habitCount })}
         </p>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -140,14 +144,12 @@ export function AreasSection() {
   const summaries = areaSummaries(tree);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-8 sm:px-8">
-      {/* Header */}
-      <header className="animate-fade mb-6">
-        <h1 className="text-2xl font-bold sm:text-3xl">{t("人生面")}</h1>
-        <p className="mt-1 text-sm text-[var(--fg-dim)]">
-          {t("五个维度的现状与目标——看清自己在哪里，想去哪里。")}
-        </p>
-      </header>
+    <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-10 sm:px-8">
+      <SectionHeader
+        eyebrow="Life Areas"
+        title={t("人生面")}
+        subtitle={t("五个维度的现状与目标——看清自己在哪里，想去哪里。")}
+      />
 
       {/* Area cards — 1 col on mobile, 2 on sm+ */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -158,17 +160,20 @@ export function AreasSection() {
 
       {/* Global CTA when no goals at all */}
       {summaries.every((s) => s.goals.length === 0) && (
-        <div className="mt-8 flex flex-col items-center gap-3 text-center">
-          <p className="text-sm text-[var(--fg-faint)]">
-            {t("各个维度还没有目标，去规划一个吧。")}
-          </p>
-          <button
-            onClick={openPlan}
-            className="rounded-full border border-[var(--accent)]/50 bg-[var(--accent)]/10 px-4 py-2 text-sm text-[var(--accent)] transition hover:bg-[var(--accent)]/20"
-          >
-            {t("去规划")}
-          </button>
-        </div>
+        <EmptyState
+          className="mt-8"
+          icon="🧭"
+          accent="var(--accent)"
+          description={t("各个维度还没有目标，去规划一个吧。")}
+          action={
+            <button
+              onClick={openPlan}
+              className="rounded-full border border-[var(--accent)]/50 bg-[var(--accent)]/10 px-4 py-2 text-sm text-[var(--accent)] transition hover:bg-[var(--accent)]/20"
+            >
+              {t("去规划")}
+            </button>
+          }
+        />
       )}
     </div>
   );

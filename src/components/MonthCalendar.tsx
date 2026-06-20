@@ -43,15 +43,15 @@ export function MonthCalendar({
 
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between">
-        <div className="text-sm font-bold">{t("{y}年 {m}月", { y: year, m: month })}</div>
-        <div className="flex items-center gap-1">
-          <button onClick={onToday} className="rounded-full border border-[var(--line)] px-2 py-0.5 text-[11px] text-[var(--fg-dim)] transition hover:text-[var(--fg)]">{t("回到今天")}</button>
-          <button onClick={onPrev} aria-label={t("上个月")} className="rounded-full border border-[var(--line)] px-2 py-0.5 text-[var(--fg-dim)] transition hover:text-[var(--fg)]">‹</button>
-          <button onClick={onNext} aria-label={t("下个月")} className="rounded-full border border-[var(--line)] px-2 py-0.5 text-[var(--fg-dim)] transition hover:text-[var(--fg)]">›</button>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="text-sm font-semibold tracking-tight">{t("{y}年 {m}月", { y: year, m: month })}</div>
+        <div className="flex items-center gap-1.5">
+          <button onClick={onToday} className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[11px] text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--fg)]">{t("回到今天")}</button>
+          <button onClick={onPrev} aria-label={t("上个月")} className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--line)] text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--fg)]">‹</button>
+          <button onClick={onNext} aria-label={t("下个月")} className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--line)] text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--fg)]">›</button>
         </div>
       </div>
-      <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[11px] text-[var(--fg-faint)]">
+      <div className="mb-1.5 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase tracking-wide text-[var(--fg-faint)]">
         {WEEKDAYS.map((w) => <div key={w}>{t("周{w}", { w })}</div>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
@@ -69,20 +69,24 @@ export function MonthCalendar({
                 const id = e.dataTransfer.getData("text/plain");
                 if (id) onSchedule(id, cell.date);
               }}
-              className={`min-h-[52px] cursor-pointer rounded-md border p-1 transition ${
-                isToday ? "border-[var(--accent)] bg-[var(--accent)]/10" : isSel ? "border-[var(--accent)]/60" : "border-[var(--line)]"
-              } ${cell.inMonth ? "" : "opacity-40"} ${pendingActionId ? "hover:border-[var(--accent)]" : ""}`}
+              className={`min-h-[56px] cursor-pointer rounded-lg border p-1.5 transition ${
+                isToday
+                  ? "border-[var(--accent)] bg-[var(--accent)]/10"
+                  : isSel
+                    ? "border-[var(--accent)]/60 bg-[var(--accent)]/[0.04]"
+                    : "border-[var(--line)] hover:border-white/20"
+              } ${cell.inMonth ? "" : "opacity-35"} ${pendingActionId ? "hover:border-[var(--accent)] hover:bg-[var(--accent)]/[0.06]" : ""}`}
             >
-              <div className={`text-[11px] ${isToday ? "font-bold text-[var(--accent)]" : "text-[var(--fg-faint)]"}`}>
+              <div className={`flex h-5 w-5 items-center justify-center text-[11px] ${isToday ? "rounded-full bg-[var(--accent)] font-bold text-[#11132a]" : isSel ? "font-semibold text-[var(--fg)]" : "text-[var(--fg-faint)]"}`}>
                 {Number(cell.date.slice(8, 10))}
               </div>
-              <div className="mt-0.5 space-y-0.5">
+              <div className="mt-1 space-y-1">
                 {acts.slice(0, 3).map(({ action, kind, done }) => (
                   <div
                     key={action.id}
                     draggable={kind === "scheduled"}
                     onDragStart={(e) => kind === "scheduled" && e.dataTransfer.setData("text/plain", action.id)}
-                    className={`truncate rounded px-1 text-[10px] ${
+                    className={`truncate rounded px-1 py-0.5 text-[10px] leading-tight ${
                       done ? "text-[var(--fg-faint)] line-through" : kind === "scheduled" ? "bg-[var(--accent)]/15 text-[var(--accent)]" : "text-[var(--fg-dim)]"
                     }`}
                     title={action.text}
@@ -90,7 +94,7 @@ export function MonthCalendar({
                     {kind !== "scheduled" ? "🔁 " : ""}{action.text}
                   </div>
                 ))}
-                {acts.length > 3 && <div className="text-[10px] text-[var(--fg-faint)]">+{acts.length - 3}</div>}
+                {acts.length > 3 && <div className="px-1 text-[10px] text-[var(--fg-faint)]">+{acts.length - 3}</div>}
               </div>
             </div>
           );

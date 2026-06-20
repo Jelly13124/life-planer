@@ -6,6 +6,8 @@ import { useT } from "@/prefs/PreferencesContext";
 import { isActionDoneToday } from "@/domain/daily";
 import { recurringActions, habitStreak } from "@/domain/habits";
 import { localTodayStr } from "@/lib/dailyClient";
+import { SectionHeader } from "./ui/SectionHeader";
+import { EmptyState } from "./ui/EmptyState";
 
 const _bootToday = localTodayStr();
 
@@ -26,22 +28,19 @@ export function HabitsSection() {
   const habits = recurringActions(tree);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-8 animate-fade">
-      <header className="mb-6">
-        <div className="text-xs uppercase tracking-[3px] text-[var(--fg-faint)]">Habits</div>
-        <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{t("习惯")}</h1>
-        <p className="mt-1 text-sm text-[var(--fg-dim)]">
-          {t("坚持重复，构成你真正的生活方式。")}
-        </p>
-      </header>
+    <div className="mx-auto max-w-2xl px-4 py-10 sm:px-8">
+      <SectionHeader
+        eyebrow="Habits"
+        title={t("习惯")}
+        subtitle={t("坚持重复，构成你真正的生活方式。")}
+      />
 
       {habits.length === 0 ? (
-        <div className="rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-6 py-10 text-center">
-          <div className="mb-3 text-3xl">🔁</div>
-          <p className="text-sm text-[var(--fg-dim)]">
-            {t("还没有习惯。去「我的规划」把某条行动设成每天或每周重复。")}
-          </p>
-        </div>
+        <EmptyState
+          icon="🔁"
+          accent="var(--accent)"
+          description={t("还没有习惯。去「我的规划」把某条行动设成每天或每周重复。")}
+        />
       ) : (
         <ul className="space-y-2">
           {habits.map(({ goal, action }) => {

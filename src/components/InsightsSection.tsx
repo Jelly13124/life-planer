@@ -8,6 +8,9 @@ import { heatmap } from "@/domain/daily";
 import { insightsSummary } from "@/domain/insights";
 import { WeeklyReviewSheet } from "./WeeklyReviewSheet";
 import { Button } from "./ui/Button";
+import { Card } from "./ui/Card";
+import { SectionHeader } from "./ui/SectionHeader";
+import { MetricCard } from "./ui/MetricCard";
 
 // ───────────────────────────────────────────────────────────────────────────
 // Boot today once at module load; re-sync on visibility change (see effect).
@@ -31,29 +34,6 @@ function HeatStrip({ days, t }: { days: { date: string; count: number }[]; t: TF
         />
       ))}
     </span>
-  );
-}
-
-// ─── MetricCard: label + large number ────────────────────────────────────
-function MetricCard({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string | number;
-  accent?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1 rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3">
-      <span className="text-[11px] uppercase tracking-wider text-[var(--fg-faint)]">{label}</span>
-      <span
-        className="text-2xl font-bold leading-none"
-        style={accent ? { color: accent } : undefined}
-      >
-        {value}
-      </span>
-    </div>
   );
 }
 
@@ -83,15 +63,12 @@ export function InsightsSection() {
   const hm = useMemo(() => (tree ? heatmap(tree, 90, today) : []), [tree, today]);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-      {/* Header */}
-      <header className="mb-6 animate-fade">
-        <div className="text-xs uppercase tracking-[3px] text-[var(--fg-faint)]">Insights</div>
-        <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{t("洞察")}</h1>
-        <p className="mt-1 text-sm text-[var(--fg-dim)]">
-          {t("过去 90 天的行动轨迹与坚持力量")}
-        </p>
-      </header>
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-8">
+      <SectionHeader
+        eyebrow="Insights"
+        title={t("洞察")}
+        subtitle={t("过去 90 天的行动轨迹与坚持力量")}
+      />
 
       {/* Metric grid */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 animate-fade">
@@ -121,8 +98,8 @@ export function InsightsSection() {
       </div>
 
       {/* 90-day heatmap */}
-      <div className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-5 py-4 animate-fade">
-        <div className="mb-3 text-xs uppercase tracking-wider text-[var(--fg-faint)]">
+      <Card pad="lg" className="mt-6 animate-fade">
+        <div className="mb-3 text-[11px] uppercase tracking-wider text-[var(--fg-faint)]">
           {t("近 90 天完成热力图")}
         </div>
         {hm.length > 0 ? (
@@ -144,7 +121,7 @@ export function InsightsSection() {
             {t("2 件+")}
           </span>
         </div>
-      </div>
+      </Card>
 
       {/* Weekly Review button */}
       <div className="mt-6 animate-fade">

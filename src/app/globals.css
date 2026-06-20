@@ -120,6 +120,21 @@ body {
   animation: lpPulse 2.4s ease-in-out infinite;
 }
 
+/* ---------- 统一卡片系统 ---------- */
+/* 全应用单一卡片观感：var(--bg-1) 面、0.5–1px 描边、统一圆角/内距。
+   各区块复用此类，消除屏幕之间的视觉不一致。 */
+.lp-card {
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--bg-1);
+}
+/* 内嵌/次级面板：略暗，用于卡片内的容器（如预测画布底座） */
+.lp-card-sunken {
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.18);
+}
+
 @keyframes sc-enter {
   from {
     opacity: 0;

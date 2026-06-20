@@ -68,21 +68,21 @@ function NavButton({ item, onNavigate }: { item: NavItem; onNavigate: () => void
       aria-current={item.active ? "page" : undefined}
       className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
         item.active
-          ? "bg-[var(--accent)]/12 text-[var(--fg)] font-semibold"
-          : "text-[var(--fg-dim)] hover:bg-white/[0.04] hover:text-[var(--fg)]"
+          ? "bg-[var(--accent)]/[0.14] text-[var(--fg)] font-semibold"
+          : "text-[var(--fg-dim)] hover:bg-white/[0.05] hover:text-[var(--fg)]"
       }`}
     >
       {/* 左侧高亮条 */}
       <span
         aria-hidden="true"
-        className={`absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[var(--accent)] transition-opacity ${
-          item.active ? "opacity-100" : "opacity-0"
+        className={`absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--accent)] transition-all ${
+          item.active ? "opacity-100" : "opacity-0 -translate-x-1"
         }`}
       />
       <span
         aria-hidden="true"
-        className={`text-base leading-none transition-transform ${
-          item.active ? "" : "opacity-80 group-hover:scale-110"
+        className={`flex h-5 w-5 flex-shrink-0 items-center justify-center text-base leading-none transition-transform ${
+          item.active ? "" : "opacity-70 group-hover:scale-110 group-hover:opacity-100"
         }`}
       >
         {item.icon}
@@ -137,10 +137,10 @@ export function AppShell({ active, children }: { active: View; children: ReactNo
     { key: "tree", icon: "🌳", label: "人生树", go: openTree, active: active === "tree" },
   ];
 
-  // 侧栏内部：顶部品牌 + 导航 + 底部重置。drawer 与桌面端共用。
+  // 侧栏内部：顶部品牌 + 导航。drawer 与桌面端共用。
   const sidebarInner = (onNavigate: () => void) => (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2.5 px-3 pb-5 pt-1">
+      <div className="flex items-center gap-2.5 px-3 pb-6 pt-1">
         <TreeMark className="h-7 w-7 flex-shrink-0" />
         <div className="leading-tight">
           <div className="text-sm font-semibold tracking-tight text-[var(--fg)]">Life Planner</div>
@@ -151,14 +151,13 @@ export function AppShell({ active, children }: { active: View; children: ReactNo
       <div className="px-2">
         <NavList items={items} onNavigate={onNavigate} />
       </div>
-
     </div>
   );
 
   return (
     <div className="min-h-screen md:flex">
       {/* 桌面端常驻侧栏 */}
-      <aside className="sticky top-0 hidden h-screen w-60 flex-shrink-0 flex-col border-r border-[var(--line)] bg-[var(--bg-1)]/60 px-3 py-5 backdrop-blur md:flex">
+      <aside className="sticky top-0 hidden h-screen w-60 flex-shrink-0 flex-col border-r border-[var(--line)] bg-[var(--bg-1)]/50 px-3 py-6 backdrop-blur-xl md:flex">
         {sidebarInner(() => {})}
       </aside>
 

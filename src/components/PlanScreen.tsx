@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { Button } from "./ui/Button";
+import { Card } from "./ui/Card";
+import { SectionHeader } from "./ui/SectionHeader";
+import { EmptyState } from "./ui/EmptyState";
 import { AREA_LABELS, type Goal } from "@/domain/types";
 import { childGoals, dueGoalReviews, goalProgress } from "@/domain/goals";
 import { fetchGoalActions, fetchGoalSuggestions, type GoalSuggestion } from "@/lib/goalClient";
@@ -66,16 +69,15 @@ export function PlanScreen() {
   const showCrossroadChip = Boolean(crossroad) && goals.length === 0;
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-8 sm:px-8">
-      <header className="animate-fade">
-        <h1 className="text-2xl font-bold sm:text-3xl">{t("我的规划")}</h1>
-        <p className="mt-1 text-sm text-[var(--fg-dim)]">
-          {t("先定长期目标——它会在你的人生树上长出一条路；用短期目标和行动一步步逼近它。")}
-        </p>
-      </header>
+    <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-10 sm:px-8">
+      <SectionHeader
+        eyebrow="Planning"
+        title={t("我的规划")}
+        subtitle={t("先定长期目标——它会在你的人生树上长出一条路；用短期目标和行动一步步逼近它。")}
+      />
 
       {due.length > 0 && (
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[var(--c-amber)]/50 bg-[var(--c-amber)]/10 px-4 py-3 text-sm text-[var(--c-amber)]">
+        <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-[var(--c-amber)]/50 bg-[var(--c-amber)]/10 px-4 py-3 text-sm text-[var(--c-amber)]">
           <span>{t("该回看目标了：有 {n} 个目标一周没动过了。", { n: due.length })}</span>
           <button onClick={markDueGoalsReviewed} className="flex-shrink-0 rounded-full border border-[var(--c-amber)]/60 px-3 py-1 text-xs transition hover:bg-[var(--c-amber)]/20">
             {t("我回看过了")}
@@ -83,14 +85,14 @@ export function PlanScreen() {
         </div>
       )}
 
-      <div className="mt-5">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <Button variant="primary" onClick={suggest} disabled={suggesting}>
           {suggesting ? t("正在想几个适合你的目标…") : t("✨ 帮我想几个目标")}
         </Button>
         {showCrossroadChip && (
           <button
             onClick={() => addLongTermGoal({ area: "career", title: crossroad!, why: "" })}
-            className="ml-2 rounded-full border border-[var(--accent)]/50 bg-[var(--accent)]/10 px-3 py-1.5 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/20"
+            className="rounded-full border border-[var(--accent)]/50 bg-[var(--accent)]/10 px-3 py-1.5 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/20"
           >
             {t("把「{label}」设成第一个长期目标", { label: crossroad! })}
           </button>
@@ -98,7 +100,7 @@ export function PlanScreen() {
       </div>
 
       {suggestions.length > 0 && (
-        <div className="mt-3 space-y-2 rounded-2xl border border-[var(--accent)]/30 bg-[var(--accent)]/[0.06] p-3">
+        <div className="mb-6 space-y-2 rounded-2xl border border-[var(--accent)]/30 bg-[var(--accent)]/[0.06] p-4">
           <div className="text-xs font-semibold text-[var(--fg)]">
             {t("点「加入」才会进规划（长期目标会在树上长出一条路）")}
           </div>
@@ -129,8 +131,8 @@ export function PlanScreen() {
       )}
 
       {activeLong.length > 0 && (
-        <section className="mt-6 space-y-3">
-          <h2 className="text-sm font-bold text-[var(--fg-dim)]">{t("长期目标")}</h2>
+        <section className="mb-7 space-y-3">
+          <h2 className="text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("长期目标")}</h2>
           {activeLong.map((g) => (
             <LongGoalCard
               key={g.id}
@@ -155,8 +157,8 @@ export function PlanScreen() {
       )}
 
       {orphanShort.length > 0 && (
-        <section className="mt-6 space-y-3">
-          <h2 className="text-sm font-bold text-[var(--fg-dim)]">{t("短期目标")}</h2>
+        <section className="mb-7 space-y-3">
+          <h2 className="text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("短期目标")}</h2>
           {orphanShort.map((g) => (
             <ShortGoalRow
               key={g.id}
@@ -175,14 +177,14 @@ export function PlanScreen() {
       )}
 
       {doneLong.length > 0 && (
-        <section className="mt-8">
-          <h2 className="text-sm font-bold text-[var(--fg-dim)]">{t("已达成的里程碑")}</h2>
-          <div className="mt-2 space-y-1.5">
+        <section className="mb-7">
+          <h2 className="text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("已达成的里程碑")}</h2>
+          <div className="mt-3 space-y-1.5">
             {doneLong.map((g) => (
-              <div key={g.id} className="flex items-center gap-2 rounded-xl border border-[var(--c-emerald)]/40 bg-[var(--c-emerald)]/10 px-3 py-2 text-sm">
-                <span>🏆</span>
-                <span className="text-[var(--fg)]">{g.title}</span>
-                <span className="ml-auto text-xs text-[var(--c-emerald)]">{t("已达成 · {area}+", { area: t(AREA_LABELS[g.area]) })}</span>
+              <div key={g.id} className="flex items-center gap-2.5 rounded-xl border border-[var(--c-emerald)]/40 bg-[var(--c-emerald)]/10 px-4 py-2.5 text-sm">
+                <span aria-hidden="true">🏆</span>
+                <span className="min-w-0 truncate text-[var(--fg)]">{g.title}</span>
+                <span className="ml-auto flex-shrink-0 text-xs text-[var(--c-emerald)]">{t("已达成 · {area}+", { area: t(AREA_LABELS[g.area]) })}</span>
               </div>
             ))}
           </div>
@@ -190,9 +192,17 @@ export function PlanScreen() {
       )}
 
       {goals.length === 0 && suggestions.length === 0 && (
-        <p className="mt-10 text-center text-sm text-[var(--fg-faint)]">
-          {t("还没有目标。让 AI 帮你想几个，看着它们在你的人生树上长出来。")}
-        </p>
+        <EmptyState
+          className="mt-4"
+          icon="🌱"
+          accent="var(--accent)"
+          description={t("还没有目标。让 AI 帮你想几个，看着它们在你的人生树上长出来。")}
+          action={
+            <Button variant="primary" onClick={suggest} disabled={suggesting}>
+              {suggesting ? t("正在想几个适合你的目标…") : t("✨ 帮我想几个目标")}
+            </Button>
+          }
+        />
       )}
     </div>
   );
@@ -259,11 +269,11 @@ function LongGoalCard({
 }) {
   const [newKid, setNewKid] = useState("");
   return (
-    <div className="rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] p-4">
+    <Card pad="md">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-base font-bold text-[var(--fg)]">{goal.title}</div>
-          {goal.why && <div className="mt-0.5 text-xs text-[var(--fg-dim)]">{goal.why}</div>}
+          {goal.why && <div className="mt-1 text-xs leading-relaxed text-[var(--fg-dim)]">{goal.why}</div>}
         </div>
         <span className="flex-shrink-0 rounded-full border border-[var(--line)] px-2 py-0.5 text-[10px] text-[var(--fg-dim)]">
           {t(AREA_LABELS[goal.area])}
@@ -321,7 +331,7 @@ function LongGoalCard({
           {t("移除")}
         </button>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -333,11 +343,11 @@ function ShortGoalRow({
   onPlanToday: (actionId: string) => void; onSetRepeat: (actionId: string, repeat: "daily" | "weekly" | undefined) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] p-4">
+    <Card pad="md">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-sm font-bold text-[var(--fg)]">{goal.title}</div>
-          {goal.why && <div className="mt-0.5 text-xs text-[var(--fg-dim)]">{goal.why}</div>}
+          {goal.why && <div className="mt-1 text-xs leading-relaxed text-[var(--fg-dim)]">{goal.why}</div>}
         </div>
         <span className="flex-shrink-0 rounded-full border border-[var(--line)] px-2 py-0.5 text-[10px] text-[var(--fg-dim)]">
           {t(AREA_LABELS[goal.area])}
@@ -355,6 +365,6 @@ function ShortGoalRow({
           {t("移除")}
         </button>
       </div>
-    </div>
+    </Card>
   );
 }
