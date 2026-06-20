@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { useApp, type View } from "@/state/AppContext";
-import { useT } from "@/prefs/PreferencesContext";
+import { useApp, type View } from "@/state/AppContext";import { useT } from "@/prefs/PreferencesContext";
 
 // 持久化左侧栏的应用外壳：左侧导航 + 右侧可独立滚动的内容区。
 // 桌面端常驻侧栏；窄屏折叠成顶部栏 + 抽屉，避免内容被挤压。
 // 视觉沿用本项目的深色电影感：var(--bg-*) / var(--fg-*) / var(--accent) / var(--line)。
 
-type NavKey = "dashboard" | "plan" | "habits" | "areas" | "insights" | "tree";
+type NavKey = "dashboard" | "inbox" | "plan" | "habits" | "areas" | "insights" | "tree";
 
 interface NavItem {
   key: NavKey;
@@ -109,7 +108,7 @@ function NavList({
 }
 
 export function AppShell({ active, children }: { active: View; children: ReactNode }) {
-  const { openDashboard, openPlan, openHabits, openAreas, openInsights, openTree } = useApp();
+  const { openDashboard, openPlan, openHabits, openAreas, openInsights, openInbox, openTree } = useApp();
   const { t } = useT();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -130,6 +129,7 @@ export function AppShell({ active, children }: { active: View; children: ReactNo
 
   const items: NavItem[] = [
     { key: "dashboard", icon: "📅", label: "日历", go: openDashboard, active: active === "dashboard" },
+    { key: "inbox", icon: "📥", label: "收件箱", go: openInbox, active: active === "inbox" },
     { key: "plan", icon: "🎯", label: "目标", go: openPlan, active: active === "plan" },
     { key: "habits", icon: "🔁", label: "习惯", go: openHabits, active: active === "habits" },
     { key: "areas", icon: "🧭", label: "人生面", go: openAreas, active: active === "areas" },

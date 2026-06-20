@@ -9,5 +9,6 @@ export function normalizeLoadedTree(parsed: unknown): LifeTree | null {
   if (!Array.isArray(t.decisions)) t.decisions = [];
   if (!Array.isArray(t.goals)) t.goals = [];
   if (!Array.isArray(t.activity)) t.activity = [];
+  if (!Array.isArray(t.inbox)) t.inbox = [];
   return t;
 }

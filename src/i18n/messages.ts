@@ -447,6 +447,20 @@ export const EN: Record<string, string> = {
   "{n} 天": "{n}d",
   "{n} 件": "{n}",
 
+  // ── 收件箱 InboxSection ──
+  "收件箱": "Inbox",
+  "想到什么先丢进来，回头再归类。": "Capture anything here first, sort it out later.",
+  "随手记一条…": "Jot something down…",
+  "快速捕获": "Quick capture",
+  "添加": "Add",
+  "提示：设成长期目标会在你的人生树上长出一条新的路（预测树枝）。":
+    "Tip: making it a long-term goal grows a new branch on your life tree (prediction path).",
+  "收件箱是空的。想到什么先丢进来，回头再归类。":
+    "Your inbox is empty. Capture anything that comes to mind — sort it out later.",
+  "🎯 设成长期目标": "🎯 Make long-term goal",
+  "设成短期目标": "Make short-term goal",
+  "删除": "Delete",
+
   // ── 习惯 HabitsSection ──
   "坚持重复，构成你真正的生活方式。": "Repeat consistently — that's what shapes your real lifestyle.",
   "还没有习惯。去「我的规划」把某条行动设成每天或每周重复。":

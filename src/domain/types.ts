@@ -223,6 +223,12 @@ export interface ActivityDay {
   completedActionIds: string[];
 }
 
+export interface InboxItem {
+  id: string;
+  text: string;
+  createdAt: string;
+}
+
 export interface LifeTree {
   id: string;
   profile: Profile;
@@ -231,6 +237,7 @@ export interface LifeTree {
   decisions: Decision[]; // 决策日志（看见→追问→选定→落地→复盘）
   goals: Goal[]; // 规划主线：长期/短期目标
   activity: ActivityDay[]; // 每日激励闭环：今日计划/完成记录
+  inbox: InboxItem[]; // 快捷收件箱：随手捕获，回头再归类
   createdAt: string;
   updatedAt: string;
 }

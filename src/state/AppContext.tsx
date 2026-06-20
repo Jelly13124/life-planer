@@ -42,6 +42,7 @@ import {
 import { completeAction, isActionDoneToday, planToday, uncompleteAction, unplanToday, localDay } from "@/domain/daily";
 import { setActionScheduledDate } from "@/domain/calendar";
 import { anyCrisisSignal } from "@/domain/safety";
+import { addInboxItem, removeInboxItem } from "@/domain/inbox";
 
 export type View =
   | "onboarding"
@@ -51,7 +52,8 @@ export type View =
   | "dashboard"
   | "habits"
   | "areas"
-  | "insights";
+  | "insights"
+  | "inbox";
 
 // 一次"AI 正在推演"的进行态：在 AI 把这一批路全部写完之前，分支不落到树上。
 export interface Predicting {
@@ -85,6 +87,7 @@ type Action =
   | { type: "openHabits" }
   | { type: "openAreas" }
   | { type: "openInsights" }
+  | { type: "openInbox" }
   | { type: "patchTree"; tree: LifeTree }
   | { type: "reset" }
   | { type: "safetyHold"; profile: Profile }
@@ -133,6 +136,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, activePathId: null, view: "areas" };
     case "openInsights":
       return { ...state, activePathId: null, view: "insights" };
+    case "openInbox":
+      return { ...state, activePathId: null, view: "inbox" };
     case "patchTree":
       return { ...state, tree: action.tree };
     case "reset":
@@ -179,6 +184,9 @@ interface AppApi {
   openHabits: () => void;
   openAreas: () => void;
   openInsights: () => void;
+  openInbox: () => void;
+  captureToInbox: (text: string) => void;
+  removeInboxItem: (id: string) => void;
   openTree: () => void;
   planActionToday: (actionId: string) => void;
   unplanActionToday: (actionId: string) => void;
@@ -503,6 +511,17 @@ export function AppProvider({
       openHabits: () => dispatch({ type: "openHabits" }),
       openAreas: () => dispatch({ type: "openAreas" }),
       openInsights: () => dispatch({ type: "openInsights" }),
+      openInbox: () => dispatch({ type: "openInbox" }),
+      captureToInbox: (text) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: addInboxItem(baseTree, text, new Date().toISOString()) });
+      },
+      removeInboxItem: (id) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: removeInboxItem(baseTree, id, new Date().toISOString()) });
+      },
       openTree: () => dispatch({ type: "backToTree" }),
       planActionToday: (actionId) => {
         const baseTree = treeRef.current;
