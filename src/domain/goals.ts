@@ -157,6 +157,37 @@ export function recordGoalReview(tree: LifeTree, goalId: string, now: string): L
   };
 }
 
+// 给目标加标签（trim；空字符串忽略；已存在则去重）。
+export function addGoalTag(tree: LifeTree, goalId: string, tag: string): LifeTree {
+  const t = tag.trim();
+  if (!t) return tree;
+  return {
+    ...tree,
+    goals: goals(tree).map((g) => {
+      if (g.id !== goalId) return g;
+      const cur = g.tags ?? [];
+      return cur.includes(t) ? g : { ...g, tags: [...cur, t] };
+    }),
+  };
+}
+
+// 从目标移除某个标签。
+export function removeGoalTag(tree: LifeTree, goalId: string, tag: string): LifeTree {
+  return {
+    ...tree,
+    goals: goals(tree).map((g) =>
+      g.id === goalId ? { ...g, tags: (g.tags ?? []).filter((x) => x !== tag) } : g,
+    ),
+  };
+}
+
+// 树里所有目标的标签去重并排序。
+export function allTags(tree: LifeTree): string[] {
+  const set = new Set<string>();
+  for (const g of goals(tree)) for (const t of g.tags ?? []) set.add(t);
+  return [...set].sort();
+}
+
 // 设置/清除目标的截止日（本地日 YYYY-MM-DD）。null → 清除（deadline 字段变为 undefined）。
 export function setGoalDeadline(tree: LifeTree, goalId: string, date: string | null): LifeTree {
   return {

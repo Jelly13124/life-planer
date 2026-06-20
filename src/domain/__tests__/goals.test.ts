@@ -17,6 +17,9 @@ import {
   setActionRepeat,
   setGoalDeadline,
   daysUntilDeadline,
+  addGoalTag,
+  removeGoalTag,
+  allTags,
 } from "@/domain/goals";
 import { createTree, addPath } from "@/domain/tree";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
@@ -250,6 +253,85 @@ describe("goals domain", () => {
     it("returns negative number when deadline is in the past (overdue)", () => {
       const g = { ...createGoal({ area: "career", horizon: "short", title: "X", why: "" }, NOW), deadline: "2026-06-15" };
       expect(daysUntilDeadline(g, "2026-06-20")).toBe(-5);
+    });
+  });
+
+  describe("goal tags", () => {
+    it("addGoalTag adds a tag to the correct goal", () => {
+      let t = base();
+      const g = createGoal({ area: "career", horizon: "short", title: "T", why: "" }, NOW);
+      t = upsertGoal(t, g);
+      t = addGoalTag(t, g.id, "重要");
+      expect(goalById(t, g.id)!.tags).toEqual(["重要"]);
+    });
+
+    it("addGoalTag trims whitespace before adding", () => {
+      let t = base();
+      const g = createGoal({ area: "career", horizon: "short", title: "T", why: "" }, NOW);
+      t = upsertGoal(t, g);
+      t = addGoalTag(t, g.id, "  工作  ");
+      expect(goalById(t, g.id)!.tags).toEqual(["工作"]);
+    });
+
+    it("addGoalTag deduplicates — adding same tag twice is a no-op the second time", () => {
+      let t = base();
+      const g = createGoal({ area: "career", horizon: "short", title: "T", why: "" }, NOW);
+      t = upsertGoal(t, g);
+      t = addGoalTag(t, g.id, "重要");
+      t = addGoalTag(t, g.id, "重要");
+      expect(goalById(t, g.id)!.tags).toEqual(["重要"]);
+    });
+
+    it("addGoalTag ignores empty / whitespace-only tags", () => {
+      let t = base();
+      const g = createGoal({ area: "career", horizon: "short", title: "T", why: "" }, NOW);
+      t = upsertGoal(t, g);
+      t = addGoalTag(t, g.id, "   ");
+      expect(goalById(t, g.id)!.tags ?? []).toEqual([]);
+    });
+
+    it("addGoalTag does not touch other goals", () => {
+      let t = base();
+      const g1 = createGoal({ area: "career", horizon: "short", title: "A", why: "" }, NOW);
+      const g2 = createGoal({ area: "health", horizon: "short", title: "B", why: "" }, NOW);
+      t = upsertGoal(upsertGoal(t, g1), g2);
+      t = addGoalTag(t, g1.id, "健康");
+      expect(goalById(t, g2.id)!.tags ?? []).toEqual([]);
+    });
+
+    it("removeGoalTag removes the tag from the goal", () => {
+      let t = base();
+      const g = createGoal({ area: "career", horizon: "short", title: "T", why: "" }, NOW);
+      t = upsertGoal(t, g);
+      t = addGoalTag(t, g.id, "重要");
+      t = addGoalTag(t, g.id, "紧急");
+      t = removeGoalTag(t, g.id, "重要");
+      expect(goalById(t, g.id)!.tags).toEqual(["紧急"]);
+    });
+
+    it("removeGoalTag on a non-existent tag is a no-op", () => {
+      let t = base();
+      const g = createGoal({ area: "career", horizon: "short", title: "T", why: "" }, NOW);
+      t = upsertGoal(t, g);
+      t = addGoalTag(t, g.id, "重要");
+      t = removeGoalTag(t, g.id, "不存在");
+      expect(goalById(t, g.id)!.tags).toEqual(["重要"]);
+    });
+
+    it("allTags returns unique tags sorted across all goals", () => {
+      let t = base();
+      const g1 = createGoal({ area: "career", horizon: "short", title: "A", why: "" }, NOW);
+      const g2 = createGoal({ area: "health", horizon: "short", title: "B", why: "" }, NOW);
+      t = upsertGoal(upsertGoal(t, g1), g2);
+      t = addGoalTag(t, g1.id, "重要");
+      t = addGoalTag(t, g1.id, "工作");
+      t = addGoalTag(t, g2.id, "重要"); // duplicate across goals
+      t = addGoalTag(t, g2.id, "健康");
+      expect(allTags(t)).toEqual(["健康", "工作", "重要"]); // sorted, deduped
+    });
+
+    it("allTags returns empty array when no goals have tags", () => {
+      expect(allTags(base())).toEqual([]);
     });
   });
 });

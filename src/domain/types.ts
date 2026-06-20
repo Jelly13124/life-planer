@@ -204,6 +204,7 @@ export interface Goal {
   completedAt?: string;
   lastReviewedAt?: string;
   deadline?: string; // 本地日 YYYY-MM-DD（截止日，可选）
+  tags?: string[];   // 用户自定义标签（过滤/归组用，可选）
 }
 
 // 新建目标的入参（id/status/createdAt/actions 由 createGoal 补全）

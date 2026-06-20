@@ -461,6 +461,11 @@ export const EN: Record<string, string> = {
   "设成短期目标": "Make short-term goal",
   "删除": "Delete",
 
+  // ── 目标标签 goal tags ──
+  全部: "All",
+  "＋标签": "+ tag",
+  移除标签: "Remove tag",
+
   // ── 目标截止日 deadline display ──
   "截止": "Due",
   "剩 {n} 天": "{n}d left",

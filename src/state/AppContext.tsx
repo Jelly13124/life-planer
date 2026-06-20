@@ -29,11 +29,13 @@ import {
   fetchEnrichment,
 } from "@/lib/enrichClient";
 import {
+  addGoalTag,
   completeGoal,
   createGoal,
   dropGoal,
   dueGoalReviews,
   recordGoalReview,
+  removeGoalTag,
   setActionRepeat,
   setGoalActions,
   setGoalDeadline,
@@ -196,6 +198,8 @@ interface AppApi {
   toggleTodayAction: (actionId: string) => void;
   setActionRepeatById: (goalId: string, actionId: string, repeat: "daily" | "weekly" | undefined) => void;
   setGoalDeadlineById: (goalId: string, date: string | null) => void;
+  addGoalTagById: (goalId: string, tag: string) => void;
+  removeGoalTagById: (goalId: string, tag: string) => void;
   scheduleAction: (actionId: string, date: string | null) => void;
   toggleActionOn: (actionId: string, date: string) => void;
   safetyHold: Profile | null;
@@ -586,6 +590,16 @@ export function AppProvider({
         const baseTree = treeRef.current;
         if (!baseTree) return;
         dispatch({ type: "patchTree", tree: setGoalDeadline(baseTree, goalId, date) });
+      },
+      addGoalTagById: (goalId, tag) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: addGoalTag(baseTree, goalId, tag) });
+      },
+      removeGoalTagById: (goalId, tag) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: removeGoalTag(baseTree, goalId, tag) });
       },
       scheduleAction: (actionId, date) => {
         const baseTree = treeRef.current;

@@ -8,7 +8,7 @@ import { Card } from "./ui/Card";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
 import { AREA_LABELS, type Goal } from "@/domain/types";
-import { childGoals, daysUntilDeadline, dueGoalReviews, goalProgress } from "@/domain/goals";
+import { allTags, childGoals, daysUntilDeadline, dueGoalReviews, goalProgress } from "@/domain/goals";
 import { localDay } from "@/domain/daily";
 import { fetchGoalActions, fetchGoalSuggestions, type GoalSuggestion } from "@/lib/goalClient";
 
@@ -16,7 +16,7 @@ import { fetchGoalActions, fetchGoalSuggestions, type GoalSuggestion } from "@/l
 const _bootISO = new Date().toISOString();
 
 export function PlanScreen() {
-  const { tree, openPath, addLongTermGoal, addShortTermGoal, setGoalActionTexts, toggleGoalActionById, completeGoalById, dropGoalById, markDueGoalsReviewed, planActionToday, setActionRepeatById, setGoalDeadlineById } = useApp();
+  const { tree, openPath, addLongTermGoal, addShortTermGoal, setGoalActionTexts, toggleGoalActionById, completeGoalById, dropGoalById, markDueGoalsReviewed, planActionToday, setActionRepeatById, setGoalDeadlineById, addGoalTagById, removeGoalTagById } = useApp();
   const { t } = useT();
 
   const [todayISO, setTodayISO] = useState(_bootISO);
@@ -31,16 +31,26 @@ export function PlanScreen() {
   const [suggesting, setSuggesting] = useState(false);
   const [added, setAdded] = useState<string[]>([]); // 已加入的候选 title
   const [busyActions, setBusyActions] = useState<string | null>(null); // 正在拆行动的 goalId
+  const [tagFilter, setTagFilter] = useState<string | null>(null); // null = 全部
 
   // todayDay は effect-backed todayISO から derive する（render 内で new Date() 不可）
   const todayDay = localDay(new Date(todayISO));
 
   const goals = useMemo(() => tree?.goals ?? [], [tree]);
   const longGoals = goals.filter((g) => g.horizon === "long");
-  const orphanShort = goals.filter((g) => g.horizon === "short" && !g.parentGoalId);
-  const activeLong = longGoals.filter((g) => g.status === "active");
+  const allOrphanShort = goals.filter((g) => g.horizon === "short" && !g.parentGoalId);
+  const allActiveLong = longGoals.filter((g) => g.status === "active");
   const doneLong = longGoals.filter((g) => g.status === "done");
   const due = tree ? dueGoalReviews(tree, todayISO) : [];
+
+  const treeTags = tree ? allTags(tree) : [];
+  // reset filter if the active tag disappears (e.g. last goal with it was removed)
+  const effectiveFilter = tagFilter && treeTags.includes(tagFilter) ? tagFilter : null;
+
+  const passesFilter = (g: (typeof goals)[number]) =>
+    effectiveFilter === null || (g.tags ?? []).includes(effectiveFilter);
+  const activeLong = allActiveLong.filter(passesFilter);
+  const orphanShort = allOrphanShort.filter(passesFilter);
 
   if (!tree) return null;
 
@@ -134,6 +144,23 @@ export function PlanScreen() {
         </div>
       )}
 
+      {treeTags.length > 0 && (
+        <div className="mb-5 flex flex-wrap gap-2">
+          {[null, ...treeTags].map((tag) => {
+            const active = effectiveFilter === tag;
+            return (
+              <button
+                key={tag ?? "__all__"}
+                onClick={() => setTagFilter(tag)}
+                className={`rounded-full border px-3 py-1 text-xs transition ${active ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]" : "border-[var(--line)] text-[var(--fg-dim)] hover:border-[var(--accent)]/50 hover:text-[var(--fg)]"}`}
+              >
+                {tag ?? t("全部")}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {activeLong.length > 0 && (
         <section className="mb-7 space-y-3">
           <h2 className="text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("长期目标")}</h2>
@@ -157,6 +184,8 @@ export function PlanScreen() {
               onPlanToday={(aid) => planActionToday(aid)}
               onSetRepeat={(aid, r) => setActionRepeatById(g.id, aid, r)}
               onSetDeadline={(date) => setGoalDeadlineById(g.id, date)}
+              onAddTag={(tag) => addGoalTagById(g.id, tag)}
+              onRemoveTag={(tag) => removeGoalTagById(g.id, tag)}
             />
           ))}
         </section>
@@ -179,6 +208,8 @@ export function PlanScreen() {
               onPlanToday={(aid) => planActionToday(aid)}
               onSetRepeat={(aid, r) => setActionRepeatById(g.id, aid, r)}
               onSetDeadline={(date) => setGoalDeadlineById(g.id, date)}
+              onAddTag={(tag) => addGoalTagById(g.id, tag)}
+              onRemoveTag={(tag) => removeGoalTagById(g.id, tag)}
             />
           ))}
         </section>
@@ -303,16 +334,56 @@ function DeadlineControl({
   );
 }
 
+function GoalTagRow({
+  goal, t, onAddTag, onRemoveTag, newTag, setNewTag,
+}: {
+  goal: Goal; t: TFn;
+  onAddTag: (tag: string) => void; onRemoveTag: (tag: string) => void;
+  newTag: string; setNewTag: (v: string) => void;
+}) {
+  const tags = goal.tags ?? [];
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {tags.map((tag) => (
+        <span key={tag} className="flex items-center gap-1 rounded-full border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-2 py-0.5 text-[10px] text-[var(--accent)]">
+          {tag}
+          <button
+            onClick={() => onRemoveTag(tag)}
+            className="ml-0.5 opacity-60 hover:opacity-100"
+            aria-label={`${t("移除标签")} ${tag}`}
+          >
+            ✕
+          </button>
+        </span>
+      ))}
+      <input
+        value={newTag}
+        onChange={(e) => setNewTag(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.nativeEvent.isComposing && newTag.trim()) {
+            onAddTag(newTag.trim());
+            setNewTag("");
+          }
+        }}
+        placeholder={t("＋标签")}
+        className="w-16 rounded-full border border-[var(--line)] bg-transparent px-2 py-0.5 text-[10px] text-[var(--fg-dim)] outline-none transition focus:border-[var(--accent)] focus:text-[var(--fg)] placeholder:text-[var(--fg-faint)]"
+      />
+    </div>
+  );
+}
+
 function LongGoalCard({
-  goal, progress, kids, breaking, t, todayDay, onOpenPath, onBreak, onToggle, onComplete, onDrop, onAddShort, onPlanToday, onSetRepeat, onSetDeadline,
+  goal, progress, kids, breaking, t, todayDay, onOpenPath, onBreak, onToggle, onComplete, onDrop, onAddShort, onPlanToday, onSetRepeat, onSetDeadline, onAddTag, onRemoveTag,
 }: {
   goal: Goal; progress: number; kids: Goal[]; breaking: boolean; t: TFn; todayDay: string;
   onOpenPath: () => void; onBreak: () => void; onToggle: (actionId: string) => void;
   onComplete: () => void; onDrop: () => void; onAddShort: (title: string) => void;
   onPlanToday: (actionId: string) => void; onSetRepeat: (actionId: string, repeat: "daily" | "weekly" | undefined) => void;
   onSetDeadline: (date: string | null) => void;
+  onAddTag: (tag: string) => void; onRemoveTag: (tag: string) => void;
 }) {
   const [newKid, setNewKid] = useState("");
+  const [newTag, setNewTag] = useState("");
   return (
     <Card pad="md">
       <div className="flex items-start justify-between gap-2">
@@ -331,6 +402,8 @@ function LongGoalCard({
       </div>
 
       <DeadlineControl goal={goal} todayDay={todayDay} t={t} onSetDeadline={onSetDeadline} />
+
+      <GoalTagRow goal={goal} t={t} onAddTag={onAddTag} onRemoveTag={onRemoveTag} newTag={newTag} setNewTag={setNewTag} />
 
       <div className="mt-2 flex flex-wrap gap-2">
         {goal.pathId && (
@@ -383,13 +456,15 @@ function LongGoalCard({
 }
 
 function ShortGoalRow({
-  goal, breaking, t, todayDay, onBreak, onToggle, onComplete, onDrop, onPlanToday, onSetRepeat, onSetDeadline,
+  goal, breaking, t, todayDay, onBreak, onToggle, onComplete, onDrop, onPlanToday, onSetRepeat, onSetDeadline, onAddTag, onRemoveTag,
 }: {
   goal: Goal; breaking: boolean; t: TFn; todayDay: string;
   onBreak: () => void; onToggle: (actionId: string) => void; onComplete: () => void; onDrop: () => void;
   onPlanToday: (actionId: string) => void; onSetRepeat: (actionId: string, repeat: "daily" | "weekly" | undefined) => void;
   onSetDeadline: (date: string | null) => void;
+  onAddTag: (tag: string) => void; onRemoveTag: (tag: string) => void;
 }) {
+  const [newTag, setNewTag] = useState("");
   return (
     <Card pad="md">
       <div className="flex items-start justify-between gap-2">
@@ -402,6 +477,7 @@ function ShortGoalRow({
         </span>
       </div>
       <DeadlineControl goal={goal} todayDay={todayDay} t={t} onSetDeadline={onSetDeadline} />
+      <GoalTagRow goal={goal} t={t} onAddTag={onAddTag} onRemoveTag={onRemoveTag} newTag={newTag} setNewTag={setNewTag} />
       <Actions goal={goal} t={t} onToggle={onToggle} onPlanToday={onPlanToday} onSetRepeat={onSetRepeat} />
       <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--line)] pt-3 text-xs">
         <button onClick={onBreak} disabled={breaking} className="rounded-full border border-[var(--accent)]/50 px-3 py-1 text-[var(--accent)] transition hover:bg-[var(--accent)]/15 disabled:opacity-50">
