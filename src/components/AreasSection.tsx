@@ -1,15 +1,175 @@
 "use client";
 
-import { SectionPlaceholder } from "./SectionPlaceholder";
+import { useApp } from "@/state/AppContext";
+import { useT } from "@/prefs/PreferencesContext";
+import { AREA_LABELS } from "@/domain/types";
+import { areaSummaries, type AreaSummary } from "@/domain/areas";
+import { goalProgress } from "@/domain/goals";
+import type { Goal, LifeTree } from "@/domain/types";
 
-// 人生面：占位面板，下一步填入真实内容（事业/财富/关系/健康/成长各维度概览）。
-export function AreasSection() {
+// 人生面各领域的色彩主题（内联 CSS 变量引用）
+const AREA_COLORS: Record<string, string> = {
+  career:        "var(--c-sky)",
+  wealth:        "var(--c-amber)",
+  relationships: "var(--c-rose)",
+  health:        "var(--c-emerald)",
+  growth:        "var(--accent)",
+};
+
+function ScoreBar({ score, color }: { score: number; color: string }) {
   return (
-    <SectionPlaceholder
-      eyebrow="Life Areas"
-      icon="🧭"
-      accent="var(--c-sky)"
-      title="人生面"
-    />
+    <div className="flex items-center gap-2">
+      <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
+          style={{ width: `${score}%`, background: color }}
+        />
+      </div>
+      <span className="w-8 flex-shrink-0 text-right text-xs tabular-nums text-[var(--fg-dim)]">
+        {score}
+      </span>
+    </div>
+  );
+}
+
+function GoalProgressRow({
+  goal,
+  tree,
+  color,
+  onOpen,
+}: {
+  goal: Goal;
+  tree: LifeTree;
+  color: string;
+  onOpen: () => void;
+}) {
+  const { t } = useT();
+  const pct = Math.round(goalProgress(tree, goal) * 100);
+  return (
+    <button
+      onClick={goal.pathId ? onOpen : undefined}
+      className={`w-full text-left ${goal.pathId ? "cursor-pointer hover:opacity-80" : "cursor-default"}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="min-w-0 truncate text-xs text-[var(--fg)]">{goal.title}</span>
+        <span className="flex-shrink-0 text-[10px] tabular-nums text-[var(--fg-faint)]">
+          {t("进度 {pct}%", { pct })}
+        </span>
+      </div>
+      <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: color }}
+        />
+      </div>
+    </button>
+  );
+}
+
+function AreaCard({ summary, tree }: { summary: AreaSummary; tree: LifeTree }) {
+  const { openPlan, openPath } = useApp();
+  const { t } = useT();
+  const color = AREA_COLORS[summary.area] ?? "var(--accent)";
+  const label = t(AREA_LABELS[summary.area]);
+
+  return (
+    <div
+      className="flex flex-col gap-3 rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] p-4"
+      style={{ "--area-color": color } as React.CSSProperties}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className="text-sm font-bold"
+          style={{ color }}
+        >
+          {label}
+        </span>
+        <span
+          className="rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums"
+          style={{ background: `color-mix(in srgb, ${color} 15%, transparent)`, color }}
+        >
+          {summary.score}
+        </span>
+      </div>
+
+      {/* Score bar */}
+      <ScoreBar score={summary.score} color={color} />
+
+      {/* Active goals */}
+      {summary.goals.length > 0 ? (
+        <div className="space-y-2.5">
+          {summary.goals.map((g) => (
+            <GoalProgressRow
+              key={g.id}
+              goal={g}
+              tree={tree}
+              color={color}
+              onOpen={() => g.pathId && openPath(g.pathId)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-[var(--fg-faint)]">{t("还没有目标")}</span>
+          <button
+            onClick={openPlan}
+            className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[10px] text-[var(--fg-dim)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          >
+            {t("去规划")}
+          </button>
+        </div>
+      )}
+
+      {/* Habit count footer */}
+      {summary.habitCount > 0 && (
+        <p className="text-[10px] text-[var(--fg-faint)]">
+          {t("{n} 个习惯", { n: summary.habitCount })}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function AreasSection() {
+  const { tree, openPlan } = useApp();
+  const { t } = useT();
+
+  if (!tree) return null;
+
+  const summaries = areaSummaries(tree);
+
+  return (
+    <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-8 sm:px-8">
+      {/* Header */}
+      <header className="animate-fade mb-6">
+        <h1 className="text-2xl font-bold sm:text-3xl">{t("人生面")}</h1>
+        <p className="mt-1 text-sm text-[var(--fg-dim)]">
+          {t("五个维度的现状与目标——看清自己在哪里，想去哪里。")}
+        </p>
+      </header>
+
+      {/* Area cards — 1 col on mobile, 2 on sm+ */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {summaries.map((s) => (
+          <AreaCard key={s.area} summary={s} tree={tree} />
+        ))}
+      </div>
+
+      {/* Global CTA when no goals at all */}
+      {summaries.every((s) => s.goals.length === 0) && (
+        <div className="mt-8 flex flex-col items-center gap-3 text-center">
+          <p className="text-sm text-[var(--fg-faint)]">
+            {t("各个维度还没有目标，去规划一个吧。")}
+          </p>
+          <button
+            onClick={openPlan}
+            className="rounded-full border border-[var(--accent)]/50 bg-[var(--accent)]/10 px-4 py-2 text-sm text-[var(--accent)] transition hover:bg-[var(--accent)]/20"
+          >
+            {t("去规划")}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

@@ -424,6 +424,14 @@ export const EN: Record<string, string> = {
   // 关闭 already exists above (FutureSelfChat section)
   这一块马上就好: "This part is coming right up",
 
+  // ── 人生面 AreasSection ──
+  "五个维度的现状与目标——看清自己在哪里，想去哪里。":
+    "Five dimensions, your status and goals — see where you are and where you want to go.",
+  还没有目标: "No goals yet",
+  去规划: "Plan now",
+  "{n} 个习惯": "{n} habit(s)",
+  "各个维度还没有目标，去规划一个吧。": "No goals in any area yet — go set one.",
+
   // ── 习惯 HabitsSection ──
   "坚持重复，构成你真正的生活方式。": "Repeat consistently — that's what shapes your real lifestyle.",
   "还没有习惯。去「我的规划」把某条行动设成每天或每周重复。":
