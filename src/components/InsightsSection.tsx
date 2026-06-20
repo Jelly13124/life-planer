@@ -97,21 +97,21 @@ export function InsightsSection() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 animate-fade">
         <MetricCard
           label={t("当前连续")}
-          value={`🔥 ${summary.streak} 天`}
+          value={`🔥 ${t("{n} 天", { n: summary.streak })}`}
           accent="var(--c-amber)"
         />
         <MetricCard
           label={t("最长连续")}
-          value={`${summary.longestStreak} 天`}
+          value={t("{n} 天", { n: summary.longestStreak })}
           accent="var(--c-fuchsia)"
         />
         <MetricCard
           label={t("近90天完成")}
-          value={`${summary.completions} 件`}
+          value={t("{n} 件", { n: summary.completions })}
         />
         <MetricCard
           label={t("活跃天数")}
-          value={`${summary.activeDays} 天`}
+          value={t("{n} 天", { n: summary.activeDays })}
         />
         <MetricCard
           label={t("坚持度")}

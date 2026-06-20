@@ -444,6 +444,8 @@ export const EN: Record<string, string> = {
   无记录: "None",
   "1 件": "1",
   "2 件+": "2+",
+  "{n} 天": "{n}d",
+  "{n} 件": "{n}",
 
   // ── 习惯 HabitsSection ──
   "坚持重复，构成你真正的生活方式。": "Repeat consistently — that's what shapes your real lifestyle.",
