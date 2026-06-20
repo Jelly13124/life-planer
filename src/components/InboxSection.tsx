@@ -7,7 +7,7 @@ import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
 
 export function InboxSection() {
-  const { tree, captureToInbox, removeInboxItem, addLongTermGoal, addShortTermGoal } = useApp();
+  const { tree, captureToInbox, removeInboxItem, promoteInboxToLongGoal, promoteInboxToShortGoal } = useApp();
   const { t } = useT();
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -31,14 +31,12 @@ export function InboxSection() {
     }
   }
 
-  function handleRouteLong(itemId: string, text: string) {
-    addLongTermGoal({ area: "career", title: text, why: "" });
-    removeInboxItem(itemId);
+  function handleRouteLong(itemId: string) {
+    promoteInboxToLongGoal(itemId);
   }
 
-  function handleRouteShort(itemId: string, text: string) {
-    addShortTermGoal({ area: "career", title: text, why: "" });
-    removeInboxItem(itemId);
+  function handleRouteShort(itemId: string) {
+    promoteInboxToShortGoal(itemId);
   }
 
   return (
@@ -98,7 +96,7 @@ export function InboxSection() {
               <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:flex-shrink-0">
                 <button
                   type="button"
-                  onClick={() => handleRouteLong(item.id, item.text)}
+                  onClick={() => handleRouteLong(item.id)}
                   className="rounded-lg border border-[var(--accent)]/40 bg-[var(--accent)]/[0.08] px-2.5 py-1 text-[11px] font-medium text-[var(--accent)] transition hover:bg-[var(--accent)]/[0.18]"
                   title={t("设成长期目标")}
                 >
@@ -106,7 +104,7 @@ export function InboxSection() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleRouteShort(item.id, item.text)}
+                  onClick={() => handleRouteShort(item.id)}
                   className="rounded-lg border border-[var(--line)] px-2.5 py-1 text-[11px] font-medium text-[var(--fg-dim)] transition hover:border-[var(--accent)]/40 hover:text-[var(--fg)]"
                   title={t("设成短期目标")}
                 >

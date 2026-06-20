@@ -187,6 +187,8 @@ interface AppApi {
   openInbox: () => void;
   captureToInbox: (text: string) => void;
   removeInboxItem: (id: string) => void;
+  promoteInboxToLongGoal: (itemId: string) => void;
+  promoteInboxToShortGoal: (itemId: string) => void;
   openTree: () => void;
   planActionToday: (actionId: string) => void;
   unplanActionToday: (actionId: string) => void;
@@ -521,6 +523,31 @@ export function AppProvider({
         const baseTree = treeRef.current;
         if (!baseTree) return;
         dispatch({ type: "patchTree", tree: removeInboxItem(baseTree, id, new Date().toISOString()) });
+      },
+      promoteInboxToLongGoal: (itemId) => {
+        if (predictingRef.current) return;
+        const base = treeRef.current;
+        if (!base) return;
+        const item = (base.inbox ?? []).find((i) => i.id === itemId);
+        if (!item) return;
+        const ts = new Date().toISOString();
+        const cleaned = removeInboxItem(base, itemId, ts);
+        const working = addPath(cleaned, item.text, generator, ts);
+        if (working === cleaned) return;
+        const newPath = working.paths[working.paths.length - 1];
+        const goal = createGoal({ area: "career", horizon: "long", title: item.text, why: "", pathId: newPath.id }, ts);
+        const withGoal = upsertGoal(working, goal);
+        void predictAndCommit(withGoal, [newPath], "branch");
+      },
+      promoteInboxToShortGoal: (itemId) => {
+        const base = treeRef.current;
+        if (!base) return;
+        const item = (base.inbox ?? []).find((i) => i.id === itemId);
+        if (!item) return;
+        const ts = new Date().toISOString();
+        const cleaned = removeInboxItem(base, itemId, ts);
+        const goal = createGoal({ area: "career", horizon: "short", title: item.text, why: "" }, ts);
+        dispatch({ type: "patchTree", tree: upsertGoal(cleaned, goal) });
       },
       openTree: () => dispatch({ type: "backToTree" }),
       planActionToday: (actionId) => {

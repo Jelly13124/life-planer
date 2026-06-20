@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { useApp, type View } from "@/state/AppContext";import { useT } from "@/prefs/PreferencesContext";
+import { useApp, type View } from "@/state/AppContext";
+import { useT } from "@/prefs/PreferencesContext";
 
 // 持久化左侧栏的应用外壳：左侧导航 + 右侧可独立滚动的内容区。
 // 桌面端常驻侧栏；窄屏折叠成顶部栏 + 抽屉，避免内容被挤压。
