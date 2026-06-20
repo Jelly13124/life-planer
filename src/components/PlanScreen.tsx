@@ -12,7 +12,7 @@ import { fetchGoalActions, fetchGoalSuggestions, type GoalSuggestion } from "@/l
 const _bootISO = new Date().toISOString();
 
 export function PlanScreen() {
-  const { tree, openDashboard, openPath, addLongTermGoal, addShortTermGoal, setGoalActionTexts, toggleGoalActionById, completeGoalById, dropGoalById, markDueGoalsReviewed, planActionToday, setActionRepeatById } = useApp();
+  const { tree, openPath, addLongTermGoal, addShortTermGoal, setGoalActionTexts, toggleGoalActionById, completeGoalById, dropGoalById, markDueGoalsReviewed, planActionToday, setActionRepeatById } = useApp();
   const { t } = useT();
 
   const [todayISO, setTodayISO] = useState(_bootISO);
@@ -68,10 +68,7 @@ export function PlanScreen() {
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-8 sm:px-8">
       <header className="animate-fade">
-        <button onClick={openDashboard} className="text-sm text-[var(--fg-dim)] transition hover:text-[var(--fg)]">
-          {t("← 今日")}
-        </button>
-        <h1 className="mt-2 text-2xl font-bold sm:text-3xl">{t("我的规划")}</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">{t("我的规划")}</h1>
         <p className="mt-1 text-sm text-[var(--fg-dim)]">
           {t("先定长期目标——它会在你的人生树上长出一条路；用短期目标和行动一步步逼近它。")}
         </p>

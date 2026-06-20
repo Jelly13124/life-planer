@@ -16,7 +16,7 @@ import { localTodayStr } from "@/lib/dailyClient";
 const _bootToday = localTodayStr();
 
 export function CalendarPlannerScreen() {
-  const { tree, openPlan, openTree, openPath, scheduleAction, toggleActionOn, markDueGoalsReviewed, addBranch } = useApp();
+  const { tree, openTree, openPath, scheduleAction, toggleActionOn, markDueGoalsReviewed, addBranch } = useApp();
   const { t } = useT();
 
   const [today, setToday] = useState(_bootToday);
@@ -87,8 +87,6 @@ export function CalendarPlannerScreen() {
         </div>
         <div className="flex gap-2">
           <Button variant="subtle" onClick={() => setWeeklyOpen(true)}>{t("📅 本周回顾")}</Button>
-          <Button variant="primary" onClick={openPlan}>{t("🎯 我的规划")}</Button>
-          <Button variant="ghost" onClick={openTree}>{t("看完整人生树 →")}</Button>
         </div>
       </header>
 
