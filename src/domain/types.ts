@@ -188,6 +188,8 @@ export interface GoalAction {
   repeat?: "daily" | "weekly"; // 缺省=一次性（里程碑，计入进度）；重复行动=日常纪律，不计入进度
   scheduledDate?: string;   // 一次性行动排到的本地日 YYYY-MM-DD（未排期则无）
   repeatWeekday?: number;   // 仅 weekly：锚定星期几 0=周日…6=周六（用于在月历上落位）
+  startTime?: string;       // 本地时刻 HH:MM 24h（仅在 scheduledDate 已排期时有意义）
+  durationMin?: number;     // 时长（分钟），未设时默认 60
 }
 
 export interface Goal {
@@ -240,6 +242,8 @@ export interface LifeTree {
   goals: Goal[]; // 规划主线：长期/短期目标
   activity: ActivityDay[]; // 每日激励闭环：今日计划/完成记录
   inbox: InboxItem[]; // 快捷收件箱：随手捕获，回头再归类
+  dayStart?: string; // 清醒时段起点 HH:MM（未设默认 07:00）
+  dayEnd?: string;   // 清醒时段终点 HH:MM（未设默认 23:00）
   guideDismissed?: boolean; // 首次上手引导是否已关闭（undefined=未关→仍显示，无需迁移）
   createdAt: string;
   updatedAt: string;
