@@ -1,7 +1,7 @@
-// 服务端：从用户现状建议几个值得追的目标（含长期/短期）。无 key 时给通用兜底，
-// 让规划主线离线也能用。带限流。
+// 服务端：从用户现状建议几个值得追的目标（新嵌套模型：不再有 长期/短期 horizon，
+// 只是 area/title/why 的目标雏形）。无 key 时给通用兜底，让规划主线离线也能用。带限流。
 import { allowRequest } from "@/lib/rateLimit";
-import { LIFE_AREAS, type GoalHorizon, type LifeArea } from "@/domain/types";
+import { LIFE_AREAS, type LifeArea } from "@/domain/types";
 
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
@@ -12,18 +12,19 @@ interface Body {
   lang?: "zh" | "en";
 }
 
+// 目标雏形 DTO：嵌套模型下的一个目标（领域 + 标题 + 为什么）。
+// 子目标/指标/任务/习惯由用户在 PlanScreen 里继续展开，建议接口只给目标本体。
 interface GoalSuggestionDTO {
   area: LifeArea;
-  horizon: GoalHorizon;
   title: string;
   why: string;
 }
 
 const FALLBACK: GoalSuggestionDTO[] = [
-  { area: "career", horizon: "long", title: "在本行做到能独当一面", why: "三年内成为团队里靠得住的人" },
-  { area: "wealth", horizon: "long", title: "攒够半年生活的应急金", why: "有底气才敢做选择" },
-  { area: "growth", horizon: "short", title: "每周留 5 小时学新技能", why: "为长期目标攒底气" },
-  { area: "health", horizon: "short", title: "每周运动三次", why: "状态是一切的本钱" },
+  { area: "career", title: "在本行做到能独当一面", why: "三年内成为团队里靠得住的人" },
+  { area: "wealth", title: "攒够半年生活的应急金", why: "有底气才敢做选择" },
+  { area: "growth", title: "每周留 5 小时学新技能", why: "为长期目标攒底气" },
+  { area: "health", title: "每周运动三次", why: "状态是一切的本钱" },
 ];
 
 function getKey(): string | null {
@@ -39,14 +40,12 @@ function extractJson(text: string): string | null {
   return s === -1 || e === -1 || e < s ? null : body.slice(s, e + 1);
 }
 
-function normalize(raw: { area?: unknown; horizon?: unknown; title?: unknown; why?: unknown }[]): GoalSuggestionDTO[] {
+function normalize(raw: { area?: unknown; title?: unknown; why?: unknown }[]): GoalSuggestionDTO[] {
   return raw
     .map((g) => {
       const area = String(g.area ?? "") as LifeArea;
-      const horizon = (g.horizon === "short" ? "short" : "long") as GoalHorizon;
       return {
         area: LIFE_AREAS.includes(area) ? area : "growth",
-        horizon,
         title: String(g.title ?? "").trim(),
         why: String(g.why ?? "").trim(),
       };
@@ -71,16 +70,16 @@ export async function POST(request: Request) {
 
   const system = [
     "你在帮一个想认真规划人生的人，提炼几个值得追的目标。",
-    "给出 3-5 个目标：至少 1 个长期目标（horizon=long，跨度数年的方向），其余短期目标（horizon=short，几周到几个月能推进）。",
+    "给出 3-5 个目标：有的偏长期方向（跨度数年），有的偏近期可推进（几周到几个月），但都只描述目标本身。",
     "每个目标：area 从 career/wealth/relationships/health/growth 里选一个最贴的；title 是一个具体、可执行的短语（≤12字）；why 一句话点出为什么值得他追（≤25字）。",
     "彼此方向不同，扣住他的现状，别空泛（不要「走上人生巅峰」这种）。",
     body.profileSummary ? `这个人的现状：${body.profileSummary}。` : "",
     body.choices?.length ? `他正在考虑的路：${body.choices.join("、")}。` : "",
     body.lang === "en"
-      ? "LANGUAGE: write title and why in natural English (title ≤ 6 words, why ≤ 12 words). Keep area/horizon values in English exactly as specified."
-      : "语言：title 与 why 用简体中文。area 与 horizon 用给定的英文枚举值。",
+      ? "LANGUAGE: write title and why in natural English (title ≤ 6 words, why ≤ 12 words). Keep area values in English exactly as specified."
+      : "语言：title 与 why 用简体中文。area 用给定的英文枚举值。",
     "只输出如下 json，不要任何解释或代码块：",
-    '{"goals":[{"area":"career","horizon":"long","title":"短语","why":"一句话理由"}]}',
+    '{"goals":[{"area":"career","title":"短语","why":"一句话理由"}]}',
   ]
     .filter(Boolean)
     .join("\n");
@@ -110,7 +109,7 @@ export async function POST(request: Request) {
     const content = data.choices?.[0]?.message?.content;
     const json = content ? extractJson(content) : null;
     if (!json) return Response.json({ goals: FALLBACK });
-    const parsed = JSON.parse(json) as { goals?: { area?: unknown; horizon?: unknown; title?: unknown; why?: unknown }[] };
+    const parsed = JSON.parse(json) as { goals?: { area?: unknown; title?: unknown; why?: unknown }[] };
     const out = normalize(parsed.goals || []);
     return Response.json({ goals: out.length ? out : FALLBACK });
   } catch (e) {

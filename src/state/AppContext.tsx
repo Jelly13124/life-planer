@@ -10,7 +10,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import type { Decision, Goal, LifePath, LifeTree, Profile, Scenario } from "@/domain/types";
+import type { Decision, Goal, LifePath, LifeTree, Metric, Profile, Scenario } from "@/domain/types";
 import { createDecision, upsertDecision, type DecisionInput } from "@/domain/decisions";
 import type { PathGenerator } from "@/domain/generator/types";
 import { localGenerator } from "@/domain/generator/localGenerator";
@@ -31,18 +31,23 @@ import {
 import {
   addGoalTag,
   completeGoal,
-  createGoal,
-  dropGoal,
   dueGoalReviews,
   recordGoalReview,
   removeGoalTag,
-  setActionRepeat,
-  setGoalActions,
-  setGoalDeadline,
-  toggleGoalAction,
-  upsertGoal,
 } from "@/domain/goals";
-import { completeAction, isActionDoneToday, planToday, removeActionEverywhere, uncompleteAction, unplanToday, localDay } from "@/domain/daily";
+import {
+  addGoal as addGoalToTree,
+  addHabit as addHabitToTree,
+  addSubgoal as addSubgoalToTree,
+  addTask as addTaskToTree,
+  bumpMetric as bumpMetricInTree,
+  removeGoalById as removeGoalFromTree,
+  removeMetric as removeMetricFromTree,
+  setMetric as setMetricInTree,
+  updateGoalById,
+  type AddGoalInput,
+} from "@/domain/goalTree";
+import { completeAction, findAction, isActionDoneToday, planToday, removeActionEverywhere, uncompleteAction, unplanToday, localDay } from "@/domain/daily";
 import { actionsOnDay, setActionScheduledDate } from "@/domain/calendar";
 import { setActionTime, setDayWindow, dayWindow } from "@/domain/schedule";
 import { fetchArrangeDay } from "@/lib/scheduleClient";
@@ -178,13 +183,31 @@ interface AppApi {
   updateDecision: (decision: Decision) => void; // 按 id 原地更新（勾选/复盘）
   regeneratePath: (pathId: string, note: string) => void; // 带补充信息重新推演这条路
   openPlan: () => void;
-  addLongTermGoal: (input: { area: Goal["area"]; title: string; why: string }) => void;
-  addShortTermGoal: (input: { area: Goal["area"]; title: string; why: string; parentGoalId?: string | null }) => void;
-  setGoalActionTexts: (goalId: string, texts: string[]) => void;
-  toggleGoalActionById: (goalId: string, actionId: string) => void;
+  // ── Goals（嵌套模型：领域 → 目标(时间范围) → 子目标 → {指标/任务/习惯}）──
+  // 建一个目标（可选关联人生树分支 pathId）。返回新目标 id。
+  addGoal: (input: { area: Goal["area"]; title: string; why?: string; startDate?: string; endDate?: string; pathId?: string | null; tags?: string[] }) => string | null;
+  // 建一个目标并在人生树上长出一条对应分支（长目标），AI 推演后落树。
+  addGoalWithBranch: (input: { area: Goal["area"]; title: string; why?: string; startDate?: string; endDate?: string }) => void;
+  // 改目标字段（title/why/area/startDate/endDate/tags…）。
+  updateGoal: (goalId: string, patch: Partial<Goal>) => void;
+  // 删目标（级联子目标/任务/习惯，清 activity，剪掉关联分支）。
+  removeGoalById: (goalId: string) => void;
+  // 达成目标（标 done + 给所属人生面加分）。
   completeGoalById: (goalId: string) => void;
-  dropGoalById: (goalId: string) => void;
   markDueGoalsReviewed: () => void;
+  addGoalTagById: (goalId: string, tag: string) => void;
+  removeGoalTagById: (goalId: string, tag: string) => void;
+  // ── Subgoals ──
+  addSubgoal: (goalId: string, title: string) => string | null;
+  removeSubgoal: (subgoalId: string) => void;
+  // ── Tasks / Habits（建在目标级 subgoalId=null，或某子目标下）──
+  addTask: (goalId: string, subgoalId: string | null, text: string) => string | null;
+  addHabit: (goalId: string, subgoalId: string | null, text: string, repeat: "daily" | "weekly", weekday?: number) => string | null;
+  removeItemById: (itemId: string) => void; // 删一条 task 或 habit（任意层），清 activity
+  // ── Metrics（owner = 目标或子目标，按 id）──
+  setMetric: (ownerId: string, metric: Metric) => void;
+  bumpMetric: (metricId: string, delta: number) => void;
+  removeMetric: (ownerId: string, metricId: string) => void;
   openDashboard: () => void;
   openHabits: () => void;
   openAreas: () => void;
@@ -192,17 +215,13 @@ interface AppApi {
   openInbox: () => void;
   captureToInbox: (text: string) => void;
   removeInboxItem: (id: string) => void;
-  promoteInboxToLongGoal: (itemId: string) => void;
-  promoteInboxToShortGoal: (itemId: string) => void;
+  // 收件箱 → 目标（长目标：连带长出预测分支；简单：仅建目标）。
+  promoteInboxToGoal: (itemId: string, opts?: { withBranch?: boolean; area?: Goal["area"] }) => void;
   openTree: () => void;
   planActionToday: (actionId: string) => void;
   unplanActionToday: (actionId: string) => void;
   toggleTodayAction: (actionId: string) => void;
   removeActionById: (actionId: string) => void;
-  setActionRepeatById: (goalId: string, actionId: string, repeat: "daily" | "weekly" | undefined) => void;
-  setGoalDeadlineById: (goalId: string, date: string | null) => void;
-  addGoalTagById: (goalId: string, tag: string) => void;
-  removeGoalTagById: (goalId: string, tag: string) => void;
   scheduleAction: (actionId: string, date: string | null) => void;
   toggleActionOn: (actionId: string, date: string) => void;
   setActionTimeById: (actionId: string, startTime: string | null, durationMin?: number) => void;
@@ -460,7 +479,17 @@ export function AppProvider({
         void regenerateAndCommit(pathId, note);
       },
       openPlan: () => dispatch({ type: "openPlan" }),
-      addLongTermGoal: ({ area, title, why }) => {
+      // 建目标（不长分支）。返回新 id（无 tree / 空标题 → null）。
+      addGoal: ({ area, title, why, startDate, endDate, pathId, tags }) => {
+        const baseTree = treeRef.current;
+        if (!baseTree || !title.trim()) return null;
+        const input: AddGoalInput = { area, title, why, startDate, endDate, pathId, tags };
+        const { tree, id } = addGoalToTree(baseTree, input, new Date().toISOString());
+        dispatch({ type: "patchTree", tree });
+        return id;
+      },
+      // 建目标 + 长出一条人生树分支（长目标），AI 推演后整体落树。
+      addGoalWithBranch: ({ area, title, why, startDate, endDate }) => {
         if (predictingRef.current) return;
         const baseTree = treeRef.current;
         if (!baseTree || !title.trim()) return;
@@ -469,48 +498,29 @@ export function AppProvider({
         const working = addPath(baseTree, title, generator, ts);
         if (working === baseTree) return;
         const newPath = working.paths[working.paths.length - 1];
-        // 2) 建长期目标并关联这条分支
-        const goal = createGoal(
-          { area, horizon: "long", title, why, pathId: newPath.id },
+        // 2) 建目标并关联这条分支（同一棵 working 树上加，避免并发回填竞态）
+        const { tree: withGoal } = addGoalToTree(
+          working,
+          { area, title, why, startDate, endDate, pathId: newPath.id },
           ts,
         );
-        const withGoal = upsertGoal(working, goal);
         // 3) 推演这条分支（播动画、落到树上）。withGoal 含 goals，predictAndCommit 会保留。
         void predictAndCommit(withGoal, [newPath], "branch");
       },
-      addShortTermGoal: ({ area, title, why, parentGoalId }) => {
-        if (predictingRef.current) return;
-        const baseTree = treeRef.current;
-        if (!baseTree || !title.trim()) return;
-        const goal = createGoal(
-          { area, horizon: "short", title, why, parentGoalId: parentGoalId ?? null },
-          new Date().toISOString(),
-        );
-        dispatch({ type: "patchTree", tree: upsertGoal(baseTree, goal) });
-      },
-      setGoalActionTexts: (goalId, texts) => {
+      updateGoal: (goalId, patch) => {
         const baseTree = treeRef.current;
         if (!baseTree) return;
-        const goal = (baseTree.goals ?? []).find((g) => g.id === goalId);
-        if (!goal) return;
-        dispatch({ type: "patchTree", tree: upsertGoal(baseTree, setGoalActions(goal, texts)) });
+        dispatch({ type: "patchTree", tree: updateGoalById(baseTree, goalId, patch) });
       },
-      toggleGoalActionById: (goalId, actionId) => {
+      removeGoalById: (goalId) => {
         const baseTree = treeRef.current;
         if (!baseTree) return;
-        const goal = (baseTree.goals ?? []).find((g) => g.id === goalId);
-        if (!goal) return;
-        dispatch({ type: "patchTree", tree: upsertGoal(baseTree, toggleGoalAction(goal, actionId)) });
+        dispatch({ type: "patchTree", tree: removeGoalFromTree(baseTree, goalId, new Date().toISOString()) });
       },
       completeGoalById: (goalId) => {
         const baseTree = treeRef.current;
         if (!baseTree) return;
         dispatch({ type: "patchTree", tree: completeGoal(baseTree, goalId, new Date().toISOString()) });
-      },
-      dropGoalById: (goalId) => {
-        const baseTree = treeRef.current;
-        if (!baseTree) return;
-        dispatch({ type: "patchTree", tree: dropGoal(baseTree, goalId, new Date().toISOString()) });
       },
       markDueGoalsReviewed: () => {
         const baseTree = treeRef.current;
@@ -537,30 +547,105 @@ export function AppProvider({
         if (!baseTree) return;
         dispatch({ type: "patchTree", tree: removeInboxItem(baseTree, id, new Date().toISOString()) });
       },
-      promoteInboxToLongGoal: (itemId) => {
-        if (predictingRef.current) return;
+      // 收件箱 → 目标。withBranch=true（长目标）连带长出一条预测分支并 AI 推演；
+      // 否则只建一个简单目标。两种都用「单棵快照」同时移除收件项 + 加目标，避免
+      // predictAndCommit 期间收件项被旧树复活的竞态。
+      promoteInboxToGoal: (itemId, opts) => {
         const base = treeRef.current;
         if (!base) return;
         const item = (base.inbox ?? []).find((i) => i.id === itemId);
         if (!item) return;
+        const area = opts?.area ?? "career";
         const ts = new Date().toISOString();
         const cleaned = removeInboxItem(base, itemId, ts);
-        const working = addPath(cleaned, item.text, generator, ts);
-        if (working === cleaned) return;
-        const newPath = working.paths[working.paths.length - 1];
-        const goal = createGoal({ area: "career", horizon: "long", title: item.text, why: "", pathId: newPath.id }, ts);
-        const withGoal = upsertGoal(working, goal);
-        void predictAndCommit(withGoal, [newPath], "branch");
+        if (opts?.withBranch) {
+          if (predictingRef.current) return;
+          const working = addPath(cleaned, item.text, generator, ts);
+          if (working === cleaned) return;
+          const newPath = working.paths[working.paths.length - 1];
+          const { tree: withGoal } = addGoalToTree(
+            working,
+            { area, title: item.text, why: "", pathId: newPath.id },
+            ts,
+          );
+          void predictAndCommit(withGoal, [newPath], "branch");
+          return;
+        }
+        const { tree } = addGoalToTree(cleaned, { area, title: item.text, why: "" }, ts);
+        dispatch({ type: "patchTree", tree });
       },
-      promoteInboxToShortGoal: (itemId) => {
-        const base = treeRef.current;
-        if (!base) return;
-        const item = (base.inbox ?? []).find((i) => i.id === itemId);
-        if (!item) return;
-        const ts = new Date().toISOString();
-        const cleaned = removeInboxItem(base, itemId, ts);
-        const goal = createGoal({ area: "career", horizon: "short", title: item.text, why: "" }, ts);
-        dispatch({ type: "patchTree", tree: upsertGoal(cleaned, goal) });
+      // ── Subgoals ──
+      addSubgoal: (goalId, title) => {
+        const baseTree = treeRef.current;
+        if (!baseTree || !title.trim()) return null;
+        const { tree, id } = addSubgoalToTree(baseTree, goalId, title, new Date().toISOString());
+        dispatch({ type: "patchTree", tree });
+        return id;
+      },
+      // 删一个子目标：连带它名下的 task/habit，并清掉这些 id 在每日活动里的记录。
+      // goalTree 未提供 removeSubgoal，这里在 state 层做最小定位+过滤（保持 domain 不动）。
+      removeSubgoal: (subgoalId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        const ids = new Set<string>();
+        for (const g of baseTree.goals ?? []) {
+          for (const s of g.subgoals ?? []) {
+            if (s.id !== subgoalId) continue;
+            for (const t of s.tasks ?? []) ids.add(t.id);
+            for (const h of s.habits ?? []) ids.add(h.id);
+          }
+        }
+        const next: LifeTree = {
+          ...baseTree,
+          goals: (baseTree.goals ?? []).map((g) => ({
+            ...g,
+            subgoals: (g.subgoals ?? []).filter((s) => s.id !== subgoalId),
+          })),
+          activity: (baseTree.activity ?? []).map((d) => ({
+            ...d,
+            plannedActionIds: d.plannedActionIds.filter((x) => !ids.has(x)),
+            completedActionIds: d.completedActionIds.filter((x) => !ids.has(x)),
+          })),
+        };
+        dispatch({ type: "patchTree", tree: next });
+      },
+      // ── Tasks / Habits ──
+      addTask: (goalId, subgoalId, text) => {
+        const baseTree = treeRef.current;
+        if (!baseTree || !text.trim()) return null;
+        const { tree, id } = addTaskToTree(baseTree, goalId, subgoalId, text, new Date().toISOString());
+        dispatch({ type: "patchTree", tree });
+        return id;
+      },
+      addHabit: (goalId, subgoalId, text, repeat, weekday) => {
+        const baseTree = treeRef.current;
+        if (!baseTree || !text.trim()) return null;
+        // weekly 习惯未指定星期几时，锚定到今天（state 边界取 new Date）。
+        const wd = repeat === "weekly" ? (weekday ?? new Date().getUTCDay()) : undefined;
+        const { tree, id } = addHabitToTree(baseTree, goalId, subgoalId, text, repeat, wd, new Date().toISOString());
+        dispatch({ type: "patchTree", tree });
+        return id;
+      },
+      removeItemById: (itemId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: removeActionEverywhere(baseTree, itemId) });
+      },
+      // ── Metrics ──
+      setMetric: (ownerId, metric) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: setMetricInTree(baseTree, ownerId, metric) });
+      },
+      bumpMetric: (metricId, delta) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: bumpMetricInTree(baseTree, metricId, delta) });
+      },
+      removeMetric: (ownerId, metricId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: removeMetricFromTree(baseTree, ownerId, metricId) });
       },
       openTree: () => dispatch({ type: "backToTree" }),
       planActionToday: (actionId) => {
@@ -577,31 +662,19 @@ export function AppProvider({
         const baseTree = treeRef.current;
         if (!baseTree) return;
         const today = localDay(new Date());
-        const hit = (baseTree.goals ?? []).flatMap((g) => g.actions).find((a) => a.id === actionId);
+        const hit = findAction(baseTree, actionId);
         // 用同一套口径判断"今天是否已完成"（一次性=done；daily=今天；weekly=本周内）。
-        const doneNow = hit ? isActionDoneToday(baseTree, hit, today) : false;
+        const doneNow = hit ? isActionDoneToday(baseTree, hit.item, today) : false;
         const next = doneNow
           ? uncompleteAction(baseTree, actionId, today)
           : completeAction(baseTree, actionId, today);
         dispatch({ type: "patchTree", tree: next });
       },
+      // 删除一条行动（task/habit，任意层）；removeItemById 的别名，保留旧调用点。
       removeActionById: (actionId) => {
         const baseTree = treeRef.current;
         if (!baseTree) return;
         dispatch({ type: "patchTree", tree: removeActionEverywhere(baseTree, actionId) });
-      },
-      setActionRepeatById: (goalId, actionId, repeat) => {
-        const baseTree = treeRef.current;
-        if (!baseTree) return;
-        const goal = (baseTree.goals ?? []).find((g) => g.id === goalId);
-        if (!goal) return;
-        const weekday = new Date().getUTCDay(); // anchor weekly to today's weekday (state boundary)
-        dispatch({ type: "patchTree", tree: upsertGoal(baseTree, setActionRepeat(goal, actionId, repeat, weekday)) });
-      },
-      setGoalDeadlineById: (goalId, date) => {
-        const baseTree = treeRef.current;
-        if (!baseTree) return;
-        dispatch({ type: "patchTree", tree: setGoalDeadline(baseTree, goalId, date) });
       },
       addGoalTagById: (goalId, tag) => {
         const baseTree = treeRef.current;
@@ -621,9 +694,9 @@ export function AppProvider({
       toggleActionOn: (actionId, date) => {
         const baseTree = treeRef.current;
         if (!baseTree) return;
-        const hit = (baseTree.goals ?? []).flatMap((g) => g.actions).find((a) => a.id === actionId);
+        const hit = findAction(baseTree, actionId);
         if (!hit) return;
-        const done = isActionDoneToday(baseTree, hit, date);
+        const done = isActionDoneToday(baseTree, hit.item, date);
         const next = done
           ? uncompleteAction(baseTree, actionId, date)
           : completeAction(baseTree, actionId, date);
@@ -642,10 +715,10 @@ export function AppProvider({
       arrangeDayWithAI: async (date) => {
         const baseTree = treeRef.current;
         if (!baseTree) return;
-        const items = actionsOnDay(baseTree, date).map(({ action }) => ({
-          id: action.id,
-          text: action.text,
-          durationMin: action.durationMin,
+        const items = actionsOnDay(baseTree, date).map(({ item }) => ({
+          id: item.id,
+          text: item.text,
+          durationMin: item.durationMin,
         }));
         if (!items.length) return;
         const plan = await fetchArrangeDay(items, dayWindow(baseTree));

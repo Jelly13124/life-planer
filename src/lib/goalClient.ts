@@ -1,10 +1,10 @@
 // 客户端安全：规划主线两条 AI 路由的网络封装。
-import type { Goal, GoalHorizon, LifeArea, LifeTree } from "@/domain/types";
+import type { Goal, LifeArea, LifeTree } from "@/domain/types";
 import { currentLocale } from "@/i18n/locale";
 
+// 目标建议：嵌套模型下的目标雏形（领域 + 标题 + 为什么；无 horizon）。
 export interface GoalSuggestion {
   area: LifeArea;
-  horizon: GoalHorizon;
   title: string;
   why: string;
 }
@@ -28,7 +28,7 @@ export async function fetchGoalSuggestions(tree: LifeTree): Promise<GoalSuggesti
   }
 }
 
-// 把一个目标拆成几条可勾选的近期行动。
+// 把一个目标拆成几条可勾选的近期行动（任务）。
 export async function fetchGoalActions(goal: Goal, profileSummary: string): Promise<string[]> {
   try {
     const res = await fetch("/api/goal-actions", {
@@ -38,7 +38,6 @@ export async function fetchGoalActions(goal: Goal, profileSummary: string): Prom
         goalTitle: goal.title,
         why: goal.why,
         area: goal.area,
-        horizon: goal.horizon,
         profileSummary,
         lang: currentLocale(),
       }),
