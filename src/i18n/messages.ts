@@ -493,4 +493,19 @@ export const EN: Record<string, string> = {
     "Check it off — watch yourself move one step closer to that future",
   "🎉 你已经走通了一圈！": "🎉 You've been all the way around!",
   开始用: "Start using it",
+
+  // ── 日视图 DayView（时间轴/时间块） ──
+  前一天: "Previous day",
+  后一天: "Next day",
+  起床: "Wake",
+  睡觉: "Sleep",
+  "✨ AI 帮我排今天": "✨ Let AI plan my day",
+  "正在排…": "Arranging…",
+  未排时间: "No time set",
+  设置开始时间: "Set start time",
+  清除时间: "Clear time",
+  标记完成: "Mark done",
+  标记未完成: "Mark not done",
+  "这天还没有安排。去日历把行动排到这天，或在「目标」里加行动。":
+    "Nothing on this day yet. Schedule actions onto it from the calendar, or add actions under Goals.",
 };
