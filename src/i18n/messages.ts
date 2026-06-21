@@ -518,4 +518,59 @@ export const EN: Record<string, string> = {
   标记未完成: "Mark not done",
   "这天还没有安排。去日历把行动排到这天，或在「目标」里加行动。":
     "Nothing on this day yet. Schedule actions onto it from the calendar, or add actions under Goals.",
+
+  // ── 嵌套规划 PlanScreen（领域 → 目标 → 子目标 → 指标/任务/习惯） ──
+  "把人生分成五个领域，每个目标拆成子目标、指标、任务和习惯，一步步靠近它。":
+    "Split life into five areas; break each goal into subgoals, metrics, tasks, and habits, and inch toward it step by step.",
+  "＋ 新目标": "＋ New goal",
+  创建目标: "Create goal",
+  "还没有目标。建一个目标，或让 AI 帮你想几个，看着它们在你的人生树上长出来。":
+    "No goals yet. Create one, or let AI suggest a few — and watch them grow on your life tree.",
+  "没有匹配这个标签的目标。": "No goals match this tag.",
+  "点「加入」才会进规划": "Only “Add” puts it into your plan",
+  // 目标卡 / 表单
+  "目标标题（如 半年内转岗到产品）": "Goal title (e.g. switch to product in 6 months)",
+  "为什么想做到它？（可选）": "Why do you want this? (optional)",
+  开始: "Start",
+  结束: "End",
+  "设置时间范围": "Set date range",
+  "🌳 成长为人生树的一条分支（AI 推演这条路的未来）":
+    "🌳 Grow it into a branch of your life tree (AI predicts where this path leads)",
+  "✎ 编辑": "✎ Edit",
+  "✅ 标记达成": "✅ Mark achieved",
+  已达成: "Achieved",
+  展开: "Expand",
+  保存: "Save",
+  "确定移除这个目标？它的子目标、任务、习惯、指标都会一起删除；关联的人生树分支也会被剪掉。":
+    "Remove this goal? Its subgoals, tasks, habits, and metrics are all deleted; any linked life-tree branch is pruned too.",
+  // 子目标
+  "＋ 子目标": "＋ Subgoal",
+  "子目标（如 通过产品经理面试）": "Subgoal (e.g. pass the PM interview)",
+  删除子目标: "Delete subgoal",
+  "删除这个子目标？它名下的任务、习惯、指标都会一起删除。":
+    "Delete this subgoal? Its tasks, habits, and metrics are all deleted.",
+  // 任务 / 习惯
+  "＋ 任务": "＋ Task",
+  "任务（如 投 5 份简历）": "Task (e.g. send 5 résumés)",
+  "＋ 习惯": "＋ Habit",
+  "习惯（如 每天读 20 页）": "Habit (e.g. read 20 pages a day)",
+  删除习惯: "Delete habit",
+  // 指标
+  "＋ 指标": "＋ Metric",
+  "指标名（如 存款 / 体脂）": "Metric name (e.g. savings / body fat)",
+  当前值: "Now",
+  目标值: "Target",
+  单位: "Unit",
+  增加: "Increase",
+  减少: "Decrease",
+  编辑指标: "Edit metric",
+  删除指标: "Delete metric",
+  // 星期几（习惯每周锚定）
+  周日: "Sun",
+  周一: "Mon",
+  周二: "Tue",
+  周三: "Wed",
+  周四: "Thu",
+  周五: "Fri",
+  周六: "Sat",
 };

@@ -7,21 +7,963 @@ import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
-import { AREA_LABELS, type Goal } from "@/domain/types";
-import { allTags, childGoals, daysUntilDeadline, dueGoalReviews, goalProgress } from "@/domain/goals";
-import { localDay } from "@/domain/daily";
-import { fetchGoalActions, fetchGoalSuggestions, type GoalSuggestion } from "@/lib/goalClient";
+import {
+  AREA_LABELS,
+  LIFE_AREAS,
+  type Goal,
+  type Habit,
+  type LifeArea,
+  type Metric,
+  type Subgoal,
+  type Task,
+} from "@/domain/types";
+import { allTags, dueGoalReviews, goalProgress } from "@/domain/goals";
+import { localTodayStr } from "@/lib/dailyClient";
+import { fetchGoalSuggestions, type GoalSuggestion } from "@/lib/goalClient";
 
-// 导入时取一次"今天"作初值（render 内不可调用 new Date）；挂载后用 effect 刷新。
-const _bootISO = new Date().toISOString();
+// 启动时取一次"今天"作初值（render 内不可调用 new Date）；挂载后用 effect 刷新。
+const _bootToday = localTodayStr();
 
+// 五个人生面的色彩 + 图标（沿用 AreasSection 的色板，本屏自带图标）。
+const AREA_COLORS: Record<LifeArea, string> = {
+  career: "var(--c-sky)",
+  wealth: "var(--c-amber)",
+  relationships: "var(--c-rose)",
+  health: "var(--c-emerald)",
+  growth: "var(--accent)",
+};
+const AREA_ICONS: Record<LifeArea, string> = {
+  career: "💼",
+  wealth: "💰",
+  relationships: "❤️",
+  health: "🌿",
+  growth: "🌱",
+};
+
+type TFn = (zh: string, vars?: Record<string, string | number>) => string;
+
+const WEEKDAY_KEYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"] as const;
+
+// ───────────────────────────────────────────────────────────────────────────
+// 小图标按钮：编辑/删除等次级操作，统一观感。
+// ───────────────────────────────────────────────────────────────────────────
+function IconButton({
+  label,
+  onClick,
+  danger,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] text-[var(--fg-faint)] transition hover:bg-white/5 ${
+        danger ? "hover:text-[var(--c-rose)]" : "hover:text-[var(--fg)]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ProgressBar({ value, color }: { value: number; color?: string }) {
+  return (
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+      <div
+        className="h-full rounded-full transition-all duration-500"
+        style={{ width: `${Math.round(value * 100)}%`, background: color ?? "var(--accent)" }}
+      />
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// 指标 Metric：标签 · current/target unit · 进度条 · −/＋ 微调 · 编辑 · 删除。
+// ownerId = 目标 id 或子目标 id。
+// ───────────────────────────────────────────────────────────────────────────
+function MetricRow({
+  metric,
+  ownerId,
+  t,
+}: {
+  metric: Metric;
+  ownerId: string;
+  t: TFn;
+}) {
+  const { bumpMetric, setMetric, removeMetric } = useApp();
+  const [editing, setEditing] = useState(false);
+  const pct = metric.target > 0 ? Math.max(0, Math.min(1, metric.current / metric.target)) : 0;
+
+  if (editing) {
+    return (
+      <MetricEditor
+        initial={metric}
+        t={t}
+        onCancel={() => setEditing(false)}
+        onSave={(m) => {
+          setMetric(ownerId, m);
+          setEditing(false);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-[var(--line)] bg-white/[0.02] px-3 py-2">
+      <span aria-hidden="true" className="text-xs">📊</span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="min-w-0 truncate text-sm text-[var(--fg)]">{metric.label}</span>
+          <span className="flex-shrink-0 text-xs tabular-nums text-[var(--fg-dim)]">
+            {metric.current}
+            <span className="text-[var(--fg-faint)]"> / {metric.target}</span>
+            {metric.unit && <span className="ml-0.5 text-[var(--fg-faint)]">{metric.unit}</span>}
+          </span>
+        </div>
+        <div className="mt-1.5">
+          <ProgressBar value={pct} />
+        </div>
+      </div>
+      <div className="flex flex-shrink-0 items-center gap-0.5">
+        <IconButton label={t("减少")} onClick={() => bumpMetric(metric.id, -1)}>
+          −
+        </IconButton>
+        <IconButton label={t("增加")} onClick={() => bumpMetric(metric.id, 1)}>
+          ＋
+        </IconButton>
+        <IconButton label={t("编辑指标")} onClick={() => setEditing(true)}>
+          ✎
+        </IconButton>
+        <IconButton label={t("删除指标")} danger onClick={() => removeMetric(ownerId, metric.id)}>
+          ✕
+        </IconButton>
+      </div>
+    </div>
+  );
+}
+
+// 指标编辑/新建表单：label / current / target / unit。
+function MetricEditor({
+  initial,
+  t,
+  onSave,
+  onCancel,
+}: {
+  initial?: Metric;
+  t: TFn;
+  onSave: (m: Metric) => void;
+  onCancel: () => void;
+}) {
+  const [label, setLabel] = useState(initial?.label ?? "");
+  const [current, setCurrent] = useState(String(initial?.current ?? 0));
+  const [target, setTarget] = useState(String(initial?.target ?? 100));
+  const [unit, setUnit] = useState(initial?.unit ?? "");
+
+  const inputCls =
+    "rounded-lg border border-[var(--line)] bg-[var(--bg-2)] px-2 py-1 text-xs text-[var(--fg)] outline-none transition focus:border-[var(--accent)] placeholder:text-[var(--fg-faint)]";
+
+  function save() {
+    if (!label.trim()) return;
+    onSave({
+      id: initial?.id ?? crypto.randomUUID(),
+      label: label.trim(),
+      current: Number(current) || 0,
+      target: Number(target) || 0,
+      unit: unit.trim(),
+    });
+  }
+
+  return (
+    <div className="space-y-2 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/[0.05] px-3 py-2.5">
+      <input
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        placeholder={t("指标名（如 存款 / 体脂）")}
+        className={`w-full ${inputCls}`}
+        autoFocus
+      />
+      <div className="flex items-center gap-2">
+        <label className="flex items-center gap-1 text-[10px] text-[var(--fg-faint)]">
+          {t("当前值")}
+          <input
+            type="number"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            className={`w-16 ${inputCls}`}
+          />
+        </label>
+        <label className="flex items-center gap-1 text-[10px] text-[var(--fg-faint)]">
+          {t("目标值")}
+          <input
+            type="number"
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+            className={`w-16 ${inputCls}`}
+          />
+        </label>
+        <input
+          value={unit}
+          onChange={(e) => setUnit(e.target.value)}
+          placeholder={t("单位")}
+          className={`w-16 ${inputCls}`}
+        />
+      </div>
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-full px-3 py-1 text-[11px] text-[var(--fg-faint)] transition hover:text-[var(--fg)]"
+        >
+          {t("取消")}
+        </button>
+        <button
+          type="button"
+          onClick={save}
+          className="rounded-full border border-[var(--accent)]/50 px-3 py-1 text-[11px] text-[var(--accent)] transition hover:bg-[var(--accent)]/15"
+        >
+          {t("保存")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// 任务 Task：勾选框（唯一的完成方式）+ 文本 + 删除。点击行不会切换完成。
+// ───────────────────────────────────────────────────────────────────────────
+function TaskRow({ task, t }: { task: Task; t: TFn }) {
+  const { toggleTodayAction, removeItemById } = useApp();
+  return (
+    <div className="flex items-center gap-2.5 px-1 py-1">
+      {/* 仅这个勾选框切换完成，避免整行点击误标完成 */}
+      <button
+        type="button"
+        onClick={() => toggleTodayAction(task.id)}
+        aria-label={task.done ? t("标记未完成") : t("标记完成")}
+        className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border text-[10px] transition ${
+          task.done
+            ? "border-[var(--c-emerald)] bg-[var(--c-emerald)]/20 text-[var(--c-emerald)]"
+            : "border-[var(--line)] hover:border-[var(--accent)]"
+        }`}
+      >
+        {task.done ? "✓" : ""}
+      </button>
+      <span
+        className={`min-w-0 flex-1 text-sm ${
+          task.done ? "text-[var(--fg-faint)] line-through" : "text-[var(--fg)]"
+        }`}
+      >
+        {task.text}
+      </span>
+      <IconButton label={t("删除任务")} danger onClick={() => removeItemById(task.id)}>
+        ✕
+      </IconButton>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// 习惯 Habit：图标 + 文本 + 重复徽章（每日/每周+星期几）+ 删除。
+// ───────────────────────────────────────────────────────────────────────────
+function HabitRow({ habit, t }: { habit: Habit; t: TFn }) {
+  const { removeItemById } = useApp();
+  const repeatLabel =
+    habit.repeat === "daily"
+      ? t("每日")
+      : habit.repeatWeekday != null
+        ? `${t("每周")} · ${t(WEEKDAY_KEYS[habit.repeatWeekday])}`
+        : t("每周");
+  return (
+    <div className="flex items-center gap-2.5 px-1 py-1">
+      <span aria-hidden="true" className="text-xs">🔁</span>
+      <span className="min-w-0 flex-1 text-sm text-[var(--fg)]">{habit.text}</span>
+      <span className="flex-shrink-0 rounded-full border border-[var(--accent)]/30 px-2 py-0.5 text-[10px] text-[var(--accent)]">
+        {repeatLabel}
+      </span>
+      <IconButton label={t("删除习惯")} danger onClick={() => removeItemById(habit.id)}>
+        ✕
+      </IconButton>
+    </div>
+  );
+}
+
+// 习惯输入：文本 + 每日/每周切换 +（每周时）星期几。
+function HabitComposer({
+  onAdd,
+  t,
+}: {
+  onAdd: (text: string, repeat: "daily" | "weekly", weekday?: number) => void;
+  t: TFn;
+}) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [repeat, setRepeat] = useState<"daily" | "weekly">("daily");
+  const [weekday, setWeekday] = useState(1);
+
+  if (!open) {
+    return (
+      <AddChip label={t("＋ 习惯")} onClick={() => setOpen(true)} />
+    );
+  }
+
+  function submit() {
+    if (!text.trim()) return;
+    onAdd(text.trim(), repeat, repeat === "weekly" ? weekday : undefined);
+    setText("");
+    setOpen(false);
+  }
+
+  return (
+    <div className="space-y-2 rounded-xl border border-[var(--line)] bg-white/[0.02] px-3 py-2.5">
+      <input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.nativeEvent.isComposing) submit();
+        }}
+        placeholder={t("习惯（如 每天读 20 页）")}
+        className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-2)] px-2.5 py-1.5 text-xs text-[var(--fg)] outline-none transition focus:border-[var(--accent)] placeholder:text-[var(--fg-faint)]"
+        autoFocus
+      />
+      <div className="flex flex-wrap items-center gap-1.5">
+        {(["daily", "weekly"] as const).map((r) => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => setRepeat(r)}
+            className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
+              repeat === r
+                ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]"
+                : "border-[var(--line)] text-[var(--fg-dim)] hover:text-[var(--fg)]"
+            }`}
+          >
+            {r === "daily" ? t("每日") : t("每周")}
+          </button>
+        ))}
+        {repeat === "weekly" && (
+          <select
+            value={weekday}
+            onChange={(e) => setWeekday(Number(e.target.value))}
+            className="rounded-full border border-[var(--line)] bg-[var(--bg-2)] px-2 py-1 text-[11px] text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:dark]"
+          >
+            {WEEKDAY_KEYS.map((k, i) => (
+              <option key={k} value={i}>
+                {t(k)}
+              </option>
+            ))}
+          </select>
+        )}
+        <div className="ml-auto flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="rounded-full px-2.5 py-1 text-[11px] text-[var(--fg-faint)] transition hover:text-[var(--fg)]"
+          >
+            {t("取消")}
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            className="rounded-full border border-[var(--accent)]/50 px-2.5 py-1 text-[11px] text-[var(--accent)] transition hover:bg-[var(--accent)]/15"
+          >
+            {t("添加")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 行内"＋ 子目标 / ＋ 任务 / ＋ 习惯 / ＋ 指标"按钮。
+function AddChip({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-full border border-dashed border-[var(--line)] px-2.5 py-1 text-[11px] text-[var(--fg-faint)] transition hover:border-[var(--accent)]/60 hover:text-[var(--accent)]"
+    >
+      {label}
+    </button>
+  );
+}
+
+// 行内单行文本输入（用于＋任务 /＋子目标）：回车提交，Esc 取消。
+function InlineTextAdd({
+  placeholder,
+  onAdd,
+  onCancel,
+}: {
+  placeholder: string;
+  onAdd: (text: string) => void;
+  onCancel: () => void;
+}) {
+  const [text, setText] = useState("");
+  return (
+    <input
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && !e.nativeEvent.isComposing && text.trim()) {
+          onAdd(text.trim());
+          setText("");
+        } else if (e.key === "Escape") {
+          onCancel();
+        }
+      }}
+      onBlur={() => {
+        if (text.trim()) onAdd(text.trim());
+        onCancel();
+      }}
+      placeholder={placeholder}
+      className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-2)] px-2.5 py-1.5 text-xs text-[var(--fg)] outline-none transition focus:border-[var(--accent)] placeholder:text-[var(--fg-faint)]"
+      autoFocus
+    />
+  );
+}
+
+// 一组"指标 / 任务 / 习惯"列表 + 各自的添加入口。goal/subgoal 两层共用。
+function ItemGroups({
+  ownerId,
+  goalId,
+  subgoalId,
+  metrics,
+  tasks,
+  habits,
+  t,
+}: {
+  ownerId: string; // metric owner（goal 或 subgoal id）
+  goalId: string;
+  subgoalId: string | null;
+  metrics: Metric[];
+  tasks: Task[];
+  habits: Habit[];
+  t: TFn;
+}) {
+  const { addTask, addHabit, setMetric } = useApp();
+  const [adding, setAdding] = useState<null | "task" | "metric">(null);
+
+  return (
+    <div className="space-y-2">
+      {/* 指标 */}
+      {metrics.length > 0 && (
+        <div className="space-y-1.5">
+          {metrics.map((m) => (
+            <MetricRow key={m.id} metric={m} ownerId={ownerId} t={t} />
+          ))}
+        </div>
+      )}
+
+      {/* 任务 */}
+      {tasks.length > 0 && (
+        <div>
+          {tasks.map((task) => (
+            <TaskRow key={task.id} task={task} t={t} />
+          ))}
+        </div>
+      )}
+
+      {/* 习惯 */}
+      {habits.length > 0 && (
+        <div>
+          {habits.map((h) => (
+            <HabitRow key={h.id} habit={h} t={t} />
+          ))}
+        </div>
+      )}
+
+      {/* 行内表单 */}
+      {adding === "metric" && (
+        <MetricEditor
+          t={t}
+          onCancel={() => setAdding(null)}
+          onSave={(m) => {
+            setMetric(ownerId, m);
+            setAdding(null);
+          }}
+        />
+      )}
+      {adding === "task" && (
+        <InlineTextAdd
+          placeholder={t("任务（如 投 5 份简历）")}
+          onAdd={(text) => addTask(goalId, subgoalId, text)}
+          onCancel={() => setAdding(null)}
+        />
+      )}
+
+      {/* 添加入口 */}
+      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+        <AddChip label={t("＋ 任务")} onClick={() => setAdding("task")} />
+        <HabitComposer
+          t={t}
+          onAdd={(text, repeat, weekday) => addHabit(goalId, subgoalId, text, repeat, weekday)}
+        />
+        <AddChip label={t("＋ 指标")} onClick={() => setAdding("metric")} />
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// 子目标 Subgoal：标题 + 删除；内嵌指标/任务/习惯组。
+// ───────────────────────────────────────────────────────────────────────────
+function SubgoalBlock({
+  goalId,
+  subgoal,
+  t,
+}: {
+  goalId: string;
+  subgoal: Subgoal;
+  t: TFn;
+}) {
+  const { removeSubgoal } = useApp();
+  return (
+    <div className="rounded-xl border border-[var(--line)] bg-white/[0.02] p-3">
+      <div className="mb-2 flex items-center gap-2">
+        <span aria-hidden="true" className="text-xs text-[var(--fg-dim)]">↳</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--fg)]">
+          {subgoal.title}
+        </span>
+        <IconButton
+          label={t("删除子目标")}
+          danger
+          onClick={() => {
+            if (confirm(t("删除这个子目标？它名下的任务、习惯、指标都会一起删除。"))) {
+              removeSubgoal(subgoal.id);
+            }
+          }}
+        >
+          ✕
+        </IconButton>
+      </div>
+      <ItemGroups
+        ownerId={subgoal.id}
+        goalId={goalId}
+        subgoalId={subgoal.id}
+        metrics={subgoal.metrics ?? []}
+        tasks={subgoal.tasks ?? []}
+        habits={subgoal.habits ?? []}
+        t={t}
+      />
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// 目标编辑器：title / why / area / 起止日期。新建 + 编辑共用。
+// ───────────────────────────────────────────────────────────────────────────
+interface GoalDraft {
+  area: LifeArea;
+  title: string;
+  why: string;
+  startDate: string;
+  endDate: string;
+}
+
+function GoalForm({
+  initial,
+  t,
+  onCancel,
+  onSubmit,
+  submitLabel,
+  showBranchOption,
+}: {
+  initial?: Partial<GoalDraft>;
+  t: TFn;
+  onCancel: () => void;
+  onSubmit: (draft: GoalDraft, withBranch: boolean) => void;
+  submitLabel: string;
+  showBranchOption?: boolean;
+}) {
+  const [area, setArea] = useState<LifeArea>(initial?.area ?? "career");
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [why, setWhy] = useState(initial?.why ?? "");
+  const [startDate, setStartDate] = useState(initial?.startDate ?? "");
+  const [endDate, setEndDate] = useState(initial?.endDate ?? "");
+  const [withBranch, setWithBranch] = useState(false);
+
+  const inputCls =
+    "w-full rounded-lg border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2 text-sm text-[var(--fg)] outline-none transition focus:border-[var(--accent)] placeholder:text-[var(--fg-faint)]";
+
+  return (
+    <Card pad="md" className="space-y-3 border-[var(--accent)]/40">
+      {/* 领域 */}
+      <div className="flex flex-wrap gap-1.5">
+        {LIFE_AREAS.map((a) => {
+          const active = area === a;
+          const color = AREA_COLORS[a];
+          return (
+            <button
+              key={a}
+              type="button"
+              onClick={() => setArea(a)}
+              className="rounded-full border px-3 py-1 text-xs transition"
+              style={
+                active
+                  ? { borderColor: color, color, background: `color-mix(in srgb, ${color} 15%, transparent)` }
+                  : { borderColor: "var(--line)", color: "var(--fg-dim)" }
+              }
+            >
+              {AREA_ICONS[a]} {t(AREA_LABELS[a])}
+            </button>
+          );
+        })}
+      </div>
+
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder={t("目标标题（如 半年内转岗到产品）")}
+        className={inputCls}
+        autoFocus
+      />
+      <textarea
+        value={why}
+        onChange={(e) => setWhy(e.target.value)}
+        placeholder={t("为什么想做到它？（可选）")}
+        rows={2}
+        className={`${inputCls} resize-none`}
+      />
+      <div className="flex flex-wrap items-center gap-3 text-xs">
+        <label className="flex items-center gap-1.5 text-[var(--fg-faint)]">
+          {t("开始")}
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-2 py-1 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:dark]"
+          />
+        </label>
+        <label className="flex items-center gap-1.5 text-[var(--fg-faint)]">
+          {t("结束")}
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-2 py-1 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:dark]"
+          />
+        </label>
+      </div>
+
+      {showBranchOption && (
+        <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--fg-dim)]">
+          <input
+            type="checkbox"
+            checked={withBranch}
+            onChange={(e) => setWithBranch(e.target.checked)}
+            className="h-3.5 w-3.5 accent-[var(--accent)]"
+          />
+          {t("🌳 成长为人生树的一条分支（AI 推演这条路的未来）")}
+        </label>
+      )}
+
+      <div className="flex justify-end gap-2 pt-0.5">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-full px-3 py-1.5 text-xs text-[var(--fg-faint)] transition hover:text-[var(--fg)]"
+        >
+          {t("取消")}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (!title.trim()) return;
+            onSubmit({ area, title: title.trim(), why: why.trim(), startDate, endDate }, withBranch);
+          }}
+          className="rounded-full border border-[var(--accent)]/60 bg-[var(--accent)]/10 px-3 py-1.5 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/20"
+        >
+          {submitLabel}
+        </button>
+      </div>
+    </Card>
+  );
+}
+
+// 目标标签行：chips + ＋标签。
+function GoalTagRow({ goal, t }: { goal: Goal; t: TFn }) {
+  const { addGoalTagById, removeGoalTagById } = useApp();
+  const [newTag, setNewTag] = useState("");
+  const tags = goal.tags ?? [];
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {tags.map((tag) => (
+        <span
+          key={tag}
+          className="flex items-center gap-1 rounded-full border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-2 py-0.5 text-[10px] text-[var(--accent)]"
+        >
+          {tag}
+          <button
+            type="button"
+            onClick={() => removeGoalTagById(goal.id, tag)}
+            className="ml-0.5 opacity-60 transition hover:opacity-100"
+            aria-label={`${t("移除标签")} ${tag}`}
+          >
+            ✕
+          </button>
+        </span>
+      ))}
+      <input
+        value={newTag}
+        onChange={(e) => setNewTag(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.nativeEvent.isComposing && newTag.trim()) {
+            addGoalTagById(goal.id, newTag.trim());
+            setNewTag("");
+          }
+        }}
+        placeholder={t("＋标签")}
+        className="w-16 rounded-full border border-[var(--line)] bg-transparent px-2 py-0.5 text-[10px] text-[var(--fg-dim)] outline-none transition focus:border-[var(--accent)] focus:text-[var(--fg)] placeholder:text-[var(--fg-faint)]"
+      />
+    </div>
+  );
+}
+
+// 起止时间范围展示 + 编辑（行内 toggle）。
+function DateRange({ goal, t }: { goal: Goal; t: TFn }) {
+  const { updateGoal } = useApp();
+  const [open, setOpen] = useState(false);
+  const fmt = (s?: string) => s || "—";
+
+  if (open) {
+    return (
+      <div className="flex flex-wrap items-center gap-3 text-xs">
+        <label className="flex items-center gap-1.5 text-[var(--fg-faint)]">
+          {t("开始")}
+          <input
+            type="date"
+            value={goal.startDate ?? ""}
+            onChange={(e) => updateGoal(goal.id, { startDate: e.target.value || undefined })}
+            className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-2 py-0.5 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:dark]"
+          />
+        </label>
+        <label className="flex items-center gap-1.5 text-[var(--fg-faint)]">
+          {t("结束")}
+          <input
+            type="date"
+            value={goal.endDate ?? ""}
+            onChange={(e) => updateGoal(goal.id, { endDate: e.target.value || undefined })}
+            className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-2 py-0.5 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:dark]"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="text-[11px] text-[var(--accent)] transition hover:underline"
+        >
+          {t("完成")}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      className="inline-flex items-center gap-1.5 text-xs text-[var(--fg-faint)] transition hover:text-[var(--fg-dim)]"
+    >
+      <span aria-hidden="true">🗓</span>
+      {goal.startDate || goal.endDate ? `${fmt(goal.startDate)} → ${fmt(goal.endDate)}` : t("设置时间范围")}
+    </button>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// 目标卡 GoalCard：可折叠。头部 = 标题/why/进度/时间范围/领域/标签/状态。
+// 展开体 = 目标级指标/任务/习惯 + 子目标。
+// ───────────────────────────────────────────────────────────────────────────
+function GoalCard({ goal, t }: { goal: Goal; t: TFn }) {
+  const { tree, openPath, updateGoal, removeGoalById, completeGoalById, addSubgoal } = useApp();
+  const [expanded, setExpanded] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [addingSub, setAddingSub] = useState(false);
+
+  const color = AREA_COLORS[goal.area];
+  // goalProgress 只读 goal 本身（tree 形参未用）；tree 不可能为空（PlanScreen 已守卫）。
+  const progress = useMemo(() => (tree ? goalProgress(tree, goal) : 0), [tree, goal]);
+  const done = goal.status === "done";
+
+  if (editing) {
+    return (
+      <GoalForm
+        initial={{
+          area: goal.area,
+          title: goal.title,
+          why: goal.why,
+          startDate: goal.startDate ?? "",
+          endDate: goal.endDate ?? "",
+        }}
+        t={t}
+        submitLabel={t("保存")}
+        onCancel={() => setEditing(false)}
+        onSubmit={(d) => {
+          updateGoal(goal.id, {
+            area: d.area,
+            title: d.title,
+            why: d.why,
+            startDate: d.startDate || undefined,
+            endDate: d.endDate || undefined,
+          });
+          setEditing(false);
+        }}
+      />
+    );
+  }
+
+  return (
+    <Card pad="md" className={done ? "opacity-70" : ""}>
+      {/* 头部 */}
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-label={expanded ? t("收起") : t("展开")}
+          aria-expanded={expanded}
+          className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-xs text-[var(--fg-faint)] transition hover:text-[var(--fg)]"
+        >
+          {expanded ? "▾" : "▸"}
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span
+              className={`min-w-0 text-base font-bold ${done ? "text-[var(--fg-dim)] line-through" : "text-[var(--fg)]"}`}
+            >
+              {goal.title}
+            </span>
+            {done && (
+              <span className="flex-shrink-0 rounded-full border border-[var(--c-emerald)]/40 bg-[var(--c-emerald)]/10 px-2 py-0.5 text-[10px] text-[var(--c-emerald)]">
+                {t("已达成")}
+              </span>
+            )}
+          </div>
+          {goal.why && (
+            <div className="mt-1 text-xs leading-relaxed text-[var(--fg-dim)]">{goal.why}</div>
+          )}
+        </div>
+        <span
+          className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px]"
+          style={{ background: `color-mix(in srgb, ${color} 15%, transparent)`, color }}
+        >
+          {AREA_ICONS[goal.area]} {t(AREA_LABELS[goal.area])}
+        </span>
+      </div>
+
+      {/* 进度条 */}
+      <div className="mt-3 flex items-center gap-2">
+        <ProgressBar value={progress} color={color} />
+        <span className="flex-shrink-0 text-xs tabular-nums text-[var(--fg-faint)]">
+          {t("进度 {pct}%", { pct: Math.round(progress * 100) })}
+        </span>
+      </div>
+
+      {/* 时间范围 + 标签 */}
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <DateRange goal={goal} t={t} />
+      </div>
+      <div className="mt-2">
+        <GoalTagRow goal={goal} t={t} />
+      </div>
+
+      {/* 在树上看 / 和未来的你聊聊 */}
+      {goal.pathId && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => goal.pathId && openPath(goal.pathId)}
+            className="rounded-full border border-[var(--accent)]/50 px-3 py-1 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/15"
+          >
+            {t("📈 在树上看这条路")}
+          </button>
+        </div>
+      )}
+
+      {/* 展开体 */}
+      {expanded && (
+        <div className="mt-3 space-y-3 border-t border-[var(--line)] pt-3">
+          {/* 目标级 指标/任务/习惯 */}
+          <ItemGroups
+            ownerId={goal.id}
+            goalId={goal.id}
+            subgoalId={null}
+            metrics={goal.metrics ?? []}
+            tasks={goal.tasks ?? []}
+            habits={goal.habits ?? []}
+            t={t}
+          />
+
+          {/* 子目标 */}
+          {(goal.subgoals ?? []).length > 0 && (
+            <div className="space-y-2">
+              {(goal.subgoals ?? []).map((s) => (
+                <SubgoalBlock key={s.id} goalId={goal.id} subgoal={s} t={t} />
+              ))}
+            </div>
+          )}
+
+          {/* ＋子目标 */}
+          {addingSub ? (
+            <InlineTextAdd
+              placeholder={t("子目标（如 通过产品经理面试）")}
+              onAdd={(title) => addSubgoal(goal.id, title)}
+              onCancel={() => setAddingSub(false)}
+            />
+          ) : (
+            <AddChip label={t("＋ 子目标")} onClick={() => setAddingSub(true)} />
+          )}
+        </div>
+      )}
+
+      {/* 底部操作 */}
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--line)] pt-3 text-xs">
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="rounded-full border border-[var(--line)] px-3 py-1 text-[var(--fg-dim)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
+        >
+          {t("✎ 编辑")}
+        </button>
+        {!done && (
+          <button
+            type="button"
+            onClick={() => completeGoalById(goal.id)}
+            className="rounded-full border border-[var(--c-emerald)]/50 px-3 py-1 text-[var(--c-emerald)] transition hover:bg-[var(--c-emerald)]/10"
+          >
+            {t("✅ 标记达成")}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            if (confirm(t("确定移除这个目标？它的子目标、任务、习惯、指标都会一起删除；关联的人生树分支也会被剪掉。"))) {
+              removeGoalById(goal.id);
+            }
+          }}
+          className="ml-auto rounded-full border border-[var(--line)] px-3 py-1 text-[var(--fg-faint)] transition hover:text-[var(--c-rose)]"
+        >
+          {t("移除")}
+        </button>
+      </div>
+    </Card>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// PlanScreen：领域分组 → 目标卡（嵌套子目标/指标/任务/习惯），全层级 CRUD。
+// ───────────────────────────────────────────────────────────────────────────
 export function PlanScreen() {
-  const { tree, openPath, addLongTermGoal, addShortTermGoal, setGoalActionTexts, toggleGoalActionById, completeGoalById, dropGoalById, markDueGoalsReviewed, planActionToday, setActionRepeatById, setGoalDeadlineById, addGoalTagById, removeGoalTagById, removeActionById } = useApp();
+  const { tree, addGoal, addGoalWithBranch, markDueGoalsReviewed } = useApp();
   const { t } = useT();
 
-  const [todayISO, setTodayISO] = useState(_bootISO);
+  const [todayStr, setTodayStr] = useState(_bootToday);
   useEffect(() => {
-    const update = () => setTodayISO(new Date().toISOString());
+    const update = () => setTodayStr(localTodayStr());
     update();
     document.addEventListener("visibilitychange", update);
     return () => document.removeEventListener("visibilitychange", update);
@@ -29,28 +971,27 @@ export function PlanScreen() {
 
   const [suggestions, setSuggestions] = useState<GoalSuggestion[]>([]);
   const [suggesting, setSuggesting] = useState(false);
-  const [added, setAdded] = useState<string[]>([]); // 已加入的候选 title
-  const [busyActions, setBusyActions] = useState<string | null>(null); // 正在拆行动的 goalId
-  const [tagFilter, setTagFilter] = useState<string | null>(null); // null = 全部
-
-  // todayDay は effect-backed todayISO から derive する（render 内で new Date() 不可）
-  const todayDay = localDay(new Date(todayISO));
+  const [added, setAdded] = useState<string[]>([]);
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const goals = useMemo(() => tree?.goals ?? [], [tree]);
-  const longGoals = goals.filter((g) => g.horizon === "long");
-  const allOrphanShort = goals.filter((g) => g.horizon === "short" && !g.parentGoalId);
-  const allActiveLong = longGoals.filter((g) => g.status === "active");
-  const doneLong = longGoals.filter((g) => g.status === "done");
-  const due = tree ? dueGoalReviews(tree, todayISO) : [];
+  const treeTags = useMemo(() => (tree ? allTags(tree) : []), [tree]);
+  const due = useMemo(() => (tree ? dueGoalReviews(tree, todayStr) : []), [tree, todayStr]);
 
-  const treeTags = tree ? allTags(tree) : [];
-  // reset filter if the active tag disappears (e.g. last goal with it was removed)
+  // 当筛选标签随目标删除而消失时，回落到全部
   const effectiveFilter = tagFilter && treeTags.includes(tagFilter) ? tagFilter : null;
 
-  const passesFilter = (g: (typeof goals)[number]) =>
-    effectiveFilter === null || (g.tags ?? []).includes(effectiveFilter);
-  const activeLong = allActiveLong.filter(passesFilter);
-  const orphanShort = allOrphanShort.filter(passesFilter);
+  // 按领域分组（5 个固定领域）。仅展示有目标的领域。
+  const grouped = useMemo(() => {
+    const visible = goals.filter(
+      (g) => effectiveFilter === null || (g.tags ?? []).includes(effectiveFilter),
+    );
+    return LIFE_AREAS.map((area) => ({
+      area,
+      goals: visible.filter((g) => g.area === area),
+    })).filter((grp) => grp.goals.length > 0);
+  }, [goals, effectiveFilter]);
 
   if (!tree) return null;
 
@@ -64,77 +1005,98 @@ export function PlanScreen() {
 
   function addSuggestion(s: GoalSuggestion) {
     if (added.includes(s.title)) return;
-    if (s.horizon === "long") addLongTermGoal({ area: s.area, title: s.title, why: s.why });
-    else addShortTermGoal({ area: s.area, title: s.title, why: s.why });
+    addGoal({ area: s.area, title: s.title, why: s.why });
     setAdded((a) => [...a, s.title]);
   }
-
-  async function breakIntoActions(goal: Goal) {
-    const currentTree = tree;
-    if (busyActions || !currentTree) return;
-    if (goal.actions.length > 0 && !confirm(t("重新拆解会覆盖现有行动（包括已设的重复和完成状态）。继续？"))) return;
-    setBusyActions(goal.id);
-    const texts = await fetchGoalActions(goal, currentTree.profile.snapshot || "");
-    setBusyActions(null);
-    if (texts.length) setGoalActionTexts(goal.id, texts);
-  }
-
-  const crossroad = tree.profile.crossroad?.trim();
-  const showCrossroadChip = Boolean(crossroad) && goals.length === 0;
 
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-10 sm:px-8">
       <SectionHeader
         eyebrow="Planning"
         title={t("我的规划")}
-        subtitle={t("先定长期目标——它会在你的人生树上长出一条路；用短期目标和行动一步步逼近它。")}
+        subtitle={t("把人生分成五个领域，每个目标拆成子目标、指标、任务和习惯，一步步靠近它。")}
+        actions={
+          <Button variant="primary" onClick={() => setCreating((v) => !v)}>
+            {t("＋ 新目标")}
+          </Button>
+        }
       />
 
+      {/* 该回看提醒 */}
       {due.length > 0 && (
         <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-[var(--c-amber)]/50 bg-[var(--c-amber)]/10 px-4 py-3 text-sm text-[var(--c-amber)]">
           <span>{t("该回看目标了：有 {n} 个目标一周没动过了。", { n: due.length })}</span>
-          <button onClick={markDueGoalsReviewed} className="flex-shrink-0 rounded-full border border-[var(--c-amber)]/60 px-3 py-1 text-xs transition hover:bg-[var(--c-amber)]/20">
+          <button
+            type="button"
+            onClick={markDueGoalsReviewed}
+            className="flex-shrink-0 rounded-full border border-[var(--c-amber)]/60 px-3 py-1 text-xs transition hover:bg-[var(--c-amber)]/20"
+          >
             {t("我回看过了")}
           </button>
         </div>
       )}
 
+      {/* 新目标表单 */}
+      {creating && (
+        <div className="mb-6">
+          <GoalForm
+            t={t}
+            submitLabel={t("创建目标")}
+            showBranchOption
+            onCancel={() => setCreating(false)}
+            onSubmit={(d, withBranch) => {
+              const payload = {
+                area: d.area,
+                title: d.title,
+                why: d.why,
+                startDate: d.startDate || undefined,
+                endDate: d.endDate || undefined,
+              };
+              if (withBranch) addGoalWithBranch(payload);
+              else addGoal(payload);
+              setCreating(false);
+            }}
+          />
+        </div>
+      )}
+
+      {/* AI 建议 */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Button variant="primary" onClick={suggest} disabled={suggesting}>
+        <Button variant="subtle" onClick={suggest} disabled={suggesting}>
           {suggesting ? t("正在想几个适合你的目标…") : t("✨ 帮我想几个目标")}
         </Button>
-        {showCrossroadChip && (
-          <button
-            onClick={() => addLongTermGoal({ area: "career", title: crossroad!, why: "" })}
-            className="rounded-full border border-[var(--accent)]/50 bg-[var(--accent)]/10 px-3 py-1.5 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/20"
-          >
-            {t("把「{label}」设成第一个长期目标", { label: crossroad! })}
-          </button>
-        )}
       </div>
 
       {suggestions.length > 0 && (
         <div className="mb-6 space-y-2 rounded-2xl border border-[var(--accent)]/30 bg-[var(--accent)]/[0.06] p-4">
           <div className="text-xs font-semibold text-[var(--fg)]">
-            {t("点「加入」才会进规划（长期目标会在树上长出一条路）")}
+            {t("点「加入」才会进规划")}
           </div>
           {suggestions.map((s) => {
             const isAdded = added.includes(s.title);
             return (
-              <div key={s.title} className="flex items-start justify-between gap-2 rounded-xl border border-[var(--line)] bg-white/5 px-3 py-2">
+              <div
+                key={s.title}
+                className="flex items-start justify-between gap-2 rounded-xl border border-[var(--line)] bg-white/5 px-3 py-2"
+              >
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-[var(--fg)]">
                     <span className="mr-1.5 rounded-full border border-[var(--line)] px-1.5 py-0.5 text-[10px] text-[var(--fg-dim)]">
-                      {s.horizon === "long" ? t("长期") : t("短期")} · {t(AREA_LABELS[s.area])}
+                      {AREA_ICONS[s.area]} {t(AREA_LABELS[s.area])}
                     </span>
                     {s.title}
                   </div>
                   {s.why && <div className="mt-0.5 text-xs text-[var(--fg-dim)]">{s.why}</div>}
                 </div>
                 <button
+                  type="button"
                   onClick={() => addSuggestion(s)}
                   disabled={isAdded}
-                  className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] transition ${isAdded ? "text-[var(--c-emerald)]" : "border border-[var(--accent)]/50 text-[var(--accent)] hover:bg-[var(--accent)]/15"}`}
+                  className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] transition ${
+                    isAdded
+                      ? "text-[var(--c-emerald)]"
+                      : "border border-[var(--accent)]/50 text-[var(--accent)] hover:bg-[var(--accent)]/15"
+                  }`}
                 >
                   {isAdded ? t("✓ 已加入") : t("加入")}
                 </button>
@@ -144,6 +1106,7 @@ export function PlanScreen() {
         </div>
       )}
 
+      {/* 标签筛选 */}
       {treeTags.length > 0 && (
         <div className="mb-5 flex flex-wrap gap-2">
           {[null, ...treeTags].map((tag) => {
@@ -151,8 +1114,13 @@ export function PlanScreen() {
             return (
               <button
                 key={tag ?? "__all__"}
+                type="button"
                 onClick={() => setTagFilter(tag)}
-                className={`rounded-full border px-3 py-1 text-xs transition ${active ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]" : "border-[var(--line)] text-[var(--fg-dim)] hover:border-[var(--accent)]/50 hover:text-[var(--fg)]"}`}
+                className={`rounded-full border px-3 py-1 text-xs transition ${
+                  active
+                    ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]"
+                    : "border-[var(--line)] text-[var(--fg-dim)] hover:border-[var(--accent)]/50 hover:text-[var(--fg)]"
+                }`}
               >
                 {tag ?? t("全部")}
               </button>
@@ -161,351 +1129,52 @@ export function PlanScreen() {
         </div>
       )}
 
-      {activeLong.length > 0 && (
-        <section className="mb-7 space-y-3">
-          <h2 className="text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("长期目标")}</h2>
-          {activeLong.map((g) => (
-            <LongGoalCard
-              key={g.id}
-              goal={g}
-              progress={goalProgress(tree, g)}
-              kids={childGoals(tree, g.id)}
-              breaking={busyActions === g.id}
-              t={t}
-              todayDay={todayDay}
-              onOpenPath={() => g.pathId && openPath(g.pathId)}
-              onBreak={() => breakIntoActions(g)}
-              onToggle={(aid) => toggleGoalActionById(g.id, aid)}
-              onComplete={() => completeGoalById(g.id)}
-              onDrop={() => {
-                if (confirm(t("确定移除这个目标？长期目标会连同它在树上的分支一起删除。"))) dropGoalById(g.id);
-              }}
-              onAddShort={(title) => addShortTermGoal({ area: g.area, title, why: "", parentGoalId: g.id })}
-              onPlanToday={(aid) => planActionToday(aid)}
-              onSetRepeat={(aid, r) => setActionRepeatById(g.id, aid, r)}
-              onDeleteAction={(aid) => removeActionById(aid)}
-              onSetDeadline={(date) => setGoalDeadlineById(g.id, date)}
-              onAddTag={(tag) => addGoalTagById(g.id, tag)}
-              onRemoveTag={(tag) => removeGoalTagById(g.id, tag)}
-            />
-          ))}
-        </section>
-      )}
-
-      {orphanShort.length > 0 && (
-        <section className="mb-7 space-y-3">
-          <h2 className="text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("短期目标")}</h2>
-          {orphanShort.map((g) => (
-            <ShortGoalRow
-              key={g.id}
-              goal={g}
-              breaking={busyActions === g.id}
-              t={t}
-              todayDay={todayDay}
-              onBreak={() => breakIntoActions(g)}
-              onToggle={(aid) => toggleGoalActionById(g.id, aid)}
-              onComplete={() => completeGoalById(g.id)}
-              onDrop={() => dropGoalById(g.id)}
-              onPlanToday={(aid) => planActionToday(aid)}
-              onSetRepeat={(aid, r) => setActionRepeatById(g.id, aid, r)}
-              onDeleteAction={(aid) => removeActionById(aid)}
-              onSetDeadline={(date) => setGoalDeadlineById(g.id, date)}
-              onAddTag={(tag) => addGoalTagById(g.id, tag)}
-              onRemoveTag={(tag) => removeGoalTagById(g.id, tag)}
-            />
-          ))}
-        </section>
-      )}
-
-      {doneLong.length > 0 && (
-        <section className="mb-7">
-          <h2 className="text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("已达成的里程碑")}</h2>
-          <div className="mt-3 space-y-1.5">
-            {doneLong.map((g) => (
-              <div key={g.id} className="flex items-center gap-2.5 rounded-xl border border-[var(--c-emerald)]/40 bg-[var(--c-emerald)]/10 px-4 py-2.5 text-sm">
-                <span aria-hidden="true">🏆</span>
-                <span className="min-w-0 truncate text-[var(--fg)]">{g.title}</span>
-                <span className="ml-auto flex-shrink-0 text-xs text-[var(--c-emerald)]">{t("已达成 · {area}+", { area: t(AREA_LABELS[g.area]) })}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {goals.length === 0 && suggestions.length === 0 && (
-        <EmptyState
-          className="mt-4"
-          icon="🌱"
-          accent="var(--accent)"
-          description={t("还没有目标。让 AI 帮你想几个，看着它们在你的人生树上长出来。")}
-          action={
-            <Button variant="primary" onClick={suggest} disabled={suggesting}>
-              {suggesting ? t("正在想几个适合你的目标…") : t("✨ 帮我想几个目标")}
-            </Button>
-          }
-        />
-      )}
-    </div>
-  );
-}
-
-type TFn = (zh: string, vars?: Record<string, string | number>) => string;
-
-const REPEAT_LABEL = (t: TFn, r: "daily" | "weekly" | undefined) =>
-  r === "daily" ? t("🔁每天") : r === "weekly" ? t("🔁每周") : t("🔁重复");
-const NEXT_REPEAT = (r: "daily" | "weekly" | undefined): "daily" | "weekly" | undefined =>
-  r === undefined ? "daily" : r === "daily" ? "weekly" : undefined;
-
-function ProgressBar({ value }: { value: number }) {
-  return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-      <div className="h-full rounded-full bg-[var(--accent)] transition-all" style={{ width: `${Math.round(value * 100)}%` }} />
-    </div>
-  );
-}
-
-function Actions({
-  goal, t, onToggle, onPlanToday, onSetRepeat, onDelete,
-}: {
-  goal: Goal; t: TFn;
-  onToggle: (actionId: string) => void;
-  onPlanToday: (actionId: string) => void;
-  onSetRepeat: (actionId: string, repeat: "daily" | "weekly" | undefined) => void;
-  onDelete: (actionId: string) => void;
-}) {
-  if (goal.actions.length === 0) return null;
-  return (
-    <ul className="mt-2 space-y-1">
-      {goal.actions.map((a) => (
-        <li key={a.id} className="flex items-center gap-2">
-          {/* 仅这个勾选框切换完成，避免整行点击误标完成 */}
-          <button
-            onClick={() => onToggle(a.id)}
-            aria-label={a.done ? t("标记未完成") : t("标记完成")}
-            className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border text-[10px] transition ${a.done ? "border-[var(--c-emerald)] bg-[var(--c-emerald)]/20 text-[var(--c-emerald)]" : "border-[var(--line)] hover:border-[var(--accent)]"}`}
-          >
-            {a.done ? "✓" : ""}
-          </button>
-          <span className={`min-w-0 flex-1 text-sm ${a.done ? "text-[var(--fg-faint)] line-through" : "text-[var(--fg)]"}`}>{a.text}</span>
-          <button
-            onClick={() => onSetRepeat(a.id, NEXT_REPEAT(a.repeat))}
-            className={`flex-shrink-0 rounded-full border px-2 py-0.5 text-[10px] transition ${a.repeat ? "border-[var(--accent)]/60 text-[var(--accent)]" : "border-[var(--line)] text-[var(--fg-faint)] hover:text-[var(--fg-dim)]"}`}
-          >
-            {REPEAT_LABEL(t, a.repeat)}
-          </button>
-          {!a.repeat && !a.done && (
-            <button onClick={() => onPlanToday(a.id)} className="flex-shrink-0 rounded-full border border-[var(--line)] px-2 py-0.5 text-[10px] text-[var(--fg-dim)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]">
-              {t("＋今天")}
-            </button>
-          )}
-          <button
-            onClick={() => onDelete(a.id)}
-            aria-label={t("删除任务")}
-            title={t("删除任务")}
-            className="flex-shrink-0 rounded-full px-1.5 py-0.5 text-[11px] text-[var(--fg-faint)] transition hover:text-[var(--c-rose)]"
-          >
-            ✕
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function DeadlineControl({
-  goal, todayDay, t, onSetDeadline,
-}: {
-  goal: Goal; todayDay: string; t: TFn; onSetDeadline: (date: string | null) => void;
-}) {
-  const days = daysUntilDeadline(goal, todayDay);
-  return (
-    <div className="mt-2 flex items-center gap-2 text-xs">
-      <span className="text-[var(--fg-faint)]">{t("截止")}</span>
-      <input
-        type="date"
-        value={goal.deadline ?? ""}
-        onChange={(e) => onSetDeadline(e.target.value || null)}
-        className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-2 py-0.5 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:dark]"
-      />
-      {days !== null && (
-        <span
-          className={
-            days < 0
-              ? "text-[var(--c-rose)]"
-              : days === 0
-                ? "text-[var(--c-amber)]"
-                : "text-[var(--fg-dim)]"
-          }
-        >
-          {days > 0
-            ? t("剩 {n} 天", { n: days })
-            : days === 0
-              ? t("今天截止")
-              : t("逾期 {n} 天", { n: -days })}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function GoalTagRow({
-  goal, t, onAddTag, onRemoveTag, newTag, setNewTag,
-}: {
-  goal: Goal; t: TFn;
-  onAddTag: (tag: string) => void; onRemoveTag: (tag: string) => void;
-  newTag: string; setNewTag: (v: string) => void;
-}) {
-  const tags = goal.tags ?? [];
-  return (
-    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-      {tags.map((tag) => (
-        <span key={tag} className="flex items-center gap-1 rounded-full border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-2 py-0.5 text-[10px] text-[var(--accent)]">
-          {tag}
-          <button
-            onClick={() => onRemoveTag(tag)}
-            className="ml-0.5 opacity-60 hover:opacity-100"
-            aria-label={`${t("移除标签")} ${tag}`}
-          >
-            ✕
-          </button>
-        </span>
-      ))}
-      <input
-        value={newTag}
-        onChange={(e) => setNewTag(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.nativeEvent.isComposing && newTag.trim()) {
-            onAddTag(newTag.trim());
-            setNewTag("");
-          }
-        }}
-        placeholder={t("＋标签")}
-        className="w-16 rounded-full border border-[var(--line)] bg-transparent px-2 py-0.5 text-[10px] text-[var(--fg-dim)] outline-none transition focus:border-[var(--accent)] focus:text-[var(--fg)] placeholder:text-[var(--fg-faint)]"
-      />
-    </div>
-  );
-}
-
-function LongGoalCard({
-  goal, progress, kids, breaking, t, todayDay, onOpenPath, onBreak, onToggle, onComplete, onDrop, onAddShort, onPlanToday, onSetRepeat, onDeleteAction, onSetDeadline, onAddTag, onRemoveTag,
-}: {
-  goal: Goal; progress: number; kids: Goal[]; breaking: boolean; t: TFn; todayDay: string;
-  onOpenPath: () => void; onBreak: () => void; onToggle: (actionId: string) => void;
-  onComplete: () => void; onDrop: () => void; onAddShort: (title: string) => void;
-  onPlanToday: (actionId: string) => void; onSetRepeat: (actionId: string, repeat: "daily" | "weekly" | undefined) => void;
-  onDeleteAction: (actionId: string) => void;
-  onSetDeadline: (date: string | null) => void;
-  onAddTag: (tag: string) => void; onRemoveTag: (tag: string) => void;
-}) {
-  const [newKid, setNewKid] = useState("");
-  const [newTag, setNewTag] = useState("");
-  return (
-    <Card pad="md">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-base font-bold text-[var(--fg)]">{goal.title}</div>
-          {goal.why && <div className="mt-1 text-xs leading-relaxed text-[var(--fg-dim)]">{goal.why}</div>}
+      {/* 领域分组 */}
+      {grouped.length > 0 ? (
+        <div className="space-y-7">
+          {grouped.map(({ area, goals: areaGoals }) => {
+            const color = AREA_COLORS[area];
+            return (
+              <section key={area}>
+                <h2
+                  className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider"
+                  style={{ color }}
+                >
+                  <span aria-hidden="true">{AREA_ICONS[area]}</span>
+                  {t(AREA_LABELS[area])}
+                  <span className="text-[var(--fg-faint)]">· {areaGoals.length}</span>
+                </h2>
+                <div className="space-y-3">
+                  {areaGoals.map((g) => (
+                    <GoalCard key={g.id} goal={g} t={t} />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
         </div>
-        <span className="flex-shrink-0 rounded-full border border-[var(--line)] px-2 py-0.5 text-[10px] text-[var(--fg-dim)]">
-          {t(AREA_LABELS[goal.area])}
-        </span>
-      </div>
-
-      <div className="mt-3 flex items-center gap-2">
-        <ProgressBar value={progress} />
-        <span className="flex-shrink-0 text-xs text-[var(--fg-faint)]">{t("进度 {pct}%", { pct: Math.round(progress * 100) })}</span>
-      </div>
-
-      <DeadlineControl goal={goal} todayDay={todayDay} t={t} onSetDeadline={onSetDeadline} />
-
-      <GoalTagRow goal={goal} t={t} onAddTag={onAddTag} onRemoveTag={onRemoveTag} newTag={newTag} setNewTag={setNewTag} />
-
-      <div className="mt-2 flex flex-wrap gap-2">
-        {goal.pathId && (
-          <button onClick={onOpenPath} className="rounded-full border border-[var(--line)] px-3 py-1 text-xs text-[var(--fg-dim)] transition hover:text-[var(--fg)]">
-            {t("📈 在树上看这条路")}
-          </button>
-        )}
-        {goal.pathId && (
-          <button onClick={onOpenPath} className="rounded-full border border-[var(--accent)]/50 px-3 py-1 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/15">
-            {t("✨ 和达成目标的未来的你聊聊")}
-          </button>
-        )}
-      </div>
-
-      {kids.length > 0 && (
-        <ul className="mt-3 space-y-1 border-l border-[var(--line)] pl-3">
-          {kids.map((k) => (
-            <li key={k.id} className="text-sm">
-              <span className={k.status === "done" ? "text-[var(--fg-faint)] line-through" : "text-[var(--fg)]"}>· {k.title}</span>
-            </li>
-          ))}
-        </ul>
+      ) : (
+        goals.length === 0 && (
+          <EmptyState
+            className="mt-4"
+            icon="🌱"
+            accent="var(--accent)"
+            description={t("还没有目标。建一个目标，或让 AI 帮你想几个，看着它们在你的人生树上长出来。")}
+            action={
+              <Button variant="primary" onClick={() => setCreating(true)}>
+                {t("＋ 新目标")}
+              </Button>
+            }
+          />
+        )
       )}
 
-      <Actions goal={goal} t={t} onToggle={onToggle} onPlanToday={onPlanToday} onSetRepeat={onSetRepeat} onDelete={onDeleteAction} />
-
-      <div className="mt-3 flex items-center gap-2">
-        <input
-          value={newKid}
-          onChange={(e) => setNewKid(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && newKid.trim()) { onAddShort(newKid.trim()); setNewKid(""); } }}
-          placeholder={t("加一个短期目标（踏脚石）")}
-          className="flex-1 rounded-full border border-[var(--line)] bg-[var(--bg-2)] px-3 py-1.5 text-xs text-[var(--fg)] outline-none transition focus:border-[var(--accent)] placeholder:text-[var(--fg-faint)]"
-        />
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--line)] pt-3 text-xs">
-        <button onClick={onBreak} disabled={breaking} className="rounded-full border border-[var(--accent)]/50 px-3 py-1 text-[var(--accent)] transition hover:bg-[var(--accent)]/15 disabled:opacity-50">
-          {breaking ? t("正在拆解…") : t("✨ 拆成行动")}
-        </button>
-        <button onClick={onComplete} className="rounded-full border border-[var(--c-emerald)]/50 px-3 py-1 text-[var(--c-emerald)] transition hover:bg-[var(--c-emerald)]/10">
-          {t("✅ 已达成")}
-        </button>
-        <button onClick={onDrop} className="ml-auto rounded-full border border-[var(--line)] px-3 py-1 text-[var(--fg-faint)] transition hover:text-[var(--c-rose)]">
-          {t("移除")}
-        </button>
-      </div>
-    </Card>
-  );
-}
-
-function ShortGoalRow({
-  goal, breaking, t, todayDay, onBreak, onToggle, onComplete, onDrop, onPlanToday, onSetRepeat, onDeleteAction, onSetDeadline, onAddTag, onRemoveTag,
-}: {
-  goal: Goal; breaking: boolean; t: TFn; todayDay: string;
-  onBreak: () => void; onToggle: (actionId: string) => void; onComplete: () => void; onDrop: () => void;
-  onPlanToday: (actionId: string) => void; onSetRepeat: (actionId: string, repeat: "daily" | "weekly" | undefined) => void;
-  onDeleteAction: (actionId: string) => void;
-  onSetDeadline: (date: string | null) => void;
-  onAddTag: (tag: string) => void; onRemoveTag: (tag: string) => void;
-}) {
-  const [newTag, setNewTag] = useState("");
-  return (
-    <Card pad="md">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-sm font-bold text-[var(--fg)]">{goal.title}</div>
-          {goal.why && <div className="mt-1 text-xs leading-relaxed text-[var(--fg-dim)]">{goal.why}</div>}
-        </div>
-        <span className="flex-shrink-0 rounded-full border border-[var(--line)] px-2 py-0.5 text-[10px] text-[var(--fg-dim)]">
-          {t(AREA_LABELS[goal.area])}
-        </span>
-      </div>
-      <DeadlineControl goal={goal} todayDay={todayDay} t={t} onSetDeadline={onSetDeadline} />
-      <GoalTagRow goal={goal} t={t} onAddTag={onAddTag} onRemoveTag={onRemoveTag} newTag={newTag} setNewTag={setNewTag} />
-      <Actions goal={goal} t={t} onToggle={onToggle} onPlanToday={onPlanToday} onSetRepeat={onSetRepeat} onDelete={onDeleteAction} />
-      <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--line)] pt-3 text-xs">
-        <button onClick={onBreak} disabled={breaking} className="rounded-full border border-[var(--accent)]/50 px-3 py-1 text-[var(--accent)] transition hover:bg-[var(--accent)]/15 disabled:opacity-50">
-          {breaking ? t("正在拆解…") : t("✨ 拆成行动")}
-        </button>
-        <button onClick={onComplete} className="rounded-full border border-[var(--c-emerald)]/50 px-3 py-1 text-[var(--c-emerald)] transition hover:bg-[var(--c-emerald)]/10">
-          {t("✅ 已达成")}
-        </button>
-        <button onClick={onDrop} className="ml-auto rounded-full border border-[var(--line)] px-3 py-1 text-[var(--fg-faint)] transition hover:text-[var(--c-rose)]">
-          {t("移除")}
-        </button>
-      </div>
-    </Card>
+      {/* 有目标但被筛选清空 */}
+      {goals.length > 0 && grouped.length === 0 && (
+        <p className="mt-4 text-center text-sm text-[var(--fg-faint)]">
+          {t("没有匹配这个标签的目标。")}
+        </p>
+      )}
+    </div>
   );
 }
