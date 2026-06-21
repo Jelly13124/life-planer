@@ -3,7 +3,7 @@ import {
   weekdayOf, monthGrid, actionsOnDay, unscheduledActions, setActionScheduledDate,
 } from "@/domain/calendar";
 import { createTree } from "@/domain/tree";
-import { createGoal, upsertGoal, setGoalActions } from "@/domain/goals";
+import { addGoal, addHabit, addTask } from "@/domain/goalTree";
 import { completeAction } from "@/domain/daily";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
 import type { LifeTree, Profile } from "@/domain/types";
@@ -17,22 +17,18 @@ const profile: Profile = {
 const gen = new LocalPathGenerator();
 const NOW = "2026-06-19T00:00:00.000Z";
 
-// 一棵带一个短期目标(三条行动)的树
-function withActions(): { tree: LifeTree; goalId: string; a: string[] } {
+// 一棵带一个目标 + 三个一次性 Task 的树。
+function withTasks(): { tree: LifeTree; goalId: string; a: string[] } {
   let t = createTree(profile, gen, NOW);
-  let g = createGoal({ area: "growth", horizon: "short", title: "找工作", why: "" }, NOW);
-  g = setGoalActions(g, ["改简历", "投简历", "背单词"]);
-  t = upsertGoal(t, g);
-  return { tree: t, goalId: g.id, a: g.actions.map((x) => x.id) };
-}
-
-function setAction(tree: LifeTree, goalId: string, actionId: string, patch: Record<string, unknown>): LifeTree {
-  return {
-    ...tree,
-    goals: tree.goals.map((g) =>
-      g.id === goalId ? { ...g, actions: g.actions.map((x) => (x.id === actionId ? { ...x, ...patch } : x)) } : g,
-    ),
-  };
+  const g = addGoal(t, { area: "growth", title: "找工作" }, NOW);
+  t = g.tree;
+  const a: string[] = [];
+  for (const text of ["改简历", "投简历", "背单词"]) {
+    const r = addTask(t, g.id, null, text, `${NOW}-${text}`);
+    t = r.tree;
+    a.push(r.id);
+  }
+  return { tree: t, goalId: g.id, a };
 }
 
 describe("calendar domain", () => {
@@ -53,55 +49,47 @@ describe("calendar domain", () => {
     expect(grid.find((c) => c.date === "2026-07-01")?.inMonth).toBe(false);
   });
 
-  it("actionsOnDay: scheduled one-shot only on its date", () => {
-    const w = withActions();
-    let tree = w.tree;
-    const a = w.a;
-    tree = setActionScheduledDate(tree, a[0], "2026-06-22");
-    expect(actionsOnDay(tree, "2026-06-22").map((x) => x.action.id)).toContain(a[0]);
-    expect(actionsOnDay(tree, "2026-06-23").map((x) => x.action.id)).not.toContain(a[0]);
-    expect(actionsOnDay(tree, "2026-06-22").find((x) => x.action.id === a[0])!.kind).toBe("scheduled");
+  it("actionsOnDay: scheduled task only on its date", () => {
+    const w = withTasks();
+    const tree = setActionScheduledDate(w.tree, w.a[0], "2026-06-22");
+    expect(actionsOnDay(tree, "2026-06-22").map((x) => x.item.id)).toContain(w.a[0]);
+    expect(actionsOnDay(tree, "2026-06-23").map((x) => x.item.id)).not.toContain(w.a[0]);
+    expect(actionsOnDay(tree, "2026-06-22").find((x) => x.item.id === w.a[0])!.kind).toBe("scheduled");
   });
 
   it("actionsOnDay: daily every day; weekly only on its anchor weekday", () => {
-    const w = withActions();
-    let tree = w.tree;
-    const a = w.a;
-    const goalId = w.goalId;
-    tree = setAction(tree, goalId, a[1], { repeat: "daily" });
-    tree = setAction(tree, goalId, a[2], { repeat: "weekly", repeatWeekday: 1 }); // Monday
-    expect(actionsOnDay(tree, "2026-06-22").map((x) => x.action.id)).toEqual(expect.arrayContaining([a[1], a[2]])); // Mon
-    const tue = actionsOnDay(tree, "2026-06-23").map((x) => x.action.id);
-    expect(tue).toContain(a[1]);      // daily still
-    expect(tue).not.toContain(a[2]);  // weekly anchored to Monday
+    const w = withTasks();
+    // daily habit + weekly habit anchored to Monday (1)
+    const d = addHabit(w.tree, w.goalId, null, "每天背单词", "daily", undefined, `${NOW}-d`);
+    const wk = addHabit(d.tree, w.goalId, null, "每周复盘", "weekly", 1, `${NOW}-w`);
+    const tree = wk.tree;
+    expect(actionsOnDay(tree, "2026-06-22").map((x) => x.item.id)).toEqual(
+      expect.arrayContaining([d.id, wk.id]),
+    ); // Monday
+    const tue = actionsOnDay(tree, "2026-06-23").map((x) => x.item.id);
+    expect(tue).toContain(d.id);      // daily still
+    expect(tue).not.toContain(wk.id); // weekly anchored to Monday
   });
 
   it("actionsOnDay: done flag reflects completion on that day", () => {
-    const w = withActions();
-    let tree = w.tree;
-    const a = w.a;
-    tree = setActionScheduledDate(tree, a[0], "2026-06-22");
-    tree = completeAction(tree, a[0], "2026-06-22");
-    expect(actionsOnDay(tree, "2026-06-22").find((x) => x.action.id === a[0])!.done).toBe(true);
+    const w = withTasks();
+    let tree = setActionScheduledDate(w.tree, w.a[0], "2026-06-22");
+    tree = completeAction(tree, w.a[0], "2026-06-22");
+    expect(actionsOnDay(tree, "2026-06-22").find((x) => x.item.id === w.a[0])!.done).toBe(true);
   });
 
-  it("unscheduledActions: active one-shot, not done, no scheduledDate", () => {
-    const w = withActions();
-    let tree = w.tree;
-    const a = w.a;
-    const goalId = w.goalId;
-    tree = setActionScheduledDate(tree, a[0], "2026-06-22"); // scheduled → excluded
-    tree = setAction(tree, goalId, a[1], { repeat: "daily" }); // recurring → excluded
-    expect(unscheduledActions(tree).map((x) => x.action.id)).toEqual([a[2]]);
+  it("unscheduledActions: active task, not done, no scheduledDate", () => {
+    const w = withTasks();
+    let tree = setActionScheduledDate(w.tree, w.a[0], "2026-06-22"); // scheduled → excluded
+    tree = completeAction(tree, w.a[1], "2026-06-22");               // done → excluded
+    expect(unscheduledActions(tree).map((x) => x.item.id)).toEqual([w.a[2]]);
   });
 
   it("setActionScheduledDate sets and clears", () => {
-    const w = withActions();
-    let tree = w.tree;
-    const a = w.a;
-    tree = setActionScheduledDate(tree, a[0], "2026-06-22");
+    const w = withTasks();
+    let tree = setActionScheduledDate(w.tree, w.a[0], "2026-06-22");
     expect(actionsOnDay(tree, "2026-06-22").length).toBe(1);
-    tree = setActionScheduledDate(tree, a[0], null);
-    expect(unscheduledActions(tree).map((x) => x.action.id)).toContain(a[0]);
+    tree = setActionScheduledDate(tree, w.a[0], null);
+    expect(unscheduledActions(tree).map((x) => x.item.id)).toContain(w.a[0]);
   });
 });

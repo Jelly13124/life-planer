@@ -1,9 +1,11 @@
-import type { Goal, GoalAction, LifeTree } from "./types";
+import type { Goal, Habit, LifeTree, Task } from "./types";
 import { addDays, isActionDoneToday } from "./daily";
+import { allHabits, allTasks, updateTask } from "./goalTree";
 
 // ───────────────────────────────────────────────────────────────────────────
 // calendar —— 月历排程的纯函数。日期一律 "YYYY-MM-DD"，用 UTC 解析避免时区漂移
 // （与 daily.ts 一致）。不用 Date.now/Math.random：年月/日期由 state/组件注入。
+// 模型：嵌套目标 —— 排期落在一次性 Task.scheduledDate；重复 Habit 按 repeat 显示。
 // ───────────────────────────────────────────────────────────────────────────
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -32,51 +34,41 @@ export function monthGrid(year: number, month: number): { date: string; inMonth:
 
 export type DayActionKind = "scheduled" | "daily" | "weekly";
 
-// 某天要在月历上显示的行动（仅 active 目标）。
+// 某天要在月历上显示的行动（仅 active 目标）：
+// 排到该日的一次性 Task（scheduled）+ 该日该做的重复 Habit（daily 永远；weekly 锚定星期几）。
 export function actionsOnDay(
   tree: LifeTree,
   date: string,
-): { goal: Goal; action: GoalAction; kind: DayActionKind; done: boolean }[] {
+): { goal: Goal; item: Task | Habit; kind: DayActionKind; done: boolean }[] {
   const wd = weekdayOf(date);
-  const out: { goal: Goal; action: GoalAction; kind: DayActionKind; done: boolean }[] = [];
-  for (const goal of tree.goals ?? []) {
+  const out: { goal: Goal; item: Task | Habit; kind: DayActionKind; done: boolean }[] = [];
+  for (const { goal, task } of allTasks(tree)) {
     if (goal.status !== "active") continue;
-    for (const action of goal.actions) {
-      let kind: DayActionKind | null = null;
-      if (action.repeat === "daily") kind = "daily";
-      else if (action.repeat === "weekly") kind = (action.repeatWeekday ?? 1) === wd ? "weekly" : null;
-      else if (action.scheduledDate === date) kind = "scheduled";
-      if (kind) out.push({ goal, action, kind, done: isActionDoneToday(tree, action, date) });
+    if (task.scheduledDate === date) {
+      out.push({ goal, item: task, kind: "scheduled", done: isActionDoneToday(tree, task, date) });
     }
+  }
+  for (const { goal, habit } of allHabits(tree)) {
+    if (goal.status !== "active") continue;
+    let kind: DayActionKind | null = null;
+    if (habit.repeat === "daily") kind = "daily";
+    else if (habit.repeat === "weekly") kind = (habit.repeatWeekday ?? 1) === wd ? "weekly" : null;
+    if (kind) out.push({ goal, item: habit, kind, done: isActionDoneToday(tree, habit, date) });
   }
   return out;
 }
 
-// 未排期托盘：active 目标里 一次性、未完成、没排期 的行动。
-export function unscheduledActions(tree: LifeTree): { goal: Goal; action: GoalAction }[] {
-  const out: { goal: Goal; action: GoalAction }[] = [];
-  for (const goal of tree.goals ?? []) {
+// 未排期托盘：active 目标里 一次性、未完成、没排期 的 Task。
+export function unscheduledActions(tree: LifeTree): { goal: Goal; item: Task }[] {
+  const out: { goal: Goal; item: Task }[] = [];
+  for (const { goal, task } of allTasks(tree)) {
     if (goal.status !== "active") continue;
-    for (const action of goal.actions) {
-      if (!action.repeat && !action.done && !action.scheduledDate) out.push({ goal, action });
-    }
+    if (!task.done && !task.scheduledDate) out.push({ goal, item: task });
   }
   return out;
 }
 
-// 设/清 某行动的 scheduledDate（null = 清）。
+// 设/清 某一次性 Task 的 scheduledDate（null = 清）。
 export function setActionScheduledDate(tree: LifeTree, actionId: string, date: string | null): LifeTree {
-  return {
-    ...tree,
-    goals: (tree.goals ?? []).map((g) =>
-      g.actions.some((a) => a.id === actionId)
-        ? {
-            ...g,
-            actions: g.actions.map((a) =>
-              a.id === actionId ? { ...a, scheduledDate: date ?? undefined } : a,
-            ),
-          }
-        : g,
-    ),
-  };
+  return updateTask(tree, actionId, { scheduledDate: date ?? undefined });
 }

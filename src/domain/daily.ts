@@ -1,10 +1,18 @@
-import type { ActivityDay, Goal, GoalAction, LifeTree } from "./types";
+import type { ActivityDay, Goal, Habit, LifeTree, Task } from "./types";
 import { goalProgress } from "./goals";
+import {
+  allHabits,
+  findItem,
+  removeItem,
+  updateTask,
+  type ItemKind,
+} from "./goalTree";
 
 // ───────────────────────────────────────────────────────────────────────────
 // daily —— 每日激励闭环纯函数：今日计划 / 重复行动 / 连续天数 / 热力图 / 分支位置。
 // 一律操作本地日 "YYYY-MM-DD"，日差用 UTC 解析避免时区漂移。
 // 不用 Date.now/Math.random：today 由 state 层注入。
+// 模型：嵌套目标 —— 一次性 Task（有永久 done）与重复 Habit（无永久 done），统一按 id 操作。
 // ───────────────────────────────────────────────────────────────────────────
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -49,26 +57,14 @@ function putDay(tree: LifeTree, entry: ActivityDay): LifeTree {
 
 const addUniq = (arr: string[], id: string) => (arr.includes(id) ? arr : [...arr, id]);
 
+// 找一个行动（task 或 habit，任意层），返回它所属 goal + 本体 + 类型。
 export function findAction(
   tree: LifeTree,
   actionId: string,
-): { goal: Goal; action: GoalAction } | null {
-  for (const goal of tree.goals ?? []) {
-    const action = goal.actions.find((a) => a.id === actionId);
-    if (action) return { goal, action };
-  }
-  return null;
-}
-
-function setActionDone(tree: LifeTree, actionId: string, done: boolean): LifeTree {
-  return {
-    ...tree,
-    goals: (tree.goals ?? []).map((g) =>
-      g.actions.some((a) => a.id === actionId)
-        ? { ...g, actions: g.actions.map((a) => (a.id === actionId ? { ...a, done } : a)) }
-        : g,
-    ),
-  };
+): { goal: Goal; item: Task | Habit; kind: ItemKind } | null {
+  const loc = findItem(tree, actionId);
+  if (!loc) return null;
+  return { goal: loc.goal, item: loc.item, kind: loc.kind };
 }
 
 export function planToday(tree: LifeTree, actionId: string, today: string): LifeTree {
@@ -81,94 +77,88 @@ export function unplanToday(tree: LifeTree, actionId: string, today: string): Li
   return putDay(tree, { ...e, plannedActionIds: e.plannedActionIds.filter((x) => x !== actionId) });
 }
 
-// 完成：记进当天 completed。重复行动不写永久 done（次日/下周重新可做）；
-// 一次性行动顺带写 done 并补进 planned（"勾了就算今天计划过"）。
+// 完成：记进当天 completed。重复 Habit 不写永久 done（次日/下周重新可做）；
+// 一次性 Task 顺带写 done 并补进 planned（"勾了就算今天计划过"）。
 export function completeAction(tree: LifeTree, actionId: string, today: string): LifeTree {
   const hit = findAction(tree, actionId);
   if (!hit) return tree;
-  const recurring = Boolean(hit.action.repeat);
-  const t = recurring ? tree : setActionDone(tree, actionId, true);
+  const isTask = hit.kind === "task";
+  const t = isTask ? updateTask(tree, actionId, { done: true }) : tree;
   const e = dayEntry(t, today);
   return putDay(t, {
     ...e,
-    plannedActionIds: recurring ? e.plannedActionIds : addUniq(e.plannedActionIds, actionId),
+    plannedActionIds: isTask ? addUniq(e.plannedActionIds, actionId) : e.plannedActionIds,
     completedActionIds: addUniq(e.completedActionIds, actionId),
   });
 }
 
 // 彻底删除一个行动：从所属目标移除，并清掉它在每日活动里的计划/完成记录。
+// goalTree.removeItem 已顺带清理 activity。
 export function removeActionEverywhere(tree: LifeTree, actionId: string): LifeTree {
-  return {
-    ...tree,
-    goals: (tree.goals ?? []).map((g) =>
-      g.actions.some((a) => a.id === actionId)
-        ? { ...g, actions: g.actions.filter((a) => a.id !== actionId) }
-        : g,
-    ),
-    activity: (tree.activity ?? []).map((d) => ({
-      ...d,
-      plannedActionIds: d.plannedActionIds.filter((id) => id !== actionId),
-      completedActionIds: d.completedActionIds.filter((id) => id !== actionId),
-    })),
-  };
+  return removeItem(tree, actionId);
 }
 
-// 取消完成：从当天 completed 移除；一次性行动同时 done=false。
+// 取消完成：从当天 completed 移除；一次性 Task 同时 done=false。
 export function uncompleteAction(tree: LifeTree, actionId: string, today: string): LifeTree {
   const hit = findAction(tree, actionId);
   if (!hit) return tree;
-  const recurring = Boolean(hit.action.repeat);
-  const t = recurring ? tree : setActionDone(tree, actionId, false);
+  const isTask = hit.kind === "task";
+  const t = isTask ? updateTask(tree, actionId, { done: false }) : tree;
   const e = dayEntry(t, today);
   return putDay(t, { ...e, completedActionIds: e.completedActionIds.filter((x) => x !== actionId) });
 }
 
-// 某行动今天是否算"已完成"：一次性=done；daily=今天记过；weekly=最近 7 天内记过。
-export function isActionDoneToday(tree: LifeTree, action: GoalAction, today: string): boolean {
-  if (!action.repeat) return action.done;
-  if (action.repeat === "daily") return dayEntry(tree, today).completedActionIds.includes(action.id);
+// 某行动今天是否算"已完成"：一次性 Task = done；
+// daily Habit = 今天记过；weekly Habit = 最近 7 天内记过。
+export function isActionDoneToday(tree: LifeTree, item: Task | Habit, today: string): boolean {
+  // Task：有 done 字段；Habit：有 repeat 字段。
+  if ("done" in item) return item.done;
+  if (item.repeat === "daily") return dayEntry(tree, today).completedActionIds.includes(item.id);
   for (let i = 0; i < 7; i++) {
-    if (dayEntry(tree, addDays(today, -i)).completedActionIds.includes(action.id)) return true;
+    if (dayEntry(tree, addDays(today, -i)).completedActionIds.includes(item.id)) return true;
   }
   return false;
 }
 
-// 今天该出现的重复行动：daily 永远在；weekly 仅在"本周未完成"时出现（完成后隐藏一周）。
+// 今天该出现的重复 Habit：daily 永远在；weekly 仅在"本周未完成"时出现（完成后隐藏一周）。
+// 仅 active 目标。
 export function recurringDueToday(
   tree: LifeTree,
   today: string,
-): { goal: Goal; action: GoalAction }[] {
-  const out: { goal: Goal; action: GoalAction }[] = [];
-  for (const goal of tree.goals ?? []) {
+): { goal: Goal; item: Habit }[] {
+  const out: { goal: Goal; item: Habit }[] = [];
+  for (const { goal, habit } of allHabits(tree)) {
     if (goal.status !== "active") continue;
-    for (const action of goal.actions) {
-      if (!action.repeat) continue;
-      if (action.repeat === "weekly" && isActionDoneToday(tree, action, today)) continue;
-      out.push({ goal, action });
-    }
+    if (habit.repeat === "weekly" && isActionDoneToday(tree, habit, today)) continue;
+    out.push({ goal, item: habit });
   }
   return out;
 }
 
-// 今日清单：手动挑的一次性行动 ∪ 今天该做的重复行动；每条带 doneToday。
+// 今日清单：手动挑的一次性 Task ∪ 今天该做的重复 Habit；每条带 kind + doneToday。
 export function todayItems(
   tree: LifeTree,
   today: string,
-): { goal: Goal; action: GoalAction; doneToday: boolean }[] {
+): { goal: Goal; item: Task | Habit; kind: ItemKind; doneToday: boolean }[] {
   const e = dayEntry(tree, today);
   const seen = new Set<string>();
-  const out: { goal: Goal; action: GoalAction; doneToday: boolean }[] = [];
+  const out: { goal: Goal; item: Task | Habit; kind: ItemKind; doneToday: boolean }[] = [];
   for (const id of [...e.plannedActionIds, ...e.completedActionIds]) {
     if (seen.has(id)) continue;
     const hit = findAction(tree, id);
-    if (!hit || hit.action.repeat) continue;
+    if (!hit || hit.kind !== "task") continue; // 只收一次性 Task；Habit 走下面的 due 逻辑
     seen.add(id);
-    out.push({ goal: hit.goal, action: hit.action, doneToday: isActionDoneToday(tree, hit.action, today) });
+    out.push({
+      goal: hit.goal,
+      item: hit.item,
+      kind: "task",
+      doneToday: isActionDoneToday(tree, hit.item, today),
+    });
   }
-  for (const { goal, action } of recurringDueToday(tree, today)) {
-    if (seen.has(action.id)) continue;
-    seen.add(action.id);
-    out.push({ goal, action, doneToday: isActionDoneToday(tree, action, today) });
+  for (const { goal, item } of recurringDueToday(tree, today)) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    out.push({ goal, item, kind: "habit", doneToday: isActionDoneToday(tree, item, today) });
   }
   return out;
 }
@@ -202,9 +192,9 @@ export function heatmap(
   return out;
 }
 
-// "你在这里"：长期目标分支上按进度落在 forkAge→endAge 之间的年龄；短期/无分支返回 null。
+// "你在这里"：挂在人生树分支上的目标，按进度落在 forkAge→endAge 之间的年龄；无分支返回 null。
 export function branchPositionAge(tree: LifeTree, goal: Goal): number | null {
-  if (goal.horizon !== "long" || !goal.pathId) return null;
+  if (!goal.pathId) return null;
   const path = tree.paths.find((p) => p.id === goal.pathId);
   if (!path) return null;
   const endAge = path.nodes.length

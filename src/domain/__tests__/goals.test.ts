@@ -1,29 +1,32 @@
 import { describe, it, expect } from "vitest";
 import {
-  createGoal,
   upsertGoal,
   linkGoalPath,
-  setGoalActions,
-  toggleGoalAction,
   goalById,
-  childGoals,
   goalProgress,
   completeGoal,
-  dropGoal,
   achievedPathIds,
   dueGoalReviews,
   recordGoalReview,
   AREA_BUMP,
-  setActionRepeat,
-  setGoalDeadline,
   daysUntilDeadline,
   addGoalTag,
   removeGoalTag,
   allTags,
 } from "@/domain/goals";
+import {
+  addGoal,
+  addHabit,
+  addSubgoal,
+  addTask,
+  setMetric,
+  updateTask,
+  updateGoalById,
+  removeGoalById,
+} from "@/domain/goalTree";
 import { createTree, addPath } from "@/domain/tree";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
-import type { LifeTree, Profile } from "@/domain/types";
+import type { LifeTree, Metric, Profile } from "@/domain/types";
 
 const profile: Profile = {
   name: "小林",
@@ -46,12 +49,24 @@ const gen = new LocalPathGenerator();
 const NOW = "2026-06-18T00:00:00.000Z";
 const base = (): LifeTree => createTree(profile, gen, NOW);
 
+const metric = (over: Partial<Metric> = {}): Metric => ({
+  id: "m",
+  label: "存款",
+  current: 0,
+  target: 100,
+  unit: "k",
+  ...over,
+});
+
 describe("goals domain", () => {
-  it("createGoal fills defaults", () => {
-    const g = createGoal({ area: "career", horizon: "long", title: "做到独当一面", why: "三年内" }, NOW);
+  it("addGoal fills defaults", () => {
+    const { tree, id } = addGoal(base(), { area: "career", title: "做到独当一面", why: "三年内" }, NOW);
+    const g = goalById(tree, id)!;
     expect(g.status).toBe("active");
-    expect(g.actions).toEqual([]);
-    expect(g.parentGoalId).toBeNull();
+    expect(g.tasks).toEqual([]);
+    expect(g.subgoals).toEqual([]);
+    expect(g.metrics).toEqual([]);
+    expect(g.habits).toEqual([]);
     expect(g.pathId).toBeNull();
     expect(g.createdAt).toBe(NOW);
     expect(g.id).toMatch(/^goal-/);
@@ -59,111 +74,146 @@ describe("goals domain", () => {
 
   it("upsertGoal adds then replaces by id", () => {
     let t = base();
-    const g = createGoal({ area: "health", horizon: "short", title: "每周运动三次", why: "" }, NOW);
-    t = upsertGoal(t, g);
+    const r = addGoal(t, { area: "health", title: "每周运动三次" }, NOW);
+    t = r.tree;
     expect(t.goals).toHaveLength(1);
-    t = upsertGoal(t, { ...g, title: "每周运动四次" });
+    t = upsertGoal(t, { ...goalById(t, r.id)!, title: "每周运动四次" });
     expect(t.goals).toHaveLength(1);
     expect(t.goals[0].title).toBe("每周运动四次");
   });
 
-  it("setGoalActions builds ids and drops blanks; toggle flips done", () => {
-    const g = createGoal({ area: "growth", horizon: "short", title: "学英语", why: "" }, NOW);
-    const g2 = setGoalActions(g, ["背 20 个词", "  ", "看一集美剧"]);
-    expect(g2.actions.map((a) => a.text)).toEqual(["背 20 个词", "看一集美剧"]);
-    expect(g2.actions[0].id).toBe(`${g.id}-a0`);
-    expect(g2.actions[1].id).toBe(`${g.id}-a1`);
-    const g3 = toggleGoalAction(g2, g2.actions[0].id);
-    expect(g3.actions[0].done).toBe(true);
-  });
-
-  it("goalProgress: short = actions done ratio", () => {
-    let g = createGoal({ area: "growth", horizon: "short", title: "学英语", why: "" }, NOW);
-    g = setGoalActions(g, ["a", "b", "c", "d"]);
-    g = toggleGoalAction(g, g.actions[0].id);
-    const t = upsertGoal(base(), g);
-    expect(goalProgress(t, g)).toBeCloseTo(0.25, 5);
-  });
-
-  it("goalProgress: long counts done children + own actions", () => {
+  it("goalProgress: done tasks ratio (goal-level tasks)", () => {
     let t = base();
-    let long = createGoal({ area: "career", horizon: "long", title: "转管理岗", why: "" }, NOW);
-    long = setGoalActions(long, ["读两本书"]); // 1 own action
-    t = upsertGoal(t, long);
-    let kid1 = createGoal({ area: "career", horizon: "short", title: "带一个小项目", why: "", parentGoalId: long.id }, NOW);
-    const kid2 = createGoal({ area: "career", horizon: "short", title: "做季度复盘", why: "", parentGoalId: long.id }, NOW);
-    kid1 = { ...kid1, status: "done" };
-    t = upsertGoal(upsertGoal(t, kid1), kid2);
-    // 分母 = 2 children + 1 action = 3；分子 = 1 done child + 0 done action = 1
-    expect(goalProgress(t, t.goals.find((g) => g.id === long.id)!)).toBeCloseTo(1 / 3, 5);
+    const r = addGoal(t, { area: "growth", title: "学英语" }, NOW);
+    t = r.tree;
+    const ids: string[] = [];
+    for (const text of ["a", "b", "c", "d"]) {
+      const a = addTask(t, r.id, null, text, `${NOW}-${text}`);
+      t = a.tree;
+      ids.push(a.id);
+    }
+    t = updateTask(t, ids[0], { done: true });
+    expect(goalProgress(t, goalById(t, r.id)!)).toBeCloseTo(0.25, 5);
   });
 
-  it("childGoals returns only the long goal's short children", () => {
+  it("goalProgress: composite over tasks + metrics + subgoals", () => {
     let t = base();
-    const long = createGoal({ area: "career", horizon: "long", title: "L", why: "" }, NOW);
-    const kid = createGoal({ area: "career", horizon: "short", title: "K", why: "", parentGoalId: long.id }, NOW);
-    const orphan = createGoal({ area: "career", horizon: "short", title: "O", why: "" }, NOW);
-    t = upsertGoal(upsertGoal(upsertGoal(t, long), kid), orphan);
-    expect(childGoals(t, long.id).map((g) => g.title)).toEqual(["K"]);
+    const r = addGoal(t, { area: "career", title: "转管理岗" }, NOW);
+    t = r.tree;
+    // 1 goal-level task (done) + 1 metric (achieved) + 1 subgoal (incomplete) → 2/3
+    const a = addTask(t, r.id, null, "读两本书", NOW);
+    t = updateTask(a.tree, a.id, { done: true });
+    t = setMetric(t, r.id, metric({ id: "m1", current: 100, target: 100 })); // achieved
+    const s = addSubgoal(t, r.id, "带一个小项目", NOW);
+    t = s.tree;
+    // give the subgoal one undone task → subgoal incomplete
+    const st = addTask(t, r.id, s.id, "招一个人", NOW);
+    t = st.tree;
+    expect(goalProgress(t, goalById(t, r.id)!)).toBeCloseTo(2 / 3, 5);
   });
 
-  it("completeGoal: long goal bumps its area (clamped) and marks done", () => {
+  it("goalProgress: a subgoal counts as complete when all its tasks done & metrics achieved", () => {
+    let t = base();
+    const r = addGoal(t, { area: "career", title: "L" }, NOW);
+    t = r.tree;
+    const s = addSubgoal(t, r.id, "子目标", NOW);
+    t = s.tree;
+    const st = addTask(t, r.id, s.id, "x", NOW);
+    t = updateTask(st.tree, st.id, { done: true });
+    t = setMetric(t, s.id, metric({ id: "sm", current: 5, target: 5 }));
+    // only unit = 1 subgoal, complete → progress 1
+    expect(goalProgress(t, goalById(t, r.id)!)).toBe(1);
+  });
+
+  it("goalProgress: empty subgoal is not complete", () => {
+    const r = addGoal(base(), { area: "career", title: "L" }, NOW);
+    const s = addSubgoal(r.tree, r.id, "空子目标", NOW);
+    expect(goalProgress(s.tree, goalById(s.tree, r.id)!)).toBe(0);
+  });
+
+  it("goalProgress: metric achieved when current >= target", () => {
+    let t = base();
+    const r = addGoal(t, { area: "wealth", title: "存钱" }, NOW);
+    t = r.tree;
+    t = setMetric(t, r.id, metric({ id: "m1", current: 60, target: 100 })); // not yet
+    expect(goalProgress(t, goalById(t, r.id)!)).toBe(0);
+    t = setMetric(t, r.id, metric({ id: "m1", current: 120, target: 100 })); // over → achieved
+    expect(goalProgress(t, goalById(t, r.id)!)).toBe(1);
+  });
+
+  it("goalProgress: habits are excluded from milestone progress", () => {
+    const r = addGoal(base(), { area: "growth", title: "学英语" }, NOW);
+    // a goal with ONLY habits has no milestone units → progress 0
+    let t = addHabit(r.tree, r.id, null, "每天背单词", "daily", undefined, NOW).tree;
+    expect(goalProgress(t, goalById(t, r.id)!)).toBe(0);
+    // add one done task → 1/1 (habit still ignored)
+    const a = addTask(t, r.id, null, "写完简历", NOW);
+    t = updateTask(a.tree, a.id, { done: true });
+    expect(goalProgress(t, goalById(t, r.id)!)).toBe(1);
+  });
+
+  it("goalProgress: zero when nothing measurable", () => {
+    const r = addGoal(base(), { area: "growth", title: "空目标" }, NOW);
+    expect(goalProgress(r.tree, goalById(r.tree, r.id)!)).toBe(0);
+  });
+
+  it("completeGoal: bumps its area (clamped) and marks done", () => {
     let t = base(); // career = 50
-    const long = createGoal({ area: "career", horizon: "long", title: "L", why: "" }, NOW);
-    t = upsertGoal(t, long);
-    t = completeGoal(t, long.id, "2026-07-01T00:00:00.000Z");
-    expect(goalById(t, long.id)!.status).toBe("done");
-    expect(goalById(t, long.id)!.completedAt).toBe("2026-07-01T00:00:00.000Z");
+    const r = addGoal(t, { area: "career", title: "L" }, NOW);
+    t = r.tree;
+    t = completeGoal(t, r.id, "2026-07-01T00:00:00.000Z");
+    expect(goalById(t, r.id)!.status).toBe("done");
+    expect(goalById(t, r.id)!.completedAt).toBe("2026-07-01T00:00:00.000Z");
     expect(t.profile.areas.career).toBe(50 + AREA_BUMP);
   });
 
   it("completeGoal: area bump clamps at 100", () => {
     let t = base();
     t = { ...t, profile: { ...t.profile, areas: { ...t.profile.areas, wealth: 96 } } };
-    const long = createGoal({ area: "wealth", horizon: "long", title: "L", why: "" }, NOW);
-    t = upsertGoal(t, long);
-    t = completeGoal(t, long.id, NOW);
+    const r = addGoal(t, { area: "wealth", title: "L" }, NOW);
+    t = r.tree;
+    t = completeGoal(t, r.id, NOW);
     expect(t.profile.areas.wealth).toBe(100);
   });
 
-  it("completeGoal: short goal marks done but does NOT bump area", () => {
-    let t = base(); // career = 50
-    const short = createGoal({ area: "career", horizon: "short", title: "S", why: "" }, NOW);
-    t = upsertGoal(t, short);
-    t = completeGoal(t, short.id, NOW);
-    expect(goalById(t, short.id)!.status).toBe("done");
-    expect(t.profile.areas.career).toBe(50);
+  it("completeGoal: a done goal is a no-op (no double bump)", () => {
+    let t = base();
+    const r = addGoal(t, { area: "career", title: "L" }, NOW);
+    t = completeGoal(r.tree, r.id, NOW);
+    const after = completeGoal(t, r.id, "2026-08-01T00:00:00.000Z");
+    expect(after.profile.areas.career).toBe(50 + AREA_BUMP); // not bumped twice
   });
 
-  it("linkGoalPath sets pathId; achievedPathIds collects done long goals' paths", () => {
+  it("linkGoalPath sets pathId; achievedPathIds collects done goals' paths", () => {
     let t = addPath(base(), "去读研", gen, NOW);
     const branch = t.paths.find((p) => p.kind === "choice")!;
-    const long = createGoal({ area: "career", horizon: "long", title: "读研", why: "" }, NOW);
-    t = upsertGoal(t, long);
-    t = linkGoalPath(t, long.id, branch.id);
-    expect(goalById(t, long.id)!.pathId).toBe(branch.id);
+    const r = addGoal(t, { area: "career", title: "读研" }, NOW);
+    t = r.tree;
+    t = linkGoalPath(t, r.id, branch.id);
+    expect(goalById(t, r.id)!.pathId).toBe(branch.id);
     expect(achievedPathIds(t).size).toBe(0); // 还没达成
-    t = completeGoal(t, long.id, NOW);
+    t = completeGoal(t, r.id, NOW);
     expect(achievedPathIds(t).has(branch.id)).toBe(true);
   });
 
-  it("dropGoal removes the goal, its short children, and its branch", () => {
+  it("removeGoalById removes the goal, its subgoals/tasks, and its branch", () => {
     let t = addPath(base(), "去读研", gen, NOW);
     const branch = t.paths.find((p) => p.kind === "choice")!;
-    const long = createGoal({ area: "career", horizon: "long", title: "读研", why: "", pathId: branch.id }, NOW);
-    t = upsertGoal(t, long);
-    const kid = createGoal({ area: "career", horizon: "short", title: "考雅思", why: "", parentGoalId: long.id }, NOW);
-    t = upsertGoal(t, kid);
-    t = dropGoal(t, long.id, NOW);
-    expect(t.goals).toHaveLength(0); // 长期目标 + 子目标都没了
+    const r = addGoal(t, { area: "career", title: "读研", pathId: branch.id }, NOW);
+    t = r.tree;
+    const s = addSubgoal(t, r.id, "考雅思", NOW);
+    t = s.tree;
+    t = removeGoalById(t, r.id, NOW);
+    expect(t.goals).toHaveLength(0); // 目标 + 子目标都没了
     expect(t.paths.some((p) => p.id === branch.id)).toBe(false); // 分支也删了
   });
 
   it("dueGoalReviews: active goal never reviewed is due; reviewed within 7d is not", () => {
     let t = base();
-    const a = createGoal({ area: "career", horizon: "short", title: "A", why: "" }, "2026-06-01T00:00:00.000Z");
-    const b = createGoal({ area: "career", horizon: "short", title: "B", why: "" }, "2026-06-01T00:00:00.000Z");
-    t = upsertGoal(upsertGoal(t, a), b);
+    const a = addGoal(t, { area: "career", title: "A" }, "2026-06-01T00:00:00.000Z");
+    t = a.tree;
+    const b = addGoal(t, { area: "career", title: "B" }, "2026-06-01T00:00:00.000Z");
+    t = b.tree;
     t = recordGoalReview(t, b.id, "2026-06-16T00:00:00.000Z"); // 2 天前复盘过
     const due = dueGoalReviews(t, "2026-06-18T00:00:00.000Z");
     expect(due.map((g) => g.id)).toEqual([a.id]); // 只有从没复盘过的 A
@@ -171,158 +221,128 @@ describe("goals domain", () => {
 
   it("dueGoalReviews: a review older than 7 days becomes due again", () => {
     let t = base();
-    const g = createGoal({ area: "career", horizon: "short", title: "G", why: "" }, "2026-05-01T00:00:00.000Z");
-    t = upsertGoal(t, g);
-    t = recordGoalReview(t, g.id, "2026-06-01T00:00:00.000Z"); // 17 天前
-    expect(dueGoalReviews(t, "2026-06-18T00:00:00.000Z").map((x) => x.id)).toEqual([g.id]);
+    const r = addGoal(t, { area: "career", title: "G" }, "2026-05-01T00:00:00.000Z");
+    t = r.tree;
+    t = recordGoalReview(t, r.id, "2026-06-01T00:00:00.000Z"); // 17 天前
+    expect(dueGoalReviews(t, "2026-06-18T00:00:00.000Z").map((x) => x.id)).toEqual([r.id]);
   });
 
   it("done goals are not due for review", () => {
     let t = base();
-    const g = createGoal({ area: "career", horizon: "long", title: "G", why: "" }, NOW);
-    t = upsertGoal(t, g);
-    t = completeGoal(t, g.id, NOW);
+    const r = addGoal(t, { area: "career", title: "G" }, NOW);
+    t = completeGoal(r.tree, r.id, NOW);
     expect(dueGoalReviews(t, "2027-01-01T00:00:00.000Z")).toHaveLength(0);
   });
 
-  it("goalProgress ignores recurring actions (they are daily discipline, not milestones)", () => {
-    let g = createGoal({ area: "growth", horizon: "short", title: "学英语", why: "" }, NOW);
-    g = setGoalActions(g, ["写完简历", "每天背单词"]); // a0 一次性, a1 将设为重复
-    g = setActionRepeat(g, g.actions[1].id, "daily");
-    g = toggleGoalAction(g, g.actions[1].id); // 勾了重复那条，也不该算进度
-    const t = upsertGoal(base(), g);
-    expect(goalProgress(t, g)).toBe(0); // 只有一次性那条算分母，且它没完成
-    const g2 = toggleGoalAction(g, g.actions[0].id); // 完成一次性那条
-    const t2 = upsertGoal(base(), g2);
-    expect(goalProgress(t2, g2)).toBe(1); // 1/1
-  });
-
-  it("setActionRepeat sets and clears the repeat flag", () => {
-    let g = createGoal({ area: "health", horizon: "short", title: "运动", why: "" }, NOW);
-    g = setGoalActions(g, ["跑步"]);
-    g = setActionRepeat(g, g.actions[0].id, "weekly");
-    expect(g.actions[0].repeat).toBe("weekly");
-    g = setActionRepeat(g, g.actions[0].id, undefined);
-    expect(g.actions[0].repeat).toBeUndefined();
-  });
-
-  describe("setGoalDeadline", () => {
-    it("sets a deadline on a goal", () => {
+  describe("goal date range (endDate)", () => {
+    it("updateGoalById sets an endDate on a goal", () => {
       let t = base();
-      const g = createGoal({ area: "career", horizon: "short", title: "交报告", why: "" }, NOW);
-      t = upsertGoal(t, g);
-      t = setGoalDeadline(t, g.id, "2026-07-01");
-      expect(goalById(t, g.id)!.deadline).toBe("2026-07-01");
+      const r = addGoal(t, { area: "career", title: "交报告" }, NOW);
+      t = updateGoalById(r.tree, r.id, { endDate: "2026-07-01" });
+      expect(goalById(t, r.id)!.endDate).toBe("2026-07-01");
     });
 
-    it("clears a deadline when passed null (deadline becomes undefined)", () => {
+    it("updateGoalById clears an endDate when set to undefined", () => {
       let t = base();
-      const g = createGoal({ area: "career", horizon: "short", title: "交报告", why: "" }, NOW);
-      t = upsertGoal(t, g);
-      t = setGoalDeadline(t, g.id, "2026-07-01");
-      t = setGoalDeadline(t, g.id, null);
-      expect(goalById(t, g.id)!.deadline).toBeUndefined();
+      const r = addGoal(t, { area: "career", title: "交报告", endDate: "2026-07-01" }, NOW);
+      t = updateGoalById(r.tree, r.id, { endDate: undefined });
+      expect(goalById(t, r.id)!.endDate).toBeUndefined();
     });
 
-    it("leaves other goals untouched", () => {
+    it("updateGoalById supports startDate + endDate together", () => {
       let t = base();
-      const g1 = createGoal({ area: "career", horizon: "short", title: "A", why: "" }, NOW);
-      const g2 = createGoal({ area: "health", horizon: "short", title: "B", why: "" }, NOW);
-      t = upsertGoal(upsertGoal(t, g1), g2);
-      t = setGoalDeadline(t, g1.id, "2026-08-01");
-      expect(goalById(t, g2.id)!.deadline).toBeUndefined();
+      const r = addGoal(t, { area: "career", title: "季度冲刺" }, NOW);
+      t = updateGoalById(r.tree, r.id, { startDate: "2026-06-01", endDate: "2026-09-01" });
+      expect(goalById(t, r.id)!.startDate).toBe("2026-06-01");
+      expect(goalById(t, r.id)!.endDate).toBe("2026-09-01");
     });
   });
 
-  describe("daysUntilDeadline", () => {
-    it("returns null when goal has no deadline", () => {
-      const g = createGoal({ area: "career", horizon: "short", title: "X", why: "" }, NOW);
-      expect(daysUntilDeadline(g, "2026-06-20")).toBeNull();
+  describe("daysUntilDeadline (endDate)", () => {
+    it("returns null when goal has no endDate", () => {
+      const g = addGoal(base(), { area: "career", title: "X" }, NOW);
+      expect(daysUntilDeadline(goalById(g.tree, g.id)!, "2026-06-20")).toBeNull();
     });
 
-    it("returns positive number when deadline is in the future", () => {
-      const g = { ...createGoal({ area: "career", horizon: "short", title: "X", why: "" }, NOW), deadline: "2026-06-25" };
-      expect(daysUntilDeadline(g, "2026-06-20")).toBe(5);
+    it("returns positive number when endDate is in the future", () => {
+      const r = addGoal(base(), { area: "career", title: "X", endDate: "2026-06-25" }, NOW);
+      expect(daysUntilDeadline(goalById(r.tree, r.id)!, "2026-06-20")).toBe(5);
     });
 
-    it("returns 0 when deadline is today", () => {
-      const g = { ...createGoal({ area: "career", horizon: "short", title: "X", why: "" }, NOW), deadline: "2026-06-20" };
-      expect(daysUntilDeadline(g, "2026-06-20")).toBe(0);
+    it("returns 0 when endDate is today", () => {
+      const r = addGoal(base(), { area: "career", title: "X", endDate: "2026-06-20" }, NOW);
+      expect(daysUntilDeadline(goalById(r.tree, r.id)!, "2026-06-20")).toBe(0);
     });
 
-    it("returns negative number when deadline is in the past (overdue)", () => {
-      const g = { ...createGoal({ area: "career", horizon: "short", title: "X", why: "" }, NOW), deadline: "2026-06-15" };
-      expect(daysUntilDeadline(g, "2026-06-20")).toBe(-5);
+    it("returns negative number when endDate is in the past (overdue)", () => {
+      const r = addGoal(base(), { area: "career", title: "X", endDate: "2026-06-15" }, NOW);
+      expect(daysUntilDeadline(goalById(r.tree, r.id)!, "2026-06-20")).toBe(-5);
     });
   });
 
   describe("goal tags", () => {
     it("addGoalTag adds a tag to the correct goal", () => {
       let t = base();
-      const g = createGoal({ area: "career", horizon: "short", title: "T", why: "" }, NOW);
-      t = upsertGoal(t, g);
-      t = addGoalTag(t, g.id, "重要");
-      expect(goalById(t, g.id)!.tags).toEqual(["重要"]);
+      const r = addGoal(t, { area: "career", title: "T" }, NOW);
+      t = addGoalTag(r.tree, r.id, "重要");
+      expect(goalById(t, r.id)!.tags).toEqual(["重要"]);
     });
 
     it("addGoalTag trims whitespace before adding", () => {
       let t = base();
-      const g = createGoal({ area: "career", horizon: "short", title: "T", why: "" }, NOW);
-      t = upsertGoal(t, g);
-      t = addGoalTag(t, g.id, "  工作  ");
-      expect(goalById(t, g.id)!.tags).toEqual(["工作"]);
+      const r = addGoal(t, { area: "career", title: "T" }, NOW);
+      t = addGoalTag(r.tree, r.id, "  工作  ");
+      expect(goalById(t, r.id)!.tags).toEqual(["工作"]);
     });
 
     it("addGoalTag deduplicates — adding same tag twice is a no-op the second time", () => {
       let t = base();
-      const g = createGoal({ area: "career", horizon: "short", title: "T", why: "" }, NOW);
-      t = upsertGoal(t, g);
-      t = addGoalTag(t, g.id, "重要");
-      t = addGoalTag(t, g.id, "重要");
-      expect(goalById(t, g.id)!.tags).toEqual(["重要"]);
+      const r = addGoal(t, { area: "career", title: "T" }, NOW);
+      t = addGoalTag(r.tree, r.id, "重要");
+      t = addGoalTag(t, r.id, "重要");
+      expect(goalById(t, r.id)!.tags).toEqual(["重要"]);
     });
 
     it("addGoalTag ignores empty / whitespace-only tags", () => {
       let t = base();
-      const g = createGoal({ area: "career", horizon: "short", title: "T", why: "" }, NOW);
-      t = upsertGoal(t, g);
-      t = addGoalTag(t, g.id, "   ");
-      expect(goalById(t, g.id)!.tags ?? []).toEqual([]);
+      const r = addGoal(t, { area: "career", title: "T" }, NOW);
+      t = addGoalTag(r.tree, r.id, "   ");
+      expect(goalById(t, r.id)!.tags ?? []).toEqual([]);
     });
 
     it("addGoalTag does not touch other goals", () => {
       let t = base();
-      const g1 = createGoal({ area: "career", horizon: "short", title: "A", why: "" }, NOW);
-      const g2 = createGoal({ area: "health", horizon: "short", title: "B", why: "" }, NOW);
-      t = upsertGoal(upsertGoal(t, g1), g2);
+      const g1 = addGoal(t, { area: "career", title: "A" }, NOW);
+      t = g1.tree;
+      const g2 = addGoal(t, { area: "health", title: "B" }, NOW);
+      t = g2.tree;
       t = addGoalTag(t, g1.id, "健康");
       expect(goalById(t, g2.id)!.tags ?? []).toEqual([]);
     });
 
     it("removeGoalTag removes the tag from the goal", () => {
       let t = base();
-      const g = createGoal({ area: "career", horizon: "short", title: "T", why: "" }, NOW);
-      t = upsertGoal(t, g);
-      t = addGoalTag(t, g.id, "重要");
-      t = addGoalTag(t, g.id, "紧急");
-      t = removeGoalTag(t, g.id, "重要");
-      expect(goalById(t, g.id)!.tags).toEqual(["紧急"]);
+      const r = addGoal(t, { area: "career", title: "T" }, NOW);
+      t = addGoalTag(r.tree, r.id, "重要");
+      t = addGoalTag(t, r.id, "紧急");
+      t = removeGoalTag(t, r.id, "重要");
+      expect(goalById(t, r.id)!.tags).toEqual(["紧急"]);
     });
 
     it("removeGoalTag on a non-existent tag is a no-op", () => {
       let t = base();
-      const g = createGoal({ area: "career", horizon: "short", title: "T", why: "" }, NOW);
-      t = upsertGoal(t, g);
-      t = addGoalTag(t, g.id, "重要");
-      t = removeGoalTag(t, g.id, "不存在");
-      expect(goalById(t, g.id)!.tags).toEqual(["重要"]);
+      const r = addGoal(t, { area: "career", title: "T" }, NOW);
+      t = addGoalTag(r.tree, r.id, "重要");
+      t = removeGoalTag(t, r.id, "不存在");
+      expect(goalById(t, r.id)!.tags).toEqual(["重要"]);
     });
 
     it("allTags returns unique tags sorted across all goals", () => {
       let t = base();
-      const g1 = createGoal({ area: "career", horizon: "short", title: "A", why: "" }, NOW);
-      const g2 = createGoal({ area: "health", horizon: "short", title: "B", why: "" }, NOW);
-      t = upsertGoal(upsertGoal(t, g1), g2);
+      const g1 = addGoal(t, { area: "career", title: "A" }, NOW);
+      t = g1.tree;
+      const g2 = addGoal(t, { area: "health", title: "B" }, NOW);
+      t = g2.tree;
       t = addGoalTag(t, g1.id, "重要");
       t = addGoalTag(t, g1.id, "工作");
       t = addGoalTag(t, g2.id, "重要"); // duplicate across goals

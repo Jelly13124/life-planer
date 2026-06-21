@@ -11,7 +11,7 @@ import {
   setDayWindow,
 } from "@/domain/schedule";
 import { createTree } from "@/domain/tree";
-import { createGoal, upsertGoal, setGoalActions } from "@/domain/goals";
+import { addGoal, addHabit, addTask, findHabit, findTask } from "@/domain/goalTree";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
 import type { LifeTree, Profile } from "@/domain/types";
 
@@ -24,13 +24,18 @@ const profile: Profile = {
 const gen = new LocalPathGenerator();
 const NOW = "2026-06-19T00:00:00.000Z";
 
-// 一棵带一个短期目标(三条行动)的树
+// 一棵带一个目标 + 三个一次性 Task 的树
 function withActions(): { tree: LifeTree; goalId: string; a: string[] } {
   let t = createTree(profile, gen, NOW);
-  let g = createGoal({ area: "growth", horizon: "short", title: "找工作", why: "" }, NOW);
-  g = setGoalActions(g, ["改简历", "投简历", "背单词"]);
-  t = upsertGoal(t, g);
-  return { tree: t, goalId: g.id, a: g.actions.map((x) => x.id) };
+  const g = addGoal(t, { area: "growth", title: "找工作" }, NOW);
+  t = g.tree;
+  const a: string[] = [];
+  for (const text of ["改简历", "投简历", "背单词"]) {
+    const r = addTask(t, g.id, null, text, `${NOW}-${text}`);
+    t = r.tree;
+    a.push(r.id);
+  }
+  return { tree: t, goalId: g.id, a };
 }
 
 describe("schedule domain", () => {
@@ -104,29 +109,39 @@ describe("schedule domain", () => {
     }
   });
 
-  it("setActionTime sets startTime + duration", () => {
+  it("setActionTime sets startTime + duration on a Task", () => {
     const w = withActions();
     const tree = setActionTime(w.tree, w.a[0], "09:30", 45);
-    const action = tree.goals[0].actions.find((x) => x.id === w.a[0])!;
-    expect(action.startTime).toBe("09:30");
-    expect(action.durationMin).toBe(45);
+    const task = findTask(tree, w.a[0])!.task;
+    expect(task.startTime).toBe("09:30");
+    expect(task.durationMin).toBe(45);
+  });
+
+  it("setActionTime works on a Habit too (located by id)", () => {
+    const w = withActions();
+    const h = addHabit(w.tree, w.goalId, null, "晨跑", "daily", undefined, `${NOW}-h`);
+    const tree = setActionTime(h.tree, h.id, "06:30", 30);
+    const habit = findHabit(tree, h.id)!.habit;
+    expect(habit.startTime).toBe("06:30");
+    expect(habit.durationMin).toBe(30);
   });
 
   it("setActionTime: startTime=null clears startTime (keeps duration)", () => {
     const w = withActions();
     let tree = setActionTime(w.tree, w.a[0], "09:30", 45);
     tree = setActionTime(tree, w.a[0], null);
-    const action = tree.goals[0].actions.find((x) => x.id === w.a[0])!;
-    expect(action.startTime).toBeUndefined();
-    expect(action.durationMin).toBe(45); // duration retained
+    const task = findTask(tree, w.a[0])!.task;
+    expect(task.startTime).toBeUndefined();
+    expect(task.durationMin).toBe(45); // duration retained
   });
 
   it("setActionTime: only touches the target action", () => {
     const w = withActions();
     const tree = setActionTime(w.tree, w.a[1], "10:00");
-    const others = tree.goals[0].actions.filter((x) => x.id !== w.a[1]);
-    for (const o of others) expect(o.startTime).toBeUndefined();
-    expect(tree.goals[0].actions.find((x) => x.id === w.a[1])!.startTime).toBe("10:00");
+    for (const id of w.a.filter((x) => x !== w.a[1])) {
+      expect(findTask(tree, id)!.task.startTime).toBeUndefined();
+    }
+    expect(findTask(tree, w.a[1])!.task.startTime).toBe("10:00");
   });
 
   it("dayWindow defaults when unset", () => {
