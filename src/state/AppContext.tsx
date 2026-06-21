@@ -43,7 +43,9 @@ import {
   upsertGoal,
 } from "@/domain/goals";
 import { completeAction, isActionDoneToday, planToday, uncompleteAction, unplanToday, localDay } from "@/domain/daily";
-import { setActionScheduledDate } from "@/domain/calendar";
+import { actionsOnDay, setActionScheduledDate } from "@/domain/calendar";
+import { setActionTime, setDayWindow, dayWindow } from "@/domain/schedule";
+import { fetchArrangeDay } from "@/lib/scheduleClient";
 import { anyCrisisSignal } from "@/domain/safety";
 import { addInboxItem, removeInboxItem } from "@/domain/inbox";
 
@@ -202,6 +204,9 @@ interface AppApi {
   removeGoalTagById: (goalId: string, tag: string) => void;
   scheduleAction: (actionId: string, date: string | null) => void;
   toggleActionOn: (actionId: string, date: string) => void;
+  setActionTimeById: (actionId: string, startTime: string | null, durationMin?: number) => void;
+  setDayWindowValues: (start: string, end: string) => void;
+  arrangeDayWithAI: (date: string) => Promise<void>;
   dismissGuide: () => void;
   safetyHold: Profile | null;
   continueAfterSafety: () => void;
@@ -617,6 +622,31 @@ export function AppProvider({
           ? uncompleteAction(baseTree, actionId, date)
           : completeAction(baseTree, actionId, date);
         dispatch({ type: "patchTree", tree: next });
+      },
+      setActionTimeById: (actionId, startTime, durationMin) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: setActionTime(baseTree, actionId, startTime, durationMin) });
+      },
+      setDayWindowValues: (start, end) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: setDayWindow(baseTree, start, end) });
+      },
+      arrangeDayWithAI: async (date) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        const items = actionsOnDay(baseTree, date).map(({ action }) => ({
+          id: action.id,
+          text: action.text,
+          durationMin: action.durationMin,
+        }));
+        if (!items.length) return;
+        const plan = await fetchArrangeDay(items, dayWindow(baseTree));
+        // 应用时读最新树，避免动画/并发期间被覆盖；把所有结果折进一棵树，单次 dispatch。
+        let t = treeRef.current ?? baseTree;
+        for (const p of plan) t = setActionTime(t, p.id, p.startTime, p.durationMin);
+        dispatch({ type: "patchTree", tree: t });
       },
       dismissGuide: () => {
         const baseTree = treeRef.current;
