@@ -4,8 +4,8 @@ import { recurringActions } from "./habits";
 export interface AreaSummary {
   area: LifeArea;
   score: number;       // profile.areas[area] clamped 0..100, default 50 if missing
-  goals: Goal[];       // active goals (long or short) with goal.area === area
-  habitCount: number;  // recurringActions whose goal.area === area
+  goals: Goal[];       // active goals with goal.area === area
+  habitCount: number;  // recurring habits whose goal.area === area
 }
 
 export function areaSummaries(tree: LifeTree): AreaSummary[] {

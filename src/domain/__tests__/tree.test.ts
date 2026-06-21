@@ -133,24 +133,25 @@ describe("tree operations", () => {
     expect(t.activity).toEqual([]);
   });
 
-  it("removePath also prunes a long-term goal attached to the removed branch", () => {
+  it("removePath also prunes a goal attached to the removed branch", () => {
     let t = addPath(createTree(profile, gen, NOW), "去读研", gen, NOW);
     const choice = t.paths.find((p) => p.kind === "choice")!;
     const goal: Goal = {
       id: "goal-x",
       area: "career",
-      horizon: "long",
       title: "读完研换赛道",
       why: "",
       status: "active",
       createdAt: NOW,
-      parentGoalId: null,
       pathId: choice.id,
-      actions: [],
+      metrics: [],
+      subgoals: [],
+      tasks: [],
+      habits: [],
     };
     t = { ...t, goals: [goal] };
     const t2 = removePath(t, choice.id, NOW);
-    expect(t2.goals).toHaveLength(0); // 分支没了，挂在它上面的长期目标也清掉
+    expect(t2.goals).toHaveLength(0); // 分支没了，挂在它上面的目标也清掉
   });
 });
 

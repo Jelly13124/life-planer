@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { weeklyRecap } from "@/domain/weekly";
 import { createTree, addPath } from "@/domain/tree";
-import { createGoal, upsertGoal, setGoalActions, completeGoal } from "@/domain/goals";
+import { addGoal, addTask, updateGoalById } from "@/domain/goalTree";
+import { completeGoal } from "@/domain/goals";
 import { createDecision } from "@/domain/decisions";
 import { completeAction } from "@/domain/daily";
-import type { LifeTree, Profile } from "@/domain/types";
+import type { LifeArea, LifeTree, Profile } from "@/domain/types";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
 
 const profile: Profile = {
@@ -21,13 +22,28 @@ function makeBaseTree(): LifeTree {
   return createTree(profile, gen, NOW);
 }
 
+// 加一个目标 + 若干一次性任务，返回新树 + 目标 id + 任务 ids。
+function withGoalTasks(
+  tree: LifeTree, area: LifeArea,
+  title: string, tasks: string[], seed: string, pathId?: string | null,
+): { tree: LifeTree; goalId: string; taskIds: string[] } {
+  const g = addGoal(tree, { area, title, why: "", pathId }, `${NOW}-${seed}`);
+  let t = g.tree;
+  const taskIds: string[] = [];
+  tasks.forEach((text, i) => {
+    const r = addTask(t, g.id, null, text, `${NOW}-${seed}-${i}`);
+    t = r.tree;
+    taskIds.push(r.id);
+  });
+  return { tree: t, goalId: g.id, taskIds };
+}
+
 describe("weeklyRecap", () => {
   it("completions = sum of completedActionIds across the last 7 days", () => {
     let tree = makeBaseTree();
-    let g = createGoal({ area: "growth", horizon: "short", title: "健身", why: "" }, NOW);
-    g = setGoalActions(g, ["跑步", "俯卧撑", "拉伸"]);
-    tree = upsertGoal(tree, g);
-    const [a0, a1, a2] = g.actions.map((a) => a.id);
+    const built = withGoalTasks(tree, "growth", "健身", ["跑步", "俯卧撑", "拉伸"], "fit");
+    tree = built.tree;
+    const [a0, a1, a2] = built.taskIds;
 
     // Day -5: 2 completions
     tree = completeAction(tree, a0, "2026-06-13");
@@ -43,10 +59,9 @@ describe("weeklyRecap", () => {
 
   it("activeDays = count of days with ≥1 completion in the window", () => {
     let tree = makeBaseTree();
-    let g = createGoal({ area: "growth", horizon: "short", title: "学习", why: "" }, NOW);
-    g = setGoalActions(g, ["读书", "笔记"]);
-    tree = upsertGoal(tree, g);
-    const [a0, a1] = g.actions.map((a) => a.id);
+    const built = withGoalTasks(tree, "growth", "学习", ["读书", "笔记"], "study");
+    tree = built.tree;
+    const [a0, a1] = built.taskIds;
 
     tree = completeAction(tree, a0, "2026-06-12"); // within window (day -6)
     tree = completeAction(tree, a1, "2026-06-12"); // same day, should count as 1
@@ -58,10 +73,9 @@ describe("weeklyRecap", () => {
 
   it("streak uses currentStreak from daily.ts", () => {
     let tree = makeBaseTree();
-    let g = createGoal({ area: "health", horizon: "short", title: "运动", why: "" }, NOW);
-    g = setGoalActions(g, ["慢跑"]);
-    tree = upsertGoal(tree, g);
-    const a0 = g.actions[0].id;
+    const built = withGoalTasks(tree, "health", "运动", ["慢跑"], "run");
+    tree = built.tree;
+    const a0 = built.taskIds[0];
 
     tree = completeAction(tree, a0, "2026-06-16");
     tree = completeAction(tree, a0, "2026-06-17");
@@ -80,11 +94,11 @@ describe("weeklyRecap", () => {
   it("dueGoals returns goals due for review", () => {
     let tree = makeBaseTree();
     // Goal with no lastReviewedAt is immediately due
-    const g = createGoal({ area: "career", horizon: "short", title: "升职", why: "" }, NOW);
-    tree = upsertGoal(tree, g);
+    const built = withGoalTasks(tree, "career", "升职", [], "promo");
+    tree = built.tree;
 
     const recap = weeklyRecap(tree, TODAY);
-    expect(recap.dueGoals.some((x) => x.id === g.id)).toBe(true);
+    expect(recap.dueGoals.some((x) => x.id === built.goalId)).toBe(true);
   });
 
   it("dueDecisions returns decisions whose reviewDate has passed", () => {
@@ -110,69 +124,57 @@ describe("weeklyRecap", () => {
     expect(recap.dueDecisions.some((d) => d.id === decision.id)).toBe(true);
   });
 
-  it("milestonesThisWeek includes long goals completed within the last 7 days", () => {
+  it("milestonesThisWeek includes goals completed within the last 7 days", () => {
     let tree = makeBaseTree();
     tree = addPath(tree, "读完一本书", gen, NOW);
     const path = tree.paths.find((p) => p.kind === "choice")!;
-    let g = createGoal(
-      { area: "growth", horizon: "long", title: "读完一本书", why: "", pathId: path.id },
-      NOW,
-    );
-    g = setGoalActions(g, ["第一章", "第二章"]);
-    tree = upsertGoal(tree, g);
+    const built = withGoalTasks(tree, "growth", "读完一本书", ["第一章", "第二章"], "book", path.id);
+    tree = built.tree;
 
     // Complete the goal 2 days ago (within window)
-    tree = completeGoal(tree, g.id, "2026-06-16T10:00:00.000Z");
+    tree = completeGoal(tree, built.goalId, "2026-06-16T10:00:00.000Z");
 
     const recap = weeklyRecap(tree, TODAY);
-    expect(recap.milestonesThisWeek.some((m) => m.id === g.id)).toBe(true);
+    expect(recap.milestonesThisWeek.some((m) => m.id === built.goalId)).toBe(true);
   });
 
-  it("milestonesThisWeek EXCLUDES long goals completed 10 days ago", () => {
+  it("milestonesThisWeek EXCLUDES goals completed 10 days ago", () => {
     let tree = makeBaseTree();
     tree = addPath(tree, "学完课程", gen, NOW);
     const path = tree.paths.find((p) => p.kind === "choice")!;
-    let g = createGoal(
-      { area: "growth", horizon: "long", title: "学完课程", why: "", pathId: path.id },
-      NOW,
-    );
-    g = setGoalActions(g, ["第一课"]);
-    tree = upsertGoal(tree, g);
+    const built = withGoalTasks(tree, "growth", "学完课程", ["第一课"], "course", path.id);
+    tree = built.tree;
 
     // Complete the goal 10 days ago (outside 7-day window)
-    tree = completeGoal(tree, g.id, "2026-06-08T10:00:00.000Z");
+    tree = completeGoal(tree, built.goalId, "2026-06-08T10:00:00.000Z");
 
     const recap = weeklyRecap(tree, TODAY);
-    expect(recap.milestonesThisWeek.some((m) => m.id === g.id)).toBe(false);
+    expect(recap.milestonesThisWeek.some((m) => m.id === built.goalId)).toBe(false);
   });
 
   it("milestonesThisWeek includes goal completed exactly 6 days ago (boundary)", () => {
     let tree = makeBaseTree();
     tree = addPath(tree, "减重5公斤", gen, NOW);
     const path = tree.paths.find((p) => p.kind === "choice")!;
-    let g = createGoal(
-      { area: "health", horizon: "long", title: "减重5公斤", why: "", pathId: path.id },
-      NOW,
-    );
-    g = setGoalActions(g, ["坚持节食"]);
-    tree = upsertGoal(tree, g);
+    const built = withGoalTasks(tree, "health", "减重5公斤", ["坚持节食"], "diet", path.id);
+    tree = built.tree;
 
     // Completed exactly on weekStart (2026-06-12)
-    tree = completeGoal(tree, g.id, "2026-06-12T00:00:00.000Z");
+    tree = completeGoal(tree, built.goalId, "2026-06-12T00:00:00.000Z");
 
     const recap = weeklyRecap(tree, TODAY);
-    expect(recap.milestonesThisWeek.some((m) => m.id === g.id)).toBe(true);
+    expect(recap.milestonesThisWeek.some((m) => m.id === built.goalId)).toBe(true);
   });
 
-  it("short goals are NOT included in milestonesThisWeek", () => {
+  it("active (not done) goals are NOT included in milestonesThisWeek", () => {
     let tree = makeBaseTree();
-    let g = createGoal({ area: "career", horizon: "short", title: "整理简历", why: "" }, NOW);
-    g = setGoalActions(g, ["写自我介绍"]);
-    tree = upsertGoal(tree, g);
-    tree = completeGoal(tree, g.id, "2026-06-17T00:00:00.000Z");
+    const built = withGoalTasks(tree, "career", "整理简历", ["写自我介绍"], "resume");
+    tree = built.tree;
+    // Leave the goal active (never completed) — still must not be a milestone
+    tree = updateGoalById(tree, built.goalId, { status: "active" });
 
     const recap = weeklyRecap(tree, TODAY);
-    expect(recap.milestonesThisWeek.some((m) => m.id === g.id)).toBe(false);
+    expect(recap.milestonesThisWeek.some((m) => m.id === built.goalId)).toBe(false);
   });
 
   it("empty tree returns all-zero recap with empty arrays", () => {

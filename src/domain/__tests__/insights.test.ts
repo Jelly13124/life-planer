@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { insightsSummary } from "@/domain/insights";
 import { completeAction } from "@/domain/daily";
-import { createTree, } from "@/domain/tree";
-import { createGoal, setGoalActions, upsertGoal } from "@/domain/goals";
+import { createTree } from "@/domain/tree";
+import { addGoal, addTask } from "@/domain/goalTree";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
 import type { Profile } from "@/domain/types";
 
@@ -18,12 +18,15 @@ const TODAY = "2026-06-20";
 
 function baseTree() {
   let t = createTree(profile, gen, NOW);
-  const g = setGoalActions(
-    createGoal({ area: "growth", horizon: "short", title: "健身", why: "" }, NOW),
-    ["俯卧撑", "跑步", "拉伸"],
-  );
-  t = upsertGoal(t, g);
-  return { tree: t, a0: g.actions[0].id, a1: g.actions[1].id, a2: g.actions[2].id };
+  const g = addGoal(t, { area: "growth", title: "健身", why: "" }, NOW);
+  t = g.tree;
+  const r0 = addTask(t, g.id, null, "俯卧撑", `${NOW}-0`);
+  t = r0.tree;
+  const r1 = addTask(t, g.id, null, "跑步", `${NOW}-1`);
+  t = r1.tree;
+  const r2 = addTask(t, g.id, null, "拉伸", `${NOW}-2`);
+  t = r2.tree;
+  return { tree: t, a0: r0.id, a1: r1.id, a2: r2.id };
 }
 
 describe("insightsSummary", () => {
