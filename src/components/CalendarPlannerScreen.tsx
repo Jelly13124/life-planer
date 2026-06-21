@@ -42,15 +42,15 @@ export function CalendarPlannerScreen() {
   const [weeklyOpen, setWeeklyOpen] = useState(false);
 
   const goals = tree?.goals ?? [];
-  const activeLong = useMemo(() => goals.filter((g) => g.horizon === "long" && g.status === "active"), [goals]);
+  const activeGoals = useMemo(() => goals.filter((g) => g.status === "active"), [goals]);
   const streak = useMemo(() => (tree ? currentStreak(tree, today) : 0), [tree, today]);
   const hm = useMemo(() => (tree ? heatmap(tree, 30, today) : []), [tree, today]);
-  const doneLong = useMemo(() => (tree ? tree.goals.filter((g) => g.horizon === "long" && g.status === "done") : []), [tree]);
+  const doneGoals = useMemo(() => (tree ? tree.goals.filter((g) => g.status === "done") : []), [tree]);
   const unsched = useMemo(() => (tree ? unscheduledActions(tree) : []), [tree]);
   const markers = useMemo(() => {
     if (!tree) return [];
     return tree.goals
-      .filter((g) => g.horizon === "long" && g.status === "active" && g.pathId)
+      .filter((g) => g.status === "active" && g.pathId)
       .map((g) => {
         const age = branchPositionAge(tree, g);
         return age == null ? null : { pathId: g.pathId as string, age, label: g.title };
@@ -95,9 +95,9 @@ export function CalendarPlannerScreen() {
 
       {!tree.guideDismissed && <GettingStarted tree={tree} />}
 
-      {doneLong.length > 0 && (
+      {doneGoals.length > 0 && (
         <div className="mb-6 space-y-2">
-          {doneLong.map((g) => (
+          {doneGoals.map((g) => (
             <div key={g.id} className="flex items-center gap-2.5 rounded-2xl border border-[var(--c-emerald)]/40 bg-[var(--c-emerald)]/10 px-4 py-3 text-sm">
               <span aria-hidden="true">🏆</span>
               <span className="min-w-0 text-[var(--fg)]">{t("你真的做到了：{title}", { title: g.title })}</span>
@@ -189,17 +189,17 @@ export function CalendarPlannerScreen() {
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {unsched.length === 0 && <span className="text-xs text-[var(--fg-faint)]">{t("没有未排期的行动")}</span>}
-                {unsched.map(({ action }) => (
+                {unsched.map(({ item }) => (
                   <button
-                    key={action.id}
+                    key={item.id}
                     draggable
-                    onDragStart={(e) => e.dataTransfer.setData("text/plain", action.id)}
-                    onClick={() => setPendingActionId((cur) => (cur === action.id ? null : action.id))}
+                    onDragStart={(e) => e.dataTransfer.setData("text/plain", item.id)}
+                    onClick={() => setPendingActionId((cur) => (cur === item.id ? null : item.id))}
                     className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
-                      pendingActionId === action.id ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]" : "border-[var(--line)] text-[var(--fg-dim)] hover:border-[var(--accent)]"
+                      pendingActionId === item.id ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]" : "border-[var(--line)] text-[var(--fg-dim)] hover:border-[var(--accent)]"
                     }`}
                   >
-                    {action.text}
+                    {item.text}
                   </button>
                 ))}
               </div>
@@ -211,11 +211,11 @@ export function CalendarPlannerScreen() {
         <div className="flex flex-col gap-4 lg:w-[40%]">
           <Card pad="md">
             <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("目标")}</div>
-            {activeLong.length === 0 ? (
+            {activeGoals.length === 0 ? (
               <EmptyState
                 size="inline"
                 icon="🎯"
-                description={t("还没有长期目标。去「我的规划」加一个。")}
+                description={t("还没有目标。去「我的规划」加一个。")}
                 action={
                   <button onClick={openPlan} className="rounded-full border border-[var(--accent)]/50 px-3 py-1.5 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/15">
                     {t("去规划")}
@@ -224,7 +224,7 @@ export function CalendarPlannerScreen() {
               />
             ) : (
               <div className="space-y-3.5">
-                {activeLong.map((g) => {
+                {activeGoals.map((g) => {
                   const pct = Math.round(goalProgress(tree, g) * 100);
                   return (
                     <button key={g.id} onClick={() => g.pathId && openPath(g.pathId)} className="block w-full text-left">

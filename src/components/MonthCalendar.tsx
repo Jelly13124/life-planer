@@ -2,7 +2,7 @@
 
 import type { LifeTree } from "@/domain/types";
 import { useT } from "@/prefs/PreferencesContext";
-import { actionsOnDay, monthGrid, type DayActionKind } from "@/domain/calendar";
+import { actionsOnDay, monthGrid } from "@/domain/calendar";
 
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 
@@ -81,17 +81,17 @@ export function MonthCalendar({
                 {Number(cell.date.slice(8, 10))}
               </div>
               <div className="mt-1 space-y-1">
-                {acts.slice(0, 3).map(({ action, kind, done }) => (
+                {acts.slice(0, 3).map(({ item, kind, done }) => (
                   <div
-                    key={action.id}
+                    key={item.id}
                     draggable={kind === "scheduled"}
-                    onDragStart={(e) => kind === "scheduled" && e.dataTransfer.setData("text/plain", action.id)}
+                    onDragStart={(e) => kind === "scheduled" && e.dataTransfer.setData("text/plain", item.id)}
                     className={`truncate rounded px-1 py-0.5 text-[10px] leading-tight ${
                       done ? "text-[var(--fg-faint)] line-through" : kind === "scheduled" ? "bg-[var(--accent)]/15 text-[var(--accent)]" : "text-[var(--fg-dim)]"
                     }`}
-                    title={action.text}
+                    title={item.text}
                   >
-                    {kind !== "scheduled" ? "🔁 " : ""}{action.text}
+                    {kind !== "scheduled" ? "🔁 " : ""}{item.text}
                   </div>
                 ))}
                 {acts.length > 3 && <div className="px-1 text-[10px] text-[var(--fg-faint)]">+{acts.length - 3}</div>}

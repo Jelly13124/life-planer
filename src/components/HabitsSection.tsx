@@ -43,20 +43,20 @@ export function HabitsSection() {
         />
       ) : (
         <ul className="space-y-2">
-          {habits.map(({ goal, action }) => {
-            const done = isActionDoneToday(tree, action, today);
-            const streak = habitStreak(tree, action, today);
-            const repeatLabel = action.repeat === "daily" ? t("每天") : t("每周");
+          {habits.map(({ goal, habit }) => {
+            const done = isActionDoneToday(tree, habit, today);
+            const streak = habitStreak(tree, habit.id, today);
+            const repeatLabel = habit.repeat === "daily" ? t("每天") : t("每周");
             const streakLabel =
-              action.repeat === "weekly"
+              habit.repeat === "weekly"
                 ? t("🔥 连续 {n} 周", { n: streak })
                 : t("🔥 连续 {n} 天", { n: streak });
             return (
-              <li key={action.id}>
+              <li key={habit.id}>
                 <div className="flex w-full items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3 transition hover:border-[var(--accent)]/50 hover:bg-[var(--bg-2)]">
                   {/* Checkbox — only this toggles completion */}
                   <button
-                    onClick={() => toggleActionOn(action.id, today)}
+                    onClick={() => toggleActionOn(habit.id, today)}
                     aria-label={done ? t("标记未完成") : t("标记完成")}
                     className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border text-[11px] transition ${
                       done
@@ -67,13 +67,13 @@ export function HabitsSection() {
                     {done ? "✓" : ""}
                   </button>
 
-                  {/* Action text */}
+                  {/* Habit text */}
                   <span
                     className={`flex-1 truncate text-sm font-medium ${
                       done ? "text-[var(--fg-faint)] line-through" : "text-[var(--fg)]"
                     }`}
                   >
-                    {action.text}
+                    {habit.text}
                   </span>
 
                   {/* Repeat badge */}
@@ -93,9 +93,9 @@ export function HabitsSection() {
                     </span>
                   )}
 
-                  {/* Delete — removes the recurring action everywhere */}
+                  {/* Delete — removes the recurring habit everywhere */}
                   <button
-                    onClick={() => removeActionById(action.id)}
+                    onClick={() => removeActionById(habit.id)}
                     aria-label={t("删除任务")}
                     title={t("删除任务")}
                     className="flex-shrink-0 rounded-full px-1.5 py-0.5 text-[12px] text-[var(--fg-faint)] transition hover:text-[var(--c-rose)]"

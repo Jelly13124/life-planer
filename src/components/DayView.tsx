@@ -36,9 +36,9 @@ export function DayView({
   const win = dayWindow(tree);
   const items = actionsOnDay(tree, date);
   const timed = items
-    .filter((i) => i.action.startTime)
-    .sort((a, b) => toMinutes(a.action.startTime!) - toMinutes(b.action.startTime!));
-  const untimed = items.filter((i) => !i.action.startTime);
+    .filter((i) => i.item.startTime)
+    .sort((a, b) => toMinutes(a.item.startTime!) - toMinutes(b.item.startTime!));
+  const untimed = items.filter((i) => !i.item.startTime);
 
   const startMin = toMinutes(win.start);
   const endMin = toMinutes(win.end);
@@ -132,10 +132,10 @@ export function DayView({
             {t("未排时间")}
           </div>
           <ul className="space-y-1.5">
-            {untimed.map(({ goal, action, done }) => (
-              <li key={action.id} className="flex items-center gap-2">
+            {untimed.map(({ goal, item, done }) => (
+              <li key={item.id} className="flex items-center gap-2">
                 <button
-                  onClick={() => toggleActionOn(action.id, date)}
+                  onClick={() => toggleActionOn(item.id, date)}
                   aria-label={done ? t("标记未完成") : t("标记完成")}
                   className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border text-[10px] ${
                     done
@@ -146,17 +146,17 @@ export function DayView({
                   {done ? "✓" : ""}
                 </button>
                 <span className={`min-w-0 flex-1 truncate text-sm ${done ? "text-[var(--fg-faint)] line-through" : "text-[var(--fg)]"}`}>
-                  {action.text}
+                  {item.text}
                 </span>
                 <span className="flex-shrink-0 text-[10px] text-[var(--fg-faint)]">{t(AREA_LABELS[goal.area])}</span>
                 <input
                   type="time"
                   aria-label={t("设置开始时间")}
-                  onChange={(e) => setActionTimeById(action.id, e.target.value || null)}
+                  onChange={(e) => setActionTimeById(item.id, e.target.value || null)}
                   className="flex-shrink-0 rounded-lg border border-[var(--line)] bg-transparent px-2 py-1 text-xs text-[var(--fg-dim)] outline-none transition focus:border-[var(--accent)]/60 [color-scheme:dark]"
                 />
                 <button
-                  onClick={() => removeActionById(action.id)}
+                  onClick={() => removeActionById(item.id)}
                   aria-label={t("删除任务")}
                   title={t("删除任务")}
                   className="flex-shrink-0 rounded-full px-1.5 py-1 text-[11px] text-[var(--fg-faint)] transition hover:text-[var(--c-rose)]"
@@ -191,15 +191,15 @@ export function DayView({
             })}
 
             {/* 时间块 */}
-            {timed.map(({ goal, action, done }) => {
-              const s = toMinutes(action.startTime!);
-              const dur = action.durationMin ?? DEFAULT_DURATION_MIN;
+            {timed.map(({ goal, item, done }) => {
+              const s = toMinutes(item.startTime!);
+              const dur = item.durationMin ?? DEFAULT_DURATION_MIN;
               const top = Math.max(0, (s - startMin) * PX_PER_MIN);
               const height = Math.max(18, dur * PX_PER_MIN);
               const accent = goal.pathId ? colorOfPath(tree, goal.pathId) : null;
               return (
                 <div
-                  key={action.id}
+                  key={item.id}
                   className="absolute right-0 left-1 overflow-hidden rounded-lg border px-2 py-1 transition"
                   style={{
                     top,
@@ -213,7 +213,7 @@ export function DayView({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggleActionOn(action.id, date);
+                        toggleActionOn(item.id, date);
                       }}
                       aria-label={done ? t("标记未完成") : t("标记完成")}
                       className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border text-[9px] transition ${
@@ -226,7 +226,7 @@ export function DayView({
                     </button>
                     <div className="flex min-w-0 flex-col justify-center">
                       <span className={`w-full truncate text-[12px] leading-tight ${done ? "text-[var(--fg-faint)] line-through" : "text-[var(--fg)]"}`}>
-                        {action.text}
+                        {item.text}
                       </span>
                       <span className="mt-0.5 flex w-full items-center gap-1.5 text-[10px] text-[var(--fg-faint)]">
                         <span className="tabular-nums">{toHHMM(s)}–{toHHMM(s + dur)}</span>
@@ -235,7 +235,7 @@ export function DayView({
                     </div>
                   </div>
                   <button
-                    onClick={() => setActionTimeById(action.id, null)}
+                    onClick={() => setActionTimeById(item.id, null)}
                     aria-label={t("清除时间")}
                     title={t("清除时间")}
                     className="absolute right-6 top-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] text-[var(--fg-faint)] transition hover:bg-white/10 hover:text-[var(--fg-dim)]"
@@ -243,7 +243,7 @@ export function DayView({
                     ⌫
                   </button>
                   <button
-                    onClick={() => removeActionById(action.id)}
+                    onClick={() => removeActionById(item.id)}
                     aria-label={t("删除任务")}
                     title={t("删除任务")}
                     className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] text-[var(--fg-faint)] transition hover:bg-white/10 hover:text-[var(--c-rose)]"

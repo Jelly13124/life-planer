@@ -3,6 +3,7 @@
 import type { LifeTree } from "@/domain/types";
 import { useT } from "@/prefs/PreferencesContext";
 import { monthGrid } from "@/domain/calendar";
+import { allTasks } from "@/domain/goalTree";
 
 // 年视图：12 个迷你月，每天一个密度点。点 = 排期的一次性行动 + 当天完成数；
 // 刻意不计每日重复习惯（否则每天都会被点满）。年/今天由 props 注入，渲染期不取 new Date。
@@ -25,13 +26,12 @@ export function YearView({
 }) {
   const { t } = useT();
 
-  // 一次性遍历行动 + 活动，按天累计密度（不是 365 次循环）。
+  // 一次性遍历排期任务 + 活动，按天累计密度（不是 365 次循环）。
+  // 密度 = 排期的一次性 Task（按 scheduledDate）+ 当天完成数；重复习惯不计（否则天天满）。
   const counts = new Map<string, number>();
-  for (const g of tree.goals ?? []) {
-    for (const a of g.actions) {
-      if (a.scheduledDate && a.scheduledDate.startsWith(`${year}-`)) {
-        counts.set(a.scheduledDate, (counts.get(a.scheduledDate) ?? 0) + 1);
-      }
+  for (const { task } of allTasks(tree)) {
+    if (task.scheduledDate && task.scheduledDate.startsWith(`${year}-`)) {
+      counts.set(task.scheduledDate, (counts.get(task.scheduledDate) ?? 0) + 1);
     }
   }
   for (const d of tree.activity ?? []) {

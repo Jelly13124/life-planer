@@ -308,6 +308,7 @@ export const EN: Record<string, string> = {
   移回未排期: "Move back to unscheduled",
   目标: "Goals",
   "还没有长期目标。去「我的规划」加一个。": "No long-term goals yet. Add one in My plan.",
+  "还没有目标。去「我的规划」加一个。": "No goals yet. Add one in My plan.",
   "未来预测 ·「你在这里」随里程碑前进": "Forecast · “you are here” advances with milestones",
 
   // ── 激励闭环 / 仪表盘 v2 ──
@@ -468,6 +469,10 @@ export const EN: Record<string, string> = {
     "Your inbox is empty. Capture anything that comes to mind — sort it out later.",
   "🎯 设成长期目标": "🎯 Make long-term goal",
   "设成短期目标": "Make short-term goal",
+  "成长为分支": "Grow into a branch",
+  "🌱 成长为分支": "🌱 Grow into a branch",
+  "设为目标": "Make it a goal",
+  "🎯 设为目标": "🎯 Make it a goal",
   "删除": "Delete",
 
   // ── 目标标签 goal tags ──

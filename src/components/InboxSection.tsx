@@ -7,7 +7,7 @@ import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
 
 export function InboxSection() {
-  const { tree, captureToInbox, removeInboxItem, promoteInboxToLongGoal, promoteInboxToShortGoal } = useApp();
+  const { tree, captureToInbox, removeInboxItem, promoteInboxToGoal } = useApp();
   const { t } = useT();
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -31,12 +31,14 @@ export function InboxSection() {
     }
   }
 
-  function handleRouteLong(itemId: string) {
-    promoteInboxToLongGoal(itemId);
+  // 成长为分支：建目标 + 在人生树上长出一条预测分支。
+  function handleGrowBranch(itemId: string) {
+    promoteInboxToGoal(itemId, { withBranch: true });
   }
 
-  function handleRouteShort(itemId: string) {
-    promoteInboxToShortGoal(itemId);
+  // 设为目标：只建一个简单目标，不长分支。
+  function handleMakeGoal(itemId: string) {
+    promoteInboxToGoal(itemId);
   }
 
   return (
@@ -96,19 +98,19 @@ export function InboxSection() {
               <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:flex-shrink-0">
                 <button
                   type="button"
-                  onClick={() => handleRouteLong(item.id)}
+                  onClick={() => handleGrowBranch(item.id)}
                   className="rounded-lg border border-[var(--accent)]/40 bg-[var(--accent)]/[0.08] px-2.5 py-1 text-[11px] font-medium text-[var(--accent)] transition hover:bg-[var(--accent)]/[0.18]"
-                  title={t("设成长期目标")}
+                  title={t("成长为分支")}
                 >
-                  {t("🎯 设成长期目标")}
+                  {t("🌱 成长为分支")}
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleRouteShort(item.id)}
+                  onClick={() => handleMakeGoal(item.id)}
                   className="rounded-lg border border-[var(--line)] px-2.5 py-1 text-[11px] font-medium text-[var(--fg-dim)] transition hover:border-[var(--accent)]/40 hover:text-[var(--fg)]"
-                  title={t("设成短期目标")}
+                  title={t("设为目标")}
                 >
-                  {t("设成短期目标")}
+                  {t("🎯 设为目标")}
                 </button>
                 <button
                   type="button"

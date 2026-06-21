@@ -17,7 +17,7 @@ import { Button } from "./ui/Button";
 // 常驻浮窗的规划助手（P4）：帮你理清选择、提出新可能、一键加进树。
 // 也能"铺开几条路"：建议多条候选，但每条都要你点一下才画上（确认优先）。
 export function PlanningAssistant() {
-  const { tree, addBranch, addBranches, addLongTermGoal } = useApp();
+  const { tree, addBranch, addBranches, addGoalWithBranch } = useApp();
   const { t } = useT();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -76,11 +76,11 @@ export function PlanningAssistant() {
     setDrawn((d) => [...d, label]);
   }
 
-  // 把某个候选设成长期目标：建目标 + 在树上长出一条分支。PathSuggestion 没有 area，
+  // 把某个候选设成目标：建目标 + 在树上长出一条分支。PathSuggestion 没有 area，
   // 默认 career，用户可在「我的规划」里改类。确认优先——点了才设。
   function makeGoal(s: PathSuggestion) {
     if (goalDrawn.includes(s.label)) return;
-    addLongTermGoal({ area: "career", title: s.label, why: s.why });
+    addGoalWithBranch({ area: "career", title: s.label, why: s.why });
     setGoalDrawn((g) => [...g, s.label]);
   }
 
@@ -251,7 +251,7 @@ export function PlanningAssistant() {
                   onClick={() => {
                     const v = input.trim();
                     if (!v) return;
-                    addLongTermGoal({ area: "career", title: v, why: "" });
+                    addGoalWithBranch({ area: "career", title: v, why: "" });
                     setInput("");
                     setAddedGoal(v);
                     setTimeout(() => setAddedGoal(null), 2600);
