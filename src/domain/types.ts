@@ -177,46 +177,94 @@ export interface Decision {
   review: Review | null;
 }
 
-// ───────── 规划主线：目标（一个长期目标 = 树上一条分支） ─────────
-export type GoalHorizon = "short" | "long";
+// ───────── 规划主线：嵌套目标 Goal(时间范围) ⊃ Subgoal ⊃ { Metric, Task, Habit } ─────────
 export type GoalStatus = "active" | "done";
 
-export interface GoalAction {
+// 成功指标：数字/百分比/单位（如 存款 0→100000 元、体脂 25→18 %）
+export interface Metric {
+  id: string;
+  label: string;
+  current: number;
+  target: number;
+  unit: string;
+}
+
+// 一次性任务（里程碑，计入进度）
+export interface Task {
   id: string;
   text: string;
   done: boolean;
-  repeat?: "daily" | "weekly"; // 缺省=一次性（里程碑，计入进度）；重复行动=日常纪律，不计入进度
-  scheduledDate?: string;   // 一次性行动排到的本地日 YYYY-MM-DD（未排期则无）
-  repeatWeekday?: number;   // 仅 weekly：锚定星期几 0=周日…6=周六（用于在月历上落位）
-  startTime?: string;       // 本地时刻 HH:MM 24h（仅在 scheduledDate 已排期时有意义）
-  durationMin?: number;     // 时长（分钟），未设时默认 60
+  scheduledDate?: string; // 排到的本地日 YYYY-MM-DD（未排期则无）
+  startTime?: string;     // 本地时刻 HH:MM 24h（仅在 scheduledDate 已排期时有意义）
+  durationMin?: number;   // 时长（分钟），未设时默认 60
 }
 
+// 习惯（重复行动，日常纪律，不计入里程碑进度）
+export interface Habit {
+  id: string;
+  text: string;
+  repeat: "daily" | "weekly";
+  repeatWeekday?: number; // 仅 weekly：锚定星期几 0=周日…6=周六
+  startTime?: string;     // 本地时刻 HH:MM 24h
+  durationMin?: number;   // 时长（分钟），未设时默认 60
+}
+
+// 子目标：目标下的一层，自带指标/任务/习惯
+export interface Subgoal {
+  id: string;
+  title: string;
+  metrics: Metric[];
+  tasks: Task[];
+  habits: Habit[];
+}
+
+// 目标 Plan：带起止时间，嵌套子目标与目标级指标/任务/习惯
 export interface Goal {
   id: string;
   area: LifeArea; // 事业/财富/关系/健康/成长
-  horizon: GoalHorizon;
   title: string;
   why: string;
   status: GoalStatus;
   createdAt: string;
-  parentGoalId: string | null; // 短期目标挂到某个长期目标；长期目标为 null
-  pathId: string | null; // 仅长期目标：它在树上长出的那条分支 id
-  actions: GoalAction[];
+  startDate?: string; // 起（本地日 YYYY-MM-DD）
+  endDate?: string;   // 止（本地日 YYYY-MM-DD，替代旧 deadline）
+  pathId?: string | null; // 目标 → 人生树分支 id
+  tags?: string[];    // 用户自定义标签（过滤/归组用，可选）
+  metrics: Metric[];  // 目标级指标
+  subgoals: Subgoal[];
+  tasks: Task[];      // 目标级一次性任务
+  habits: Habit[];    // 目标级习惯
   completedAt?: string;
   lastReviewedAt?: string;
-  deadline?: string; // 本地日 YYYY-MM-DD（截止日，可选）
-  tags?: string[];   // 用户自定义标签（过滤/归组用，可选）
 }
 
-// 新建目标的入参（id/status/createdAt/actions 由 createGoal 补全）
-export interface GoalInput {
+// ───────── 迁移用旧类型（仅供 normalize → migrateGoals 读取，不在新代码中使用） ─────────
+export interface LegacyGoalAction {
+  id: string;
+  text: string;
+  done: boolean;
+  repeat?: "daily" | "weekly";
+  repeatWeekday?: number;
+  scheduledDate?: string;
+  startTime?: string;
+  durationMin?: number;
+}
+
+export interface LegacyGoal {
+  id: string;
   area: LifeArea;
-  horizon: GoalHorizon;
+  horizon: "long" | "short";
   title: string;
   why: string;
-  parentGoalId?: string | null;
-  pathId?: string | null;
+  status: "active" | "done";
+  createdAt: string;
+  parentGoalId: string | null;
+  pathId: string | null;
+  actions: LegacyGoalAction[];
+  deadline?: string;
+  tags?: string[];
+  completedAt?: string;
+  lastReviewedAt?: string;
 }
 
 // ───────── 每日激励闭环：今日计划 / 连续天数 / 完成热力图 ─────────
