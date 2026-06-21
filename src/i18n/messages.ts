@@ -286,6 +286,9 @@ export const EN: Record<string, string> = {
 
   // ── 日历规划首页 CalendarPlannerScreen / MonthCalendar ──
   规划: "Plan",
+  "年": "Year",
+  "月": "Month",
+  "日": "Day",
   "{y}年 {m}月": "{y}-{m}",
   回到今天: "Today",
   上个月: "Previous month",

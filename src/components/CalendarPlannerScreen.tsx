@@ -11,16 +11,17 @@ import { LifeMap } from "./LifeMap";
 import { GettingStarted } from "./GettingStarted";
 import { WeeklyReviewSheet } from "./WeeklyReviewSheet";
 import { MonthCalendar } from "./MonthCalendar";
-import { AREA_LABELS } from "@/domain/types";
-import { branchPositionAge, currentStreak, heatmap } from "@/domain/daily";
-import { actionsOnDay, unscheduledActions } from "@/domain/calendar";
+import { YearView } from "./YearView";
+import { DayView } from "./DayView";
+import { addDays, branchPositionAge, currentStreak, heatmap } from "@/domain/daily";
+import { unscheduledActions } from "@/domain/calendar";
 import { goalProgress } from "@/domain/goals";
 import { localTodayStr } from "@/lib/dailyClient";
 
 const _bootToday = localTodayStr();
 
 export function CalendarPlannerScreen() {
-  const { tree, openTree, openPath, openPlan, scheduleAction, toggleActionOn, markDueGoalsReviewed, addBranch } = useApp();
+  const { tree, openTree, openPath, openPlan, scheduleAction, markDueGoalsReviewed, addBranch } = useApp();
   const { t } = useT();
 
   const [today, setToday] = useState(_bootToday);
@@ -36,6 +37,7 @@ export function CalendarPlannerScreen() {
     month: Number(_bootToday.slice(5, 7)),
   }));
   const [selectedDay, setSelectedDay] = useState<string>(_bootToday);
+  const [calView, setCalView] = useState<"year" | "month" | "day">("month");
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const [weeklyOpen, setWeeklyOpen] = useState(false);
 
@@ -45,7 +47,6 @@ export function CalendarPlannerScreen() {
   const hm = useMemo(() => (tree ? heatmap(tree, 30, today) : []), [tree, today]);
   const doneLong = useMemo(() => (tree ? tree.goals.filter((g) => g.horizon === "long" && g.status === "done") : []), [tree]);
   const unsched = useMemo(() => (tree ? unscheduledActions(tree) : []), [tree]);
-  const dayActs = useMemo(() => (tree ? actionsOnDay(tree, selectedDay) : []), [tree, selectedDay]);
   const markers = useMemo(() => {
     if (!tree) return [];
     return tree.goals
@@ -114,67 +115,96 @@ export function CalendarPlannerScreen() {
         {/* LEFT: calendar */}
         <div className="flex flex-col gap-4 lg:w-[60%]">
           <Card pad="sm">
-            <MonthCalendar
-              tree={tree}
-              today={today}
-              year={view.year}
-              month={view.month}
-              selectedDay={selectedDay}
-              pendingActionId={pendingActionId}
-              onPrev={prevMonth}
-              onNext={nextMonth}
-              onToday={goToday}
-              onSelectDay={setSelectedDay}
-              onSchedule={(id, date) => scheduleAction(id, date)}
-              onPlaceHere={placeHere}
-            />
-          </Card>
-
-          {/* unscheduled tray */}
-          <Card pad="sm">
-            <div className="mb-2.5 text-[11px] text-[var(--fg-faint)]">
-              {pendingActionId ? t("点一个日子放下它") : t("未排期 · 拖到某天，或点一下再点日子")}
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {unsched.length === 0 && <span className="text-xs text-[var(--fg-faint)]">{t("没有未排期的行动")}</span>}
-              {unsched.map(({ action }) => (
+            {/* 年/月/日 segmented toggle */}
+            <div className="mb-3 inline-flex rounded-full border border-[var(--line)] p-0.5">
+              {(["year", "month", "day"] as const).map((v) => (
                 <button
-                  key={action.id}
-                  draggable
-                  onDragStart={(e) => e.dataTransfer.setData("text/plain", action.id)}
-                  onClick={() => setPendingActionId((cur) => (cur === action.id ? null : action.id))}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
-                    pendingActionId === action.id ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]" : "border-[var(--line)] text-[var(--fg-dim)] hover:border-[var(--accent)]"
+                  key={v}
+                  onClick={() => setCalView(v)}
+                  className={`rounded-full px-3.5 py-1 text-[12px] font-medium transition ${
+                    calView === v
+                      ? "bg-[var(--accent)] text-[#11132a]"
+                      : "text-[var(--fg-dim)] hover:text-[var(--fg)]"
                   }`}
                 >
-                  {action.text}
+                  {v === "year" ? t("年") : v === "month" ? t("月") : t("日")}
                 </button>
               ))}
             </div>
-          </Card>
 
-          {/* selected-day panel */}
-          <Card pad="sm">
-            <div className="mb-2.5 text-sm font-semibold">{t("{d} 这天", { d: selectedDay })}</div>
-            {dayActs.length === 0 ? (
-              <p className="text-xs leading-relaxed text-[var(--fg-faint)]">{t("这天还没有安排。把未排期的行动拖/点过来。")}</p>
-            ) : (
-              <ul className="space-y-1.5">
-                {dayActs.map(({ goal, action, kind, done }) => (
-                  <li key={action.id} className="flex items-center gap-2">
-                    <button onClick={() => toggleActionOn(action.id, selectedDay)} className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm">
-                      <span className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border text-[10px] ${done ? "border-[var(--c-emerald)] bg-[var(--c-emerald)]/20 text-[var(--c-emerald)]" : "border-[var(--line)]"}`}>{done ? "✓" : ""}</span>
-                      <span className={`truncate ${done ? "text-[var(--fg-faint)] line-through" : "text-[var(--fg)]"}`}>{kind !== "scheduled" ? "🔁 " : ""}{action.text}</span>
-                      <span className="ml-1 flex-shrink-0 text-[10px] text-[var(--fg-faint)]">{t(AREA_LABELS[goal.area])}</span>
-                    </button>
-                    {kind === "scheduled" && (
-                      <button onClick={() => scheduleAction(action.id, null)} aria-label={t("移回未排期")} title={t("移回未排期")} className="flex-shrink-0 rounded-full border border-[var(--line)] px-2 py-0.5 text-[10px] text-[var(--fg-faint)] transition hover:text-[var(--c-rose)]">✕</button>
-                    )}
-                  </li>
-                ))}
-              </ul>
+            {calView === "year" && (
+              <YearView
+                tree={tree}
+                year={view.year}
+                today={today}
+                onPrevYear={() => setView((v) => ({ ...v, year: v.year - 1 }))}
+                onNextYear={() => setView((v) => ({ ...v, year: v.year + 1 }))}
+                onPickMonth={(m) => {
+                  setView({ year: view.year, month: m });
+                  setCalView("month");
+                }}
+                onPickDay={(d) => {
+                  setSelectedDay(d);
+                  setCalView("day");
+                }}
+              />
+            )}
+
+            {calView === "month" && (
+              <MonthCalendar
+                tree={tree}
+                today={today}
+                year={view.year}
+                month={view.month}
+                selectedDay={selectedDay}
+                pendingActionId={pendingActionId}
+                onPrev={prevMonth}
+                onNext={nextMonth}
+                onToday={goToday}
+                onSelectDay={(d) => {
+                  setSelectedDay(d);
+                  setCalView("day");
+                }}
+                onSchedule={(id, date) => scheduleAction(id, date)}
+                onPlaceHere={placeHere}
+              />
+            )}
+
+            {calView === "day" && (
+              <DayView
+                tree={tree}
+                date={selectedDay}
+                onPrevDay={() => setSelectedDay(addDays(selectedDay, -1))}
+                onNextDay={() => setSelectedDay(addDays(selectedDay, 1))}
+                onToday={() => setSelectedDay(today)}
+              />
             )}
           </Card>
+
+          {/* unscheduled tray — drag source, only in month view */}
+          {calView === "month" && (
+            <Card pad="sm">
+              <div className="mb-2.5 text-[11px] text-[var(--fg-faint)]">
+                {pendingActionId ? t("点一个日子放下它") : t("未排期 · 拖到某天，或点一下再点日子")}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {unsched.length === 0 && <span className="text-xs text-[var(--fg-faint)]">{t("没有未排期的行动")}</span>}
+                {unsched.map(({ action }) => (
+                  <button
+                    key={action.id}
+                    draggable
+                    onDragStart={(e) => e.dataTransfer.setData("text/plain", action.id)}
+                    onClick={() => setPendingActionId((cur) => (cur === action.id ? null : action.id))}
+                    className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
+                      pendingActionId === action.id ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]" : "border-[var(--line)] text-[var(--fg-dim)] hover:border-[var(--accent)]"
+                    }`}
+                  >
+                    {action.text}
+                  </button>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* RIGHT: goals + prediction */}
