@@ -291,6 +291,12 @@ export const EN: Record<string, string> = {
   上个月: "Previous month",
   下个月: "Next month",
   "周{w}": "{w}",
+
+  // ── 年视图 YearView ──
+  "{year} 年": "{year}",
+  "{m}月": "{m}",
+  上一年: "Previous year",
+  下一年: "Next year",
   "未排期 · 拖到某天，或点一下再点日子": "Unscheduled · drag to a day, or tap then tap a day",
   点一个日子放下它: "Tap a day to drop it",
   没有未排期的行动: "No unscheduled actions",
