@@ -8,6 +8,7 @@ import { Card } from "./ui/Card";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
 import { LifeMap } from "./LifeMap";
+import { GettingStarted } from "./GettingStarted";
 import { WeeklyReviewSheet } from "./WeeklyReviewSheet";
 import { MonthCalendar } from "./MonthCalendar";
 import { AREA_LABELS } from "@/domain/types";
@@ -90,6 +91,8 @@ export function CalendarPlannerScreen() {
         }
         actions={<Button variant="subtle" onClick={() => setWeeklyOpen(true)}>{t("📅 本周回顾")}</Button>}
       />
+
+      {!tree.guideDismissed && <GettingStarted tree={tree} />}
 
       {doneLong.length > 0 && (
         <div className="mb-6 space-y-2">

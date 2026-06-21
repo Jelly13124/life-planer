@@ -481,4 +481,16 @@ export const EN: Record<string, string> = {
   "🔥 连续 {n}": "🔥 {n}-day streak",
   "🔥 连续 {n} 天": "🔥 {n}-day streak",
   "🔥 连续 {n} 周": "🔥 {n}-week streak",
+
+  // ── 首次上手引导 Getting started ──
+  "上手 3 步": "Get started in 3 steps",
+  关闭引导: "Dismiss guide",
+  去做: "Do it",
+  "加第一个长期目标 —— 它会在你的人生树上长出一条路":
+    "Add your first long-term goal — it grows a path on your life tree",
+  "把一条行动排进日历某天": "Schedule an action onto a day",
+  "勾掉它 —— 看你离那个未来近一步":
+    "Check it off — watch yourself move one step closer to that future",
+  "🎉 你已经走通了一圈！": "🎉 You've been all the way around!",
+  开始用: "Start using it",
 };

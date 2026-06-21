@@ -240,6 +240,7 @@ export interface LifeTree {
   goals: Goal[]; // 规划主线：长期/短期目标
   activity: ActivityDay[]; // 每日激励闭环：今日计划/完成记录
   inbox: InboxItem[]; // 快捷收件箱：随手捕获，回头再归类
+  guideDismissed?: boolean; // 首次上手引导是否已关闭（undefined=未关→仍显示，无需迁移）
   createdAt: string;
   updatedAt: string;
 }

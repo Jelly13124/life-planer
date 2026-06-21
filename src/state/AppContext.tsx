@@ -202,6 +202,7 @@ interface AppApi {
   removeGoalTagById: (goalId: string, tag: string) => void;
   scheduleAction: (actionId: string, date: string | null) => void;
   toggleActionOn: (actionId: string, date: string) => void;
+  dismissGuide: () => void;
   safetyHold: Profile | null;
   continueAfterSafety: () => void;
 }
@@ -616,6 +617,11 @@ export function AppProvider({
           ? uncompleteAction(baseTree, actionId, date)
           : completeAction(baseTree, actionId, date);
         dispatch({ type: "patchTree", tree: next });
+      },
+      dismissGuide: () => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: { ...baseTree, guideDismissed: true, updatedAt: new Date().toISOString() } });
       },
       safetyHold: state.safetyHold,
       continueAfterSafety: () => {
