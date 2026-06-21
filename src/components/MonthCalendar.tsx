@@ -4,7 +4,8 @@ import type { LifeTree } from "@/domain/types";
 import { useT } from "@/prefs/PreferencesContext";
 import { actionsOnDay, monthGrid } from "@/domain/calendar";
 
-const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
+// 周一起始：表头用完整「周X」token，经 t() 译成 Mon…Sun（避免英文下漏出中文）。
+const WEEKDAY_HEAD = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 
 export function MonthCalendar({
   tree,
@@ -52,7 +53,7 @@ export function MonthCalendar({
         </div>
       </div>
       <div className="mb-1.5 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase tracking-wide text-[var(--fg-faint)]">
-        {WEEKDAYS.map((w) => <div key={w}>{t("周{w}", { w })}</div>)}
+        {WEEKDAY_HEAD.map((w) => <div key={w}>{t(w)}</div>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
         {grid.map((cell) => {

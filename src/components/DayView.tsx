@@ -14,7 +14,8 @@ import { Card } from "./ui/Card";
 // 时间块按 startTime 绝对定位、按 durationMin 定高；像素/分钟比固定，便于眼睛对齐刻度。
 
 const PX_PER_MIN = 0.8;
-const WEEKDAY_ZH = ["日", "一", "二", "三", "四", "五", "六"]; // weekdayOf: 0=周日…6=周六
+// weekdayOf: 0=周日…6=周六。用完整「周X」token，经 t() 译成 Sun…Sat（英文下不漏中文）。
+const WEEKDAY_TOKEN = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
 export function DayView({
   tree,
@@ -50,7 +51,7 @@ export function DayView({
   const hours: number[] = [];
   for (let h = firstHour; h <= lastHour; h++) hours.push(h);
 
-  const wd = WEEKDAY_ZH[weekdayOf(date)];
+  const wd = t(WEEKDAY_TOKEN[weekdayOf(date)]);
 
   async function runArrange() {
     if (arranging) return;
@@ -75,7 +76,7 @@ export function DayView({
             ‹
           </button>
           <div className="text-sm font-semibold tracking-tight text-[var(--fg)]">
-            {date} <span className="text-[var(--fg-faint)]">{t("周{w}", { w: wd })}</span>
+            {date} <span className="text-[var(--fg-faint)]">{wd}</span>
           </div>
           <button
             onClick={onNextDay}

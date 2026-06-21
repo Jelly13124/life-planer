@@ -559,6 +559,7 @@ export const EN: Record<string, string> = {
   "任务（如 投 5 份简历）": "Task (e.g. send 5 résumés)",
   "＋ 习惯": "＋ Habit",
   "习惯（如 每天读 20 页）": "Habit (e.g. read 20 pages a day)",
+  每日: "Daily", // PlanScreen 习惯徽章用「每日」；HabitsSection 用「每天」，二者同义
   删除习惯: "Delete habit",
   // 指标
   "＋ 指标": "＋ Metric",
