@@ -12,7 +12,7 @@ import { EmptyState } from "./ui/EmptyState";
 const _bootToday = localTodayStr();
 
 export function HabitsSection() {
-  const { tree, toggleActionOn } = useApp();
+  const { tree, toggleActionOn, removeActionById } = useApp();
   const { t } = useT();
 
   const [today, setToday] = useState(_bootToday);
@@ -53,20 +53,19 @@ export function HabitsSection() {
                 : t("🔥 连续 {n} 天", { n: streak });
             return (
               <li key={action.id}>
-                <button
-                  onClick={() => toggleActionOn(action.id, today)}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3 text-left transition hover:border-[var(--accent)]/50 hover:bg-[var(--bg-2)]"
-                >
-                  {/* Checkbox */}
-                  <span
+                <div className="flex w-full items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3 transition hover:border-[var(--accent)]/50 hover:bg-[var(--bg-2)]">
+                  {/* Checkbox — only this toggles completion */}
+                  <button
+                    onClick={() => toggleActionOn(action.id, today)}
+                    aria-label={done ? t("标记未完成") : t("标记完成")}
                     className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border text-[11px] transition ${
                       done
                         ? "border-[var(--c-emerald)] bg-[var(--c-emerald)]/20 text-[var(--c-emerald)]"
-                        : "border-[var(--line)]"
+                        : "border-[var(--line)] hover:border-[var(--accent)]"
                     }`}
                   >
                     {done ? "✓" : ""}
-                  </span>
+                  </button>
 
                   {/* Action text */}
                   <span
@@ -93,7 +92,17 @@ export function HabitsSection() {
                       {streakLabel}
                     </span>
                   )}
-                </button>
+
+                  {/* Delete — removes the recurring action everywhere */}
+                  <button
+                    onClick={() => removeActionById(action.id)}
+                    aria-label={t("删除任务")}
+                    title={t("删除任务")}
+                    className="flex-shrink-0 rounded-full px-1.5 py-0.5 text-[12px] text-[var(--fg-faint)] transition hover:text-[var(--c-rose)]"
+                  >
+                    ✕
+                  </button>
+                </div>
               </li>
             );
           })}

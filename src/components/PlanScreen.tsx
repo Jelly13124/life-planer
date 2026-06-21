@@ -16,7 +16,7 @@ import { fetchGoalActions, fetchGoalSuggestions, type GoalSuggestion } from "@/l
 const _bootISO = new Date().toISOString();
 
 export function PlanScreen() {
-  const { tree, openPath, addLongTermGoal, addShortTermGoal, setGoalActionTexts, toggleGoalActionById, completeGoalById, dropGoalById, markDueGoalsReviewed, planActionToday, setActionRepeatById, setGoalDeadlineById, addGoalTagById, removeGoalTagById } = useApp();
+  const { tree, openPath, addLongTermGoal, addShortTermGoal, setGoalActionTexts, toggleGoalActionById, completeGoalById, dropGoalById, markDueGoalsReviewed, planActionToday, setActionRepeatById, setGoalDeadlineById, addGoalTagById, removeGoalTagById, removeActionById } = useApp();
   const { t } = useT();
 
   const [todayISO, setTodayISO] = useState(_bootISO);
@@ -183,6 +183,7 @@ export function PlanScreen() {
               onAddShort={(title) => addShortTermGoal({ area: g.area, title, why: "", parentGoalId: g.id })}
               onPlanToday={(aid) => planActionToday(aid)}
               onSetRepeat={(aid, r) => setActionRepeatById(g.id, aid, r)}
+              onDeleteAction={(aid) => removeActionById(aid)}
               onSetDeadline={(date) => setGoalDeadlineById(g.id, date)}
               onAddTag={(tag) => addGoalTagById(g.id, tag)}
               onRemoveTag={(tag) => removeGoalTagById(g.id, tag)}
@@ -207,6 +208,7 @@ export function PlanScreen() {
               onDrop={() => dropGoalById(g.id)}
               onPlanToday={(aid) => planActionToday(aid)}
               onSetRepeat={(aid, r) => setActionRepeatById(g.id, aid, r)}
+              onDeleteAction={(aid) => removeActionById(aid)}
               onSetDeadline={(date) => setGoalDeadlineById(g.id, date)}
               onAddTag={(tag) => addGoalTagById(g.id, tag)}
               onRemoveTag={(tag) => removeGoalTagById(g.id, tag)}
@@ -263,24 +265,28 @@ function ProgressBar({ value }: { value: number }) {
 }
 
 function Actions({
-  goal, t, onToggle, onPlanToday, onSetRepeat,
+  goal, t, onToggle, onPlanToday, onSetRepeat, onDelete,
 }: {
   goal: Goal; t: TFn;
   onToggle: (actionId: string) => void;
   onPlanToday: (actionId: string) => void;
   onSetRepeat: (actionId: string, repeat: "daily" | "weekly" | undefined) => void;
+  onDelete: (actionId: string) => void;
 }) {
   if (goal.actions.length === 0) return null;
   return (
     <ul className="mt-2 space-y-1">
       {goal.actions.map((a) => (
         <li key={a.id} className="flex items-center gap-2">
-          <button onClick={() => onToggle(a.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm text-[var(--fg)]">
-            <span className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border text-[10px] ${a.done ? "border-[var(--c-emerald)] bg-[var(--c-emerald)]/20 text-[var(--c-emerald)]" : "border-[var(--line)]"}`}>
-              {a.done ? "✓" : ""}
-            </span>
-            <span className={a.done ? "text-[var(--fg-faint)] line-through" : ""}>{a.text}</span>
+          {/* 仅这个勾选框切换完成，避免整行点击误标完成 */}
+          <button
+            onClick={() => onToggle(a.id)}
+            aria-label={a.done ? t("标记未完成") : t("标记完成")}
+            className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border text-[10px] transition ${a.done ? "border-[var(--c-emerald)] bg-[var(--c-emerald)]/20 text-[var(--c-emerald)]" : "border-[var(--line)] hover:border-[var(--accent)]"}`}
+          >
+            {a.done ? "✓" : ""}
           </button>
+          <span className={`min-w-0 flex-1 text-sm ${a.done ? "text-[var(--fg-faint)] line-through" : "text-[var(--fg)]"}`}>{a.text}</span>
           <button
             onClick={() => onSetRepeat(a.id, NEXT_REPEAT(a.repeat))}
             className={`flex-shrink-0 rounded-full border px-2 py-0.5 text-[10px] transition ${a.repeat ? "border-[var(--accent)]/60 text-[var(--accent)]" : "border-[var(--line)] text-[var(--fg-faint)] hover:text-[var(--fg-dim)]"}`}
@@ -292,6 +298,14 @@ function Actions({
               {t("＋今天")}
             </button>
           )}
+          <button
+            onClick={() => onDelete(a.id)}
+            aria-label={t("删除任务")}
+            title={t("删除任务")}
+            className="flex-shrink-0 rounded-full px-1.5 py-0.5 text-[11px] text-[var(--fg-faint)] transition hover:text-[var(--c-rose)]"
+          >
+            ✕
+          </button>
         </li>
       ))}
     </ul>
@@ -373,12 +387,13 @@ function GoalTagRow({
 }
 
 function LongGoalCard({
-  goal, progress, kids, breaking, t, todayDay, onOpenPath, onBreak, onToggle, onComplete, onDrop, onAddShort, onPlanToday, onSetRepeat, onSetDeadline, onAddTag, onRemoveTag,
+  goal, progress, kids, breaking, t, todayDay, onOpenPath, onBreak, onToggle, onComplete, onDrop, onAddShort, onPlanToday, onSetRepeat, onDeleteAction, onSetDeadline, onAddTag, onRemoveTag,
 }: {
   goal: Goal; progress: number; kids: Goal[]; breaking: boolean; t: TFn; todayDay: string;
   onOpenPath: () => void; onBreak: () => void; onToggle: (actionId: string) => void;
   onComplete: () => void; onDrop: () => void; onAddShort: (title: string) => void;
   onPlanToday: (actionId: string) => void; onSetRepeat: (actionId: string, repeat: "daily" | "weekly" | undefined) => void;
+  onDeleteAction: (actionId: string) => void;
   onSetDeadline: (date: string | null) => void;
   onAddTag: (tag: string) => void; onRemoveTag: (tag: string) => void;
 }) {
@@ -428,7 +443,7 @@ function LongGoalCard({
         </ul>
       )}
 
-      <Actions goal={goal} t={t} onToggle={onToggle} onPlanToday={onPlanToday} onSetRepeat={onSetRepeat} />
+      <Actions goal={goal} t={t} onToggle={onToggle} onPlanToday={onPlanToday} onSetRepeat={onSetRepeat} onDelete={onDeleteAction} />
 
       <div className="mt-3 flex items-center gap-2">
         <input
@@ -456,11 +471,12 @@ function LongGoalCard({
 }
 
 function ShortGoalRow({
-  goal, breaking, t, todayDay, onBreak, onToggle, onComplete, onDrop, onPlanToday, onSetRepeat, onSetDeadline, onAddTag, onRemoveTag,
+  goal, breaking, t, todayDay, onBreak, onToggle, onComplete, onDrop, onPlanToday, onSetRepeat, onDeleteAction, onSetDeadline, onAddTag, onRemoveTag,
 }: {
   goal: Goal; breaking: boolean; t: TFn; todayDay: string;
   onBreak: () => void; onToggle: (actionId: string) => void; onComplete: () => void; onDrop: () => void;
   onPlanToday: (actionId: string) => void; onSetRepeat: (actionId: string, repeat: "daily" | "weekly" | undefined) => void;
+  onDeleteAction: (actionId: string) => void;
   onSetDeadline: (date: string | null) => void;
   onAddTag: (tag: string) => void; onRemoveTag: (tag: string) => void;
 }) {
@@ -478,7 +494,7 @@ function ShortGoalRow({
       </div>
       <DeadlineControl goal={goal} todayDay={todayDay} t={t} onSetDeadline={onSetDeadline} />
       <GoalTagRow goal={goal} t={t} onAddTag={onAddTag} onRemoveTag={onRemoveTag} newTag={newTag} setNewTag={setNewTag} />
-      <Actions goal={goal} t={t} onToggle={onToggle} onPlanToday={onPlanToday} onSetRepeat={onSetRepeat} />
+      <Actions goal={goal} t={t} onToggle={onToggle} onPlanToday={onPlanToday} onSetRepeat={onSetRepeat} onDelete={onDeleteAction} />
       <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--line)] pt-3 text-xs">
         <button onClick={onBreak} disabled={breaking} className="rounded-full border border-[var(--accent)]/50 px-3 py-1 text-[var(--accent)] transition hover:bg-[var(--accent)]/15 disabled:opacity-50">
           {breaking ? t("正在拆解…") : t("✨ 拆成行动")}

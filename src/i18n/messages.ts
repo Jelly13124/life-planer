@@ -513,6 +513,7 @@ export const EN: Record<string, string> = {
   未排时间: "No time set",
   设置开始时间: "Set start time",
   清除时间: "Clear time",
+  删除任务: "Delete task",
   标记完成: "Mark done",
   标记未完成: "Mark not done",
   "这天还没有安排。去日历把行动排到这天，或在「目标」里加行动。":

@@ -96,6 +96,23 @@ export function completeAction(tree: LifeTree, actionId: string, today: string):
   });
 }
 
+// 彻底删除一个行动：从所属目标移除，并清掉它在每日活动里的计划/完成记录。
+export function removeActionEverywhere(tree: LifeTree, actionId: string): LifeTree {
+  return {
+    ...tree,
+    goals: (tree.goals ?? []).map((g) =>
+      g.actions.some((a) => a.id === actionId)
+        ? { ...g, actions: g.actions.filter((a) => a.id !== actionId) }
+        : g,
+    ),
+    activity: (tree.activity ?? []).map((d) => ({
+      ...d,
+      plannedActionIds: d.plannedActionIds.filter((id) => id !== actionId),
+      completedActionIds: d.completedActionIds.filter((id) => id !== actionId),
+    })),
+  };
+}
+
 // 取消完成：从当天 completed 移除；一次性行动同时 done=false。
 export function uncompleteAction(tree: LifeTree, actionId: string, today: string): LifeTree {
   const hit = findAction(tree, actionId);

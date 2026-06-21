@@ -42,7 +42,7 @@ import {
   toggleGoalAction,
   upsertGoal,
 } from "@/domain/goals";
-import { completeAction, isActionDoneToday, planToday, uncompleteAction, unplanToday, localDay } from "@/domain/daily";
+import { completeAction, isActionDoneToday, planToday, removeActionEverywhere, uncompleteAction, unplanToday, localDay } from "@/domain/daily";
 import { actionsOnDay, setActionScheduledDate } from "@/domain/calendar";
 import { setActionTime, setDayWindow, dayWindow } from "@/domain/schedule";
 import { fetchArrangeDay } from "@/lib/scheduleClient";
@@ -198,6 +198,7 @@ interface AppApi {
   planActionToday: (actionId: string) => void;
   unplanActionToday: (actionId: string) => void;
   toggleTodayAction: (actionId: string) => void;
+  removeActionById: (actionId: string) => void;
   setActionRepeatById: (goalId: string, actionId: string, repeat: "daily" | "weekly" | undefined) => void;
   setGoalDeadlineById: (goalId: string, date: string | null) => void;
   addGoalTagById: (goalId: string, tag: string) => void;
@@ -583,6 +584,11 @@ export function AppProvider({
           ? uncompleteAction(baseTree, actionId, today)
           : completeAction(baseTree, actionId, today);
         dispatch({ type: "patchTree", tree: next });
+      },
+      removeActionById: (actionId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: removeActionEverywhere(baseTree, actionId) });
       },
       setActionRepeatById: (goalId, actionId, repeat) => {
         const baseTree = treeRef.current;

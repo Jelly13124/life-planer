@@ -29,7 +29,7 @@ export function DayView({
   onNextDay: () => void;
   onToday: () => void;
 }) {
-  const { setActionTimeById, setDayWindowValues, arrangeDayWithAI, toggleActionOn } = useApp();
+  const { setActionTimeById, setDayWindowValues, arrangeDayWithAI, toggleActionOn, removeActionById } = useApp();
   const { t } = useT();
   const [arranging, setArranging] = useState(false);
 
@@ -155,6 +155,14 @@ export function DayView({
                   onChange={(e) => setActionTimeById(action.id, e.target.value || null)}
                   className="flex-shrink-0 rounded-lg border border-[var(--line)] bg-transparent px-2 py-1 text-xs text-[var(--fg-dim)] outline-none transition focus:border-[var(--accent)]/60 [color-scheme:dark]"
                 />
+                <button
+                  onClick={() => removeActionById(action.id)}
+                  aria-label={t("删除任务")}
+                  title={t("删除任务")}
+                  className="flex-shrink-0 rounded-full px-1.5 py-1 text-[11px] text-[var(--fg-faint)] transition hover:text-[var(--c-rose)]"
+                >
+                  ✕
+                </button>
               </li>
             ))}
           </ul>
@@ -200,22 +208,44 @@ export function DayView({
                     backgroundColor: done ? "transparent" : accent ? `${accent}1f` : "rgba(167,139,250,0.12)",
                   }}
                 >
-                  <button
-                    onClick={() => toggleActionOn(action.id, date)}
-                    className="flex h-full w-full flex-col items-start justify-center pr-5 text-left"
-                  >
-                    <span className={`w-full truncate text-[12px] leading-tight ${done ? "text-[var(--fg-faint)] line-through" : "text-[var(--fg)]"}`}>
-                      {action.text}
-                    </span>
-                    <span className="mt-0.5 flex w-full items-center gap-1.5 text-[10px] text-[var(--fg-faint)]">
-                      <span className="tabular-nums">{toHHMM(s)}–{toHHMM(s + dur)}</span>
-                      <span className="truncate">{t(AREA_LABELS[goal.area])}</span>
-                    </span>
-                  </button>
+                  {/* 块体不再整体切换完成；只有左侧的勾选框切换 */}
+                  <div className="flex h-full w-full items-center gap-1.5 pr-10 text-left">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleActionOn(action.id, date);
+                      }}
+                      aria-label={done ? t("标记未完成") : t("标记完成")}
+                      className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border text-[9px] transition ${
+                        done
+                          ? "border-[var(--c-emerald)] bg-[var(--c-emerald)]/20 text-[var(--c-emerald)]"
+                          : "border-[var(--line)] hover:border-[var(--accent)]"
+                      }`}
+                    >
+                      {done ? "✓" : ""}
+                    </button>
+                    <div className="flex min-w-0 flex-col justify-center">
+                      <span className={`w-full truncate text-[12px] leading-tight ${done ? "text-[var(--fg-faint)] line-through" : "text-[var(--fg)]"}`}>
+                        {action.text}
+                      </span>
+                      <span className="mt-0.5 flex w-full items-center gap-1.5 text-[10px] text-[var(--fg-faint)]">
+                        <span className="tabular-nums">{toHHMM(s)}–{toHHMM(s + dur)}</span>
+                        <span className="truncate">{t(AREA_LABELS[goal.area])}</span>
+                      </span>
+                    </div>
+                  </div>
                   <button
                     onClick={() => setActionTimeById(action.id, null)}
                     aria-label={t("清除时间")}
                     title={t("清除时间")}
+                    className="absolute right-6 top-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] text-[var(--fg-faint)] transition hover:bg-white/10 hover:text-[var(--fg-dim)]"
+                  >
+                    ⌫
+                  </button>
+                  <button
+                    onClick={() => removeActionById(action.id)}
+                    aria-label={t("删除任务")}
+                    title={t("删除任务")}
                     className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] text-[var(--fg-faint)] transition hover:bg-white/10 hover:text-[var(--c-rose)]"
                   >
                     ✕

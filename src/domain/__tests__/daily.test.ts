@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   localDay, addDays, dayEntry, planToday, unplanToday,
   completeAction, uncompleteAction, isActionDoneToday, recurringDueToday,
-  todayItems, currentStreak, heatmap, branchPositionAge,
+  todayItems, currentStreak, heatmap, branchPositionAge, removeActionEverywhere,
 } from "@/domain/daily";
 import { createTree, addPath } from "@/domain/tree";
 import { createGoal, upsertGoal, setGoalActions, setActionRepeat, linkGoalPath } from "@/domain/goals";
@@ -129,6 +129,31 @@ describe("daily domain", () => {
     expect(hm.map((d) => d.date)).toEqual(["2026-06-16", "2026-06-17", "2026-06-18"]);
     expect(hm[2].count).toBe(2);
     expect(hm[0].count).toBe(0);
+  });
+
+  it("removeActionEverywhere drops the action from its goal and from every activity day", () => {
+    const { tree, goalId, a0, a1 } = withShortGoal();
+    // schedule + complete a0 on two different days so it lives in planned/completed arrays
+    let t = planToday(tree, a0, T);
+    t = completeAction(t, a0, T);
+    t = completeAction(t, a0, addDays(T, -1));
+    // sanity: a0 is present in goal + activity before removal
+    expect(t.goals.find((g) => g.id === goalId)!.actions.map((a) => a.id)).toEqual([a0, a1]);
+    expect(dayEntry(t, T).plannedActionIds).toContain(a0);
+    expect(dayEntry(t, T).completedActionIds).toContain(a0);
+    expect(dayEntry(t, addDays(T, -1)).completedActionIds).toContain(a0);
+
+    const after = removeActionEverywhere(t, a0);
+    // gone from the goal, but a1 untouched
+    const goal = after.goals.find((g) => g.id === goalId)!;
+    expect(goal.actions.map((a) => a.id)).toEqual([a1]);
+    // id gone from every activity day's planned/completed arrays
+    for (const d of after.activity) {
+      expect(d.plannedActionIds).not.toContain(a0);
+      expect(d.completedActionIds).not.toContain(a0);
+    }
+    // other actions and other days untouched
+    expect(after.goals.find((g) => g.id === goalId)!.actions.some((a) => a.id === a1)).toBe(true);
   });
 
   it("branchPositionAge walks the branch by progress; null for short/no-path", () => {
