@@ -46,14 +46,20 @@ function subgoalComplete(sub: Goal["subgoals"][number]): boolean {
   return tasks.every((t) => t.done) && metrics.every(metricAchieved);
 }
 
-// 综合进度 0–1：把目标级 Task / Metric / 子目标当作等权的"里程碑单元"。
-//   progress = (已完成 Task + 已达成 Metric + 已完成子目标) / (总 Task + 总 Metric + 总子目标)
+// 一个子目标是否"可计入进度"：至少有一个 Task 或 Metric（空子目标无可衡量进度，不计）。
+function subgoalCounts(sub: Goal["subgoals"][number]): boolean {
+  return (sub.tasks?.length ?? 0) > 0 || (sub.metrics?.length ?? 0) > 0;
+}
+
+// 综合进度 0–1：把目标级 Task / Metric / 非空子目标当作等权的"里程碑单元"。
+//   progress = (已完成 Task + 已达成 Metric + 已完成子目标) / (总 Task + 总 Metric + 非空子目标数)
 // 只数目标级 Task/Metric（子目标内部的 Task/Metric 折叠进"子目标是否完成"这一单元，避免重复计权）。
+// 空子目标（无 Task 且无 Metric）既不进分子也不进分母，否则加一个空子目标会无声地把进度压在 100% 以下。
 // 习惯（Habit）是日常纪律，不计入里程碑进度。总数为 0 时进度记 0。
 export function goalProgress(_tree: LifeTree, goal: Goal): number {
   const tasks = goal.tasks ?? [];
   const metrics = goal.metrics ?? [];
-  const subgoals = goal.subgoals ?? [];
+  const subgoals = (goal.subgoals ?? []).filter(subgoalCounts);
 
   const total = tasks.length + metrics.length + subgoals.length;
   if (total === 0) return 0;

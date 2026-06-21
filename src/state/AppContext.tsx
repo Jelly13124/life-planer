@@ -49,7 +49,7 @@ import {
 } from "@/domain/goalTree";
 import { completeAction, findAction, isActionDoneToday, planToday, removeActionEverywhere, uncompleteAction, unplanToday, localDay } from "@/domain/daily";
 import { actionsOnDay, setActionScheduledDate } from "@/domain/calendar";
-import { setActionTime, setDayWindow, dayWindow } from "@/domain/schedule";
+import { arrangeDay, setActionTime, setDayWindow, dayWindow } from "@/domain/schedule";
 import { fetchArrangeDay } from "@/lib/scheduleClient";
 import { anyCrisisSignal } from "@/domain/safety";
 import { addInboxItem, removeInboxItem } from "@/domain/inbox";
@@ -620,8 +620,8 @@ export function AppProvider({
       addHabit: (goalId, subgoalId, text, repeat, weekday) => {
         const baseTree = treeRef.current;
         if (!baseTree || !text.trim()) return null;
-        // weekly 习惯未指定星期几时，锚定到今天（state 边界取 new Date）。
-        const wd = repeat === "weekly" ? (weekday ?? new Date().getUTCDay()) : undefined;
+        // weekly 习惯未指定星期几时，锚定到今天的本地星期几（与 localDay/本地时间一致，应用为 UTC+8）。
+        const wd = repeat === "weekly" ? (weekday ?? new Date().getDay()) : undefined;
         const { tree, id } = addHabitToTree(baseTree, goalId, subgoalId, text, repeat, wd, new Date().toISOString());
         dispatch({ type: "patchTree", tree });
         return id;
@@ -721,7 +721,15 @@ export function AppProvider({
           durationMin: item.durationMin,
         }));
         if (!items.length) return;
-        const plan = await fetchArrangeDay(items, dayWindow(baseTree));
+        const win = dayWindow(baseTree);
+        // 网络/AI 失败也别让 UI 挂着：兜底用本地 arrangeDay 给一份不重叠的安排（离线可用）。
+        let plan;
+        try {
+          plan = await fetchArrangeDay(items, win);
+        } catch {
+          plan = arrangeDay(items.map((i) => ({ id: i.id, durationMin: i.durationMin })), win);
+        }
+        if (!plan.length) return;
         // 应用时读最新树，避免动画/并发期间被覆盖；把所有结果折进一棵树，单次 dispatch。
         let t = treeRef.current ?? baseTree;
         for (const p of plan) t = setActionTime(t, p.id, p.startTime, p.durationMin);

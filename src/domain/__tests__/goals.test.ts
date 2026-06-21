@@ -125,10 +125,24 @@ describe("goals domain", () => {
     expect(goalProgress(t, goalById(t, r.id)!)).toBe(1);
   });
 
-  it("goalProgress: empty subgoal is not complete", () => {
+  it("goalProgress: empty subgoal (no tasks/metrics) is ignored entirely — alone → 0", () => {
     const r = addGoal(base(), { area: "career", title: "L" }, NOW);
     const s = addSubgoal(r.tree, r.id, "空子目标", NOW);
+    // 只有一个空子目标 → 没有可衡量单元 → 进度 0（既不进分子也不进分母）。
     expect(goalProgress(s.tree, goalById(s.tree, r.id)!)).toBe(0);
+  });
+
+  it("goalProgress: an empty subgoal does NOT cap progress below 100%", () => {
+    let t = base();
+    const r = addGoal(t, { area: "career", title: "L" }, NOW);
+    t = r.tree;
+    // 一个已完成的目标级任务 → 本应 100%。
+    const a = addTask(t, r.id, null, "唯一里程碑", NOW);
+    t = updateTask(a.tree, a.id, { done: true });
+    // 加一个空子目标（无 task/metric）；它必须被完全忽略，进度仍 = 1，而非被压成 1/2。
+    const s = addSubgoal(t, r.id, "空子目标", NOW);
+    t = s.tree;
+    expect(goalProgress(t, goalById(t, r.id)!)).toBe(1);
   });
 
   it("goalProgress: metric achieved when current >= target", () => {

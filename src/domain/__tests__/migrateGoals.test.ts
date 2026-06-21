@@ -151,4 +151,116 @@ describe("migrateGoals", () => {
   it("returns [] for empty input", () => {
     expect(migrateGoals([])).toEqual([]);
   });
+
+  // ── 边界：之前会无声丢目标的三种情形（bug 1/2/3） ──────────────────────────
+
+  it("bug 1 — grandchild chain: deep nesting flattens, NOTHING dropped (Sp & Sc both become subgoals of L)", () => {
+    const out = migrateGoals([
+      legacyGoal({ id: "L", horizon: "long" }),
+      legacyGoal({
+        id: "Sp",
+        horizon: "short",
+        parentGoalId: "L",
+        title: "中层",
+        actions: [{ id: "a1", text: "一次性", done: false }],
+      }),
+      legacyGoal({
+        id: "Sc",
+        horizon: "short",
+        parentGoalId: "Sp", // 父是另一个短期目标（祖孙链）
+        title: "孙层",
+        actions: [{ id: "a2", text: "再一次性", done: false }],
+      }),
+    ]);
+    // L 是唯一顶层；Sp 与 Sc 都展平成 L 的子目标（单层新模型）。
+    expect(out.map((g) => g.id)).toEqual(["L"]);
+    const L = out[0];
+    expect(L.subgoals.map((s) => s.id).sort()).toEqual(["Sc", "Sp"]);
+    // a1（在 Sp）与 a2（在 Sc）都保留——id 不丢。
+    const allTaskIds = L.subgoals.flatMap((s) => s.tasks.map((t) => t.id)).sort();
+    expect(allTaskIds).toEqual(["a1", "a2"]);
+  });
+
+  it("bug 2 — self-parent: parentGoalId === id is treated as top-level, action preserved", () => {
+    const out = migrateGoals([
+      legacyGoal({
+        id: "Z",
+        horizon: "short",
+        parentGoalId: "Z", // 自指父
+        title: "自指目标",
+        actions: [{ id: "az", text: "干活", done: false }],
+      }),
+    ]);
+    expect(out.map((g) => g.id)).toEqual(["Z"]);
+    expect(out[0].subgoals).toEqual([]);
+    expect(out[0].tasks.map((t) => t.id)).toEqual(["az"]);
+  });
+
+  it("invariant — every input goal id appears as a goal-id or subgoal-id (messy fixture)", () => {
+    const input: LegacyGoal[] = [
+      legacyGoal({ id: "long1", horizon: "long" }),
+      legacyGoal({ id: "short-top", horizon: "short", parentGoalId: null }),
+      legacyGoal({ id: "orphan", horizon: "short", parentGoalId: "ghost" }),
+      legacyGoal({ id: "child", horizon: "short", parentGoalId: "long1" }),
+      legacyGoal({ id: "grandchild", horizon: "short", parentGoalId: "child" }),
+      legacyGoal({ id: "selfref", horizon: "short", parentGoalId: "selfref" }),
+      // 两节点互指环：A←→B（都非长期、互为父）。兜底网必须仍把两者都落到输出。
+      legacyGoal({ id: "cycleA", horizon: "short", parentGoalId: "cycleB" }),
+      legacyGoal({ id: "cycleB", horizon: "short", parentGoalId: "cycleA" }),
+    ];
+    const out = migrateGoals(input);
+    const present = new Set<string>();
+    for (const g of out) {
+      present.add(g.id);
+      for (const s of g.subgoals) present.add(s.id);
+    }
+    for (const g of input) {
+      expect(present.has(g.id)).toBe(true);
+    }
+    // 没有 id 在输出里出现两次（既不重复成顶层又成子目标）。
+    const all: string[] = [];
+    for (const g of out) {
+      all.push(g.id);
+      for (const s of g.subgoals) all.push(s.id);
+    }
+    expect(all.length).toBe(new Set(all).size);
+  });
+
+  // ── pass-through：已是新形状的目标原样透传（bug 3） ─────────────────────────
+
+  it("bug 3 — pass-through: an already-NEW nested goal is returned untouched (not rebuilt/flattened)", () => {
+    const newGoal: import("../types").Goal = {
+      id: "new1",
+      area: "career",
+      title: "已是新形状",
+      why: "",
+      status: "active",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      pathId: null,
+      tags: ["x"],
+      endDate: "2026-12-31",
+      metrics: [{ id: "m1", label: "存款", current: 1, target: 10, unit: "k" }],
+      subgoals: [
+        {
+          id: "sub1",
+          title: "子目标",
+          metrics: [{ id: "sm1", label: "次数", current: 0, target: 3, unit: "次" }],
+          tasks: [{ id: "st1", text: "做事", done: false }],
+          habits: [],
+        },
+      ],
+      tasks: [{ id: "gt1", text: "目标级任务", done: true }],
+      habits: [{ id: "gh1", text: "每天", repeat: "daily" }],
+    };
+    // 混入一个旧目标，确认混合输入也走透传 + 迁移。
+    const out = migrateGoals([
+      newGoal,
+      legacyGoal({ id: "legacy1", horizon: "long", actions: [{ id: "la", text: "迁移任务", done: false }] }),
+    ]);
+    const got = out.find((g) => g.id === "new1")!;
+    // 字节级保留：与原对象深等价（没有被重建或展平）。
+    expect(got).toEqual(newGoal);
+    // 旧目标照样迁移过来。
+    expect(out.find((g) => g.id === "legacy1")).toBeTruthy();
+  });
 });

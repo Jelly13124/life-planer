@@ -235,3 +235,108 @@ describe("migration integration — idempotent on already-new trees", () => {
     expect((findItem(again, "h2")!.item as Habit).repeatWeekday).toBe(1);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 回归：迁移的"无损契约"在三种之前会无声丢目标的边界下仍成立（bug 1/2/3）。
+// 都走真正的入口 normalizeLoadedTree，再用 findItem 证明 id 仍解析得到（历史对得上）。
+// ─────────────────────────────────────────────────────────────────────────────
+function buildTreeWithGoals(goals: unknown[]) {
+  return {
+    id: "tree-x",
+    profile,
+    horizonYears: 20,
+    paths: [path],
+    decisions: [] as unknown[],
+    inbox: [] as unknown[],
+    goals,
+    activity: [] as unknown[],
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-06-20T00:00:00.000Z",
+  };
+}
+const norm = (goals: unknown[]): LifeTree =>
+  normalizeLoadedTree(JSON.parse(JSON.stringify(buildTreeWithGoals(goals))))!;
+
+describe("migration integration — lossless on nesting/self-parent/mixed edge cases", () => {
+  it("bug 1 — grandchild chain: L top-level, Sp+Sc both subgoals of L, a1 AND a2 resolve", () => {
+    const tree = norm([
+      {
+        id: "L", area: "career", horizon: "long", title: "L", why: "", status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z", parentGoalId: null, pathId: null, actions: [],
+      },
+      {
+        id: "Sp", area: "career", horizon: "short", title: "中层", why: "", status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z", parentGoalId: "L", pathId: null,
+        actions: [{ id: "a1", text: "一次性", done: false }],
+      },
+      {
+        id: "Sc", area: "career", horizon: "short", title: "孙层", why: "", status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z", parentGoalId: "Sp", pathId: null,
+        actions: [{ id: "a2", text: "再一次性", done: false }],
+      },
+    ]);
+    const ids = tree.goals.map((g) => g.id);
+    expect(ids).toContain("L");
+    expect(ids).not.toContain("Sp");
+    expect(ids).not.toContain("Sc");
+    const L = tree.goals.find((g) => g.id === "L")!;
+    expect(L.subgoals.map((s) => s.id).sort()).toEqual(["Sc", "Sp"]);
+    // 两个 action id 都仍解析得到 → 历史/排期/连续天数全保住。
+    expect(findItem(tree, "a1")).not.toBeNull();
+    expect(findItem(tree, "a2")).not.toBeNull();
+    expect(findItem(tree, "a1")!.kind).toBe("task");
+    expect(findItem(tree, "a2")!.kind).toBe("task");
+  });
+
+  it("bug 2 — self-parent: Z is top-level, az resolves", () => {
+    const tree = norm([
+      {
+        id: "Z", area: "growth", horizon: "short", title: "自指", why: "", status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z", parentGoalId: "Z", pathId: null,
+        actions: [{ id: "az", text: "干活", done: false }],
+      },
+    ]);
+    expect(tree.goals.map((g) => g.id)).toEqual(["Z"]);
+    expect(tree.goals[0].subgoals).toEqual([]);
+    expect(findItem(tree, "az")).not.toBeNull();
+    expect(findItem(tree, "az")!.kind).toBe("task");
+  });
+
+  it("bug 3 — mixed tree: an already-NEW nested goal is byte-for-byte preserved AND the legacy goal is migrated", () => {
+    const newGoal = {
+      id: "new1", area: "career", title: "已是新形状", why: "", status: "active",
+      createdAt: "2026-01-01T00:00:00.000Z", pathId: null, tags: ["x"], endDate: "2026-12-31",
+      metrics: [{ id: "m1", label: "存款", current: 1, target: 10, unit: "k" }],
+      subgoals: [
+        {
+          id: "sub1", title: "子目标",
+          metrics: [{ id: "sm1", label: "次数", current: 0, target: 3, unit: "次" }],
+          tasks: [{ id: "st1", text: "做事", done: false }],
+          habits: [],
+        },
+      ],
+      tasks: [{ id: "gt1", text: "目标级任务", done: true }],
+      habits: [{ id: "gh1", text: "每天", repeat: "daily" }],
+    };
+    const legacy = {
+      id: "legacy1", area: "wealth", horizon: "long", title: "旧目标", why: "", status: "active",
+      createdAt: "2026-01-01T00:00:00.000Z", parentGoalId: null, pathId: null,
+      actions: [{ id: "la", text: "迁移任务", done: false }],
+    };
+    const tree = norm([newGoal, legacy]);
+    // 新目标字节级保留（注：normalize 兜底只会补缺失的数组字段，这里都已齐备故不变）。
+    const got = tree.goals.find((g) => g.id === "new1")!;
+    expect(got).toEqual(newGoal);
+    // 旧目标被迁移：endDate 来自 deadline 缺省（无）、id 保留、la 仍解析。
+    const mig = tree.goals.find((g) => g.id === "legacy1")!;
+    expect(mig).toBeTruthy();
+    expect("actions" in mig).toBe(false); // 不再带旧字段
+    expect(findItem(tree, "la")).not.toBeNull();
+    expect(findItem(tree, "la")!.kind).toBe("task");
+    // 新目标的内部结构没被展平：子目标/指标/任务都还在。
+    expect(got.subgoals[0].id).toBe("sub1");
+    expect(got.subgoals[0].metrics[0].id).toBe("sm1");
+    expect(got.subgoals[0].tasks[0].id).toBe("st1");
+    expect(findItem(tree, "st1")!.kind).toBe("task");
+  });
+});
