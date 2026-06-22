@@ -19,6 +19,26 @@
   --c-blue: #60a5fa;
   --c-fuchsia: #e879f9;
   --c-slate: #7681a3;
+
+  /* 抬升面：卡片表面比 --bg-1 略亮，配合顶部 1px 高光做出体积感 */
+  --surface: #161a36;
+  --surface-hi: rgba(255, 255, 255, 0.06); /* 卡片顶缘内高光 */
+
+  /* 紫调阴影：让卡片像悬在夜空里，而不是平贴 */
+  --shadow-violet:
+    0 1px 0 0 var(--surface-hi) inset, 0 12px 32px -12px rgba(10, 11, 26, 0.8),
+    0 6px 16px -8px rgba(122, 90, 248, 0.18);
+  --shadow-violet-lift:
+    0 1px 0 0 var(--surface-hi) inset, 0 24px 56px -16px rgba(10, 11, 26, 0.9),
+    0 10px 28px -10px rgba(122, 90, 248, 0.32);
+
+  /* 强调渐变：主按钮 / 品牌点缀 / 焦点描边复用 */
+  --grad-accent: linear-gradient(135deg, #a78bfa 0%, #c084fc 45%, #e879f9 100%);
+  --grad-accent-soft: linear-gradient(135deg, #8b7bf0 0%, #b06bf2 100%);
+  --grad-sky: linear-gradient(135deg, #a78bfa 0%, #38bdf8 100%);
+
+  /* 焦点光环 */
+  --ring: 0 0 0 3px rgba(167, 139, 250, 0.35);
 }
 
 @theme inline {
@@ -29,7 +49,9 @@
   --color-fg-dim: var(--fg-dim);
   --color-fg-faint: var(--fg-faint);
   --color-accent: var(--accent);
+  --color-surface: var(--surface);
   --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-display);
 }
 
 html {
@@ -40,6 +62,7 @@ html {
 body {
   min-height: 100vh;
   color: var(--fg);
+  /* 基底深空：自上而下的冷紫渐变。极光与噪点叠加在 ::before/::after 上。 */
   background:
     radial-gradient(140% 100% at 20% 0%, #1b1f3a 0%, #11132a 42%, #0a0b1a 100%)
       no-repeat;
@@ -48,6 +71,58 @@ body {
     var(--font-geist-sans), "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB",
     -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- 大气背景：极光 + 噪点（固定、不拦截指针、置于内容之下） ---------- */
+/* 三团低透明度柔光（紫/天蓝/品红），用 CSS 渐变而非大块 blur DOM，开销低。 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      48% 42% at 16% 12%,
+      rgba(167, 139, 250, 0.2) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      44% 40% at 88% 8%,
+      rgba(56, 189, 248, 0.14) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      55% 48% at 78% 92%,
+      rgba(232, 121, 249, 0.13) 0%,
+      transparent 72%
+    );
+  /* 比视口稍大，给极缓慢漂移留余量，避免边缘露出硬边 */
+  transform: scale(1.15);
+  transform-origin: center;
+  animation: lpAurora 38s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+/* 颗粒/噪点：SVG data-URI 分形噪声，叠加 + 低透明度，去掉数字夜空的塑料感 */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@keyframes lpAurora {
+  from {
+    transform: scale(1.12) translate3d(-1.5%, -1%, 0);
+  }
+  to {
+    transform: scale(1.18) translate3d(2%, 1.5%, 0);
+  }
 }
 
 /* ---------- 动画 ---------- */
@@ -121,18 +196,38 @@ body {
 }
 
 /* ---------- 统一卡片系统 ---------- */
-/* 全应用单一卡片观感：var(--bg-1) 面、0.5–1px 描边、统一圆角/内距。
+/* 全应用单一卡片观感：抬升表面渐变（顶部略亮）、1px 描边、顶缘内高光、紫调柔影。
    各区块复用此类，消除屏幕之间的视觉不一致。 */
 .lp-card {
+  position: relative;
   border-radius: 16px;
   border: 1px solid var(--line);
-  background: var(--bg-1);
+  /* 顶部略亮的表面渐变，做出从上方受光的体积感 */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, transparent 38%),
+    var(--surface);
+  box-shadow: var(--shadow-violet);
+  transition:
+    transform 0.32s cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 0.32s cubic-bezier(0.2, 0.7, 0.2, 1),
+    border-color 0.32s ease;
 }
-/* 内嵌/次级面板：略暗，用于卡片内的容器（如预测画布底座） */
+/* 内嵌/次级面板：略暗下沉，用于卡片内的容器（如预测画布底座） */
 .lp-card-sunken {
+  position: relative;
   border-radius: 16px;
-  border: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.22) 0%, rgba(0, 0, 0, 0.12) 100%);
+  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.03) inset,
+    0 2px 12px -6px rgba(0, 0, 0, 0.5) inset;
+}
+
+/* 可选的悬浮抬升：仅在显式加 .lp-card-hover 的卡片上启用，静态卡片不动。 */
+.lp-card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-violet-lift);
+  border-color: rgba(167, 139, 250, 0.32);
 }
 
 @keyframes sc-enter {
@@ -154,6 +249,42 @@ body {
   }
 }
 
+/* ---------- 可复用：渐次升起（用于列表/卡片入场） ---------- */
+/* 在父级加 .lp-stagger，子项依次延迟升起；用 nth-child 控制 stagger，避免每项写 style。 */
+.lp-rise {
+  animation: sc-rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.lp-stagger > * {
+  animation: sc-rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.lp-stagger > *:nth-child(1) {
+  animation-delay: 0.04s;
+}
+.lp-stagger > *:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.lp-stagger > *:nth-child(3) {
+  animation-delay: 0.16s;
+}
+.lp-stagger > *:nth-child(4) {
+  animation-delay: 0.22s;
+}
+.lp-stagger > *:nth-child(5) {
+  animation-delay: 0.28s;
+}
+.lp-stagger > *:nth-child(6) {
+  animation-delay: 0.34s;
+}
+.lp-stagger > *:nth-child(n + 7) {
+  animation-delay: 0.4s;
+}
+
+/* 品牌/数字用展示字体的便捷类（也可直接 font-[family-name:var(--font-display)]） */
+.lp-display {
+  font-family: var(--font-display), "PingFang SC", "Microsoft YaHei", serif;
+  font-optical-sizing: auto;
+}
+
 /* 自定义滚动条（克制） */
 * {
   scrollbar-width: thin;
@@ -163,25 +294,55 @@ body {
 /* 表单控件基础 */
 input[type="text"],
 input[type="number"],
-textarea {
+input[type="date"],
+input[type="time"],
+input[type="search"],
+input[type="email"],
+textarea,
+select {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--line);
   border-radius: 12px;
   color: var(--fg);
   outline: none;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
 }
 input[type="text"]:focus,
 input[type="number"]:focus,
-textarea:focus {
+input[type="date"]:focus,
+input[type="time"]:focus,
+input[type="search"]:focus,
+input[type="email"]:focus,
+textarea:focus,
+select:focus,
+select:focus-visible {
   border-color: var(--accent);
   background: rgba(167, 139, 250, 0.08);
+  box-shadow: var(--ring);
 }
 input[type="range"] {
   accent-color: var(--accent);
 }
 ::placeholder {
   color: var(--fg-faint);
+}
+
+/* 暗色日期/时间控件的日历图标可见性 */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+/* 统一可访问焦点环：键盘聚焦的交互元素显示柔和紫光环（点击不打扰） */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: 12px;
 }
 
 /* ---------- 无障碍：尊重"减少动态效果" ---------- */
@@ -196,5 +357,10 @@ input[type="range"] {
   }
   .lp-path {
     stroke-dashoffset: 0 !important;
+  }
+  /* 停掉极光极缓慢漂移；保留静态柔光 */
+  body::before {
+    animation: none !important;
+    transform: scale(1.15) !important;
   }
 }

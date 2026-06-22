@@ -15,12 +15,16 @@ const PAD: Record<Pad, string> = {
 
 export const Card = forwardRef<
   HTMLDivElement,
-  HTMLAttributes<HTMLDivElement> & { pad?: Pad; sunken?: boolean }
->(function Card({ pad = "md", sunken = false, className = "", ...props }, ref) {
+  // hover 为可选项（默认 false）：仅在交互卡片上启用悬浮抬升，静态卡片不动。
+  HTMLAttributes<HTMLDivElement> & { pad?: Pad; sunken?: boolean; hover?: boolean }
+>(function Card(
+  { pad = "md", sunken = false, hover = false, className = "", ...props },
+  ref,
+) {
   return (
     <div
       ref={ref}
-      className={`${sunken ? "lp-card-sunken" : "lp-card"} ${PAD[pad]} ${className}`}
+      className={`${sunken ? "lp-card-sunken" : "lp-card"} ${hover && !sunken ? "lp-card-hover" : ""} ${PAD[pad]} ${className}`}
       {...props}
     />
   );

@@ -1,11 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
+import { Geist, Fraunces } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./Providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
+});
+
+// 编辑感 Latin 展示字体（标题/品牌/数字/eyebrow）。中文仍走系统栈，避免 CJK 网络字体开销。
+// Fraunces：有性格的 old-style 衬线，光学尺寸 + 暖意，与 Geist 几何无衬线对比鲜明，远离默认 SaaS 观感。
+const fraunces = Fraunces({
+  variable: "--font-display",
+  subsets: ["latin"],
+  display: "swap",
+  // 可变字体：保留 wght 全轴 + 光学尺寸 opsz + 一点 SOFT 柔化字形末端。
+  // 用 axes 时不可再指定 weight（否则会被当作非可变字体）。
+  axes: ["opsz", "SOFT"],
 });
 
 export const metadata: Metadata = {
@@ -38,7 +50,7 @@ export default function RootLayout({
     <html
       lang="zh"
       suppressHydrationWarning
-      className={`${geistSans.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${fraunces.variable} h-full antialiased`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH }} />

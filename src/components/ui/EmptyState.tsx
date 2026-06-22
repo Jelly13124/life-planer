@@ -49,6 +49,7 @@ export function EmptyState({
               : {
                   backgroundColor: "rgba(255,255,255,0.04)",
                   border: "1px solid var(--line)",
+                  boxShadow: "0 1px 0 0 rgba(255,255,255,0.05) inset",
                 }
           }
           aria-hidden="true"
@@ -56,7 +57,11 @@ export function EmptyState({
           {icon}
         </div>
       )}
-      {title && <div className="mt-1 text-base font-semibold text-[var(--fg)]">{title}</div>}
+      {title && (
+        <div className="mt-1 font-[family-name:var(--font-display)] text-lg font-medium tracking-tight text-[var(--fg)]">
+          {title}
+        </div>
+      )}
       <p className="max-w-sm text-sm leading-relaxed text-[var(--fg-dim)]">{description}</p>
       {action && <div className="mt-2">{action}</div>}
     </div>

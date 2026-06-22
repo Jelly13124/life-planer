@@ -17,9 +17,9 @@ export function MetricCard({
 }) {
   return (
     <div className="lp-card flex flex-col gap-1.5 p-4">
-      <span className="text-[11px] uppercase tracking-wider text-[var(--fg-faint)]">{label}</span>
+      <span className="text-[11px] uppercase tracking-[2px] text-[var(--fg-faint)]">{label}</span>
       <span
-        className="text-2xl font-bold leading-none tabular-nums"
+        className="font-[family-name:var(--font-display)] text-[1.75rem] font-semibold leading-none tracking-tight tabular-nums"
         style={accent ? { color: accent } : undefined}
       >
         {value}
