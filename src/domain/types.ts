@@ -23,6 +23,11 @@ export const AREA_LABELS: Record<LifeArea, string> = {
   growth: "成长",
 };
 
+// 目标领域 = 5 个人生面 + 「其他」（中性桶，不参与 Profile.areas / 预测）。
+export type GoalArea = LifeArea | "other";
+export const GOAL_AREAS: GoalArea[] = [...LIFE_AREAS, "other"];
+export const GOAL_AREA_LABELS: Record<GoalArea, string> = { ...AREA_LABELS, other: "其他" };
+
 export type EducationLevel = "highschool" | "college" | "bachelor" | "master" | "phd";
 export type SalaryBand = "none" | "lt5" | "5to10" | "10to20" | "20to50" | "gt50";
 export type RelationshipStatus =
@@ -221,7 +226,7 @@ export interface Subgoal {
 // 目标 Plan：带起止时间，嵌套子目标与目标级指标/任务/习惯
 export interface Goal {
   id: string;
-  area: LifeArea; // 事业/财富/关系/健康/成长
+  area: GoalArea; // 事业/财富/关系/健康/成长/其他（other 不参与预测）
   title: string;
   why: string;
   status: GoalStatus;
@@ -230,12 +235,35 @@ export interface Goal {
   endDate?: string;   // 止（本地日 YYYY-MM-DD，替代旧 deadline）
   pathId?: string | null; // 目标 → 人生树分支 id
   tags?: string[];    // 用户自定义标签（过滤/归组用，可选）
+  favorite?: boolean; // 收藏（进侧边栏「收藏」组，可选，无需迁移）
   metrics: Metric[];  // 目标级指标
   subgoals: Subgoal[];
   tasks: Task[];      // 目标级一次性任务
   habits: Habit[];    // 目标级习惯
   completedAt?: string;
   lastReviewedAt?: string;
+}
+
+// ───────── 选择面板：独立的决策对比模型（与绑定 pathId 的 Decision 并存） ─────────
+// 复用现有 Reversibility（"one-way" | "two-way"）。
+export interface ChoiceOption {
+  id: string;
+  label: string;          // 选项名，如「去大厂」/「创业」
+  pros: string;           // 利（自由文本，按行）
+  cons: string;           // 弊
+  cost: string;           // 成本（时间/金钱/机会）
+  reversibility: Reversibility; // 可逆性（单行道/可回头）
+  gut: number;            // 直觉分 1-5
+  pathId?: string | null; // 该选项在树上的分支（推演后回填）
+}
+
+export interface Choice {
+  id: string;
+  question: string;       // 我面临的选择
+  createdAt: string;
+  options: ChoiceOption[];
+  chosenOptionId?: string | null; // 选定的选项
+  decidedAt?: string;
 }
 
 // ───────── 迁移用旧类型（仅供 normalize → migrateGoals 读取，不在新代码中使用） ─────────
@@ -282,6 +310,7 @@ export interface LifeTree {
   paths: LifePath[]; // 含 1 条 status-quo + N 条 choice
   decisions: Decision[]; // 决策日志（看见→追问→选定→落地→复盘）
   goals: Goal[]; // 规划主线：长期/短期目标
+  choices: Choice[]; // 选择面板：决策对比（与人生树打通）
   activity: ActivityDay[]; // 每日激励闭环：今日计划/完成记录
   dayStart?: string; // 清醒时段起点 HH:MM（未设默认 07:00）
   dayEnd?: string;   // 清醒时段终点 HH:MM（未设默认 23:00）

@@ -36,6 +36,7 @@ export function createTree(
     paths: [statusQuo],
     decisions: [],
     goals: [],
+    choices: [],
     activity: [],
     createdAt: now,
     updatedAt: now,

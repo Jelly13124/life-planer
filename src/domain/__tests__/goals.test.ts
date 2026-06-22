@@ -190,6 +190,28 @@ describe("goals domain", () => {
     expect(t.profile.areas.wealth).toBe(100);
   });
 
+  it("completeGoal: an 'other' goal marks done WITHOUT touching any Profile.areas score", () => {
+    let t = base();
+    const before = { ...t.profile.areas };
+    const r = addGoal(t, { area: "other", title: "杂事" }, NOW);
+    t = completeGoal(r.tree, r.id, "2026-07-01T00:00:00.000Z");
+    // 标 done + completedAt 照常
+    expect(goalById(t, r.id)!.status).toBe("done");
+    expect(goalById(t, r.id)!.completedAt).toBe("2026-07-01T00:00:00.000Z");
+    // 但任何领域分数都不动（中性桶，不污染预测）
+    expect(t.profile.areas).toEqual(before);
+  });
+
+  it("completeGoal: a 'career' goal still bumps career while 'other' did not", () => {
+    let t = base(); // career = 50
+    const r = addGoal(t, { area: "career", title: "升职" }, NOW);
+    t = completeGoal(r.tree, r.id, NOW);
+    expect(t.profile.areas.career).toBe(50 + AREA_BUMP);
+    // 其余领域不变
+    expect(t.profile.areas.wealth).toBe(45);
+    expect(t.profile.areas.health).toBe(60);
+  });
+
   it("completeGoal: a done goal is a no-op (no double bump)", () => {
     let t = base();
     const r = addGoal(t, { area: "career", title: "L" }, NOW);

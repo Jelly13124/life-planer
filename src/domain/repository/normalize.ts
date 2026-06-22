@@ -13,6 +13,7 @@ export function normalizeLoadedTree(parsed: unknown): LifeTree | null {
   const t: LifeTree = { ...src };
   if (!Array.isArray(t.decisions)) t.decisions = [];
   if (!Array.isArray(t.goals)) t.goals = [];
+  if (!Array.isArray(t.choices)) t.choices = [];
   if (!Array.isArray(t.activity)) t.activity = [];
 
   // 旧→新嵌套目标迁移：任一目标带 `actions` 或缺 `subgoals` 即视为旧结构。

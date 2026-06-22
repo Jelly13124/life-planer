@@ -72,12 +72,17 @@ export function goalProgress(_tree: LifeTree, goal: Goal): number {
 }
 
 // 达成目标：标 done + 时间戳；顺带给它的人生面加分（影响之后的预测）。
+// 「其他」(other) 是中性桶，不参与 Profile.areas / 预测，达成时只标 done，不给任何领域加分。
 export function completeGoal(tree: LifeTree, goalId: string, now: string): LifeTree {
   const goal = goalById(tree, goalId);
   if (!goal || goal.status === "done") return tree;
   const updated = goals(tree).map((g) =>
     g.id === goalId ? { ...g, status: "done" as const, completedAt: now } : g,
   );
+  // other 桶不写 Profile.areas（保持中性，不污染预测）。
+  if (goal.area === "other") {
+    return { ...tree, goals: updated, updatedAt: now };
+  }
   const cur = tree.profile.areas[goal.area] ?? 50;
   const profile = {
     ...tree.profile,

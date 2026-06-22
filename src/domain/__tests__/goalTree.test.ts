@@ -34,6 +34,7 @@ function makeTree(goals: Goal[], activity: LifeTree["activity"] = []): LifeTree 
     paths: [],
     decisions: [],
     goals,
+    choices: [],
     activity,
     createdAt: NOW,
     updatedAt: NOW,
