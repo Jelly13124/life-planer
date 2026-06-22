@@ -1,10 +1,25 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode, type ReactElement } from "react";
 import { useApp, type View } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { localTodayStr } from "@/lib/dailyClient";
 import { favoriteGoals, favoriteTimeLabel, sidebarTags } from "@/domain/sidebar";
+import {
+  IconTree,
+  IconSun,
+  IconUpcoming,
+  IconCalendar,
+  IconList,
+  IconCheckCircle,
+  IconCompass,
+  IconTarget,
+  IconRepeat,
+  IconChart,
+  IconScale,
+  IconStar,
+  IconTag,
+} from "@/components/ui/icons";
 
 // 持久化左侧栏的应用外壳：左侧导航 + 右侧可独立滚动的内容区。
 // 桌面端常驻侧栏；窄屏折叠成顶部栏 + 抽屉，避免内容被挤压。
@@ -15,7 +30,7 @@ const _bootToday = localTodayStr();
 
 interface NavItem {
   key: string; // 唯一键（静态项 = 视图名；动态项 = 目标 id / 标签）
-  icon: string;
+  icon: (p: { className?: string }) => ReactElement; // 线性图标组件，靠 currentColor 继承色
   label: string; // 中文原文，t() 包裹；动态项已是最终文本（不再 t()）
   go: () => void;
   active: boolean;
@@ -86,11 +101,11 @@ function NavButton({ item, onNavigate }: { item: NavItem; onNavigate: () => void
       />
       <span
         aria-hidden="true"
-        className={`flex h-5 w-5 flex-shrink-0 items-center justify-center text-base leading-none transition-transform ${
-          item.active ? "" : "opacity-70 group-hover:scale-110 group-hover:opacity-100"
+        className={`flex h-5 w-5 flex-shrink-0 items-center justify-center transition-opacity ${
+          item.active ? "" : "opacity-80 group-hover:opacity-100"
         }`}
       >
-        {item.icon}
+        <item.icon className="h-[18px] w-[18px]" />
       </span>
       <span className="min-w-0 flex-1 truncate text-left">
         {item.rawLabel ? item.label : t(item.label)}
@@ -174,7 +189,7 @@ export function AppShell({ active, children }: { active: View; children: ReactNo
   // 置顶单项：人生树。
   const pinned: NavItem = {
     key: "tree",
-    icon: "🌳",
+    icon: IconTree,
     label: "我的人生树",
     go: openTree,
     active: active === "tree",
@@ -182,22 +197,22 @@ export function AppShell({ active, children }: { active: View; children: ReactNo
 
   // 静态分组。
   const todoItems: NavItem[] = [
-    { key: "today", icon: "☀️", label: "今天", go: openToday, active: active === "today" },
-    { key: "upcoming", icon: "🗓️", label: "即将到来", go: openUpcoming, active: active === "upcoming" },
-    { key: "dashboard", icon: "📅", label: "日历", go: openDashboard, active: active === "dashboard" },
-    { key: "alltasks", icon: "✅", label: "全部任务", go: openAllTasks, active: active === "alltasks" },
-    { key: "completed", icon: "☑️", label: "已完成", go: openCompleted, active: active === "completed" },
+    { key: "today", icon: IconSun, label: "今天", go: openToday, active: active === "today" },
+    { key: "upcoming", icon: IconUpcoming, label: "即将到来", go: openUpcoming, active: active === "upcoming" },
+    { key: "dashboard", icon: IconCalendar, label: "日历", go: openDashboard, active: active === "dashboard" },
+    { key: "alltasks", icon: IconList, label: "全部任务", go: openAllTasks, active: active === "alltasks" },
+    { key: "completed", icon: IconCheckCircle, label: "已完成", go: openCompleted, active: active === "completed" },
   ];
 
   const lifeItems: NavItem[] = [
-    { key: "areas", icon: "🧭", label: "人生面", go: openAreas, active: active === "areas" },
-    { key: "plan", icon: "🎯", label: "目标", go: openPlan, active: active === "plan" },
-    { key: "habits", icon: "🔁", label: "习惯", go: openHabits, active: active === "habits" },
-    { key: "insights", icon: "📊", label: "洞察", go: openInsights, active: active === "insights" },
+    { key: "areas", icon: IconCompass, label: "人生面", go: openAreas, active: active === "areas" },
+    { key: "plan", icon: IconTarget, label: "目标", go: openPlan, active: active === "plan" },
+    { key: "habits", icon: IconRepeat, label: "习惯", go: openHabits, active: active === "habits" },
+    { key: "insights", icon: IconChart, label: "洞察", go: openInsights, active: active === "insights" },
   ];
 
   const choiceItems: NavItem[] = [
-    { key: "choices", icon: "⚖️", label: "选择面板", go: openChoices, active: active === "choices" },
+    { key: "choices", icon: IconScale, label: "选择面板", go: openChoices, active: active === "choices" },
   ];
 
   // 动态分组：收藏 / 标签。无树时都为空（组会被隐藏）。
@@ -212,7 +227,9 @@ export function AppShell({ active, children }: { active: View; children: ReactNo
           : t("{n} 天前", { n: tl.days });
     return {
       key: `fav-${g.id}`,
-      icon: "⭐",
+      icon: ({ className }: { className?: string }) => (
+        <IconStar filled className={className} />
+      ),
       label: g.title,
       rawLabel: true,
       meta,
@@ -224,7 +241,7 @@ export function AppShell({ active, children }: { active: View; children: ReactNo
   const tags = tree ? sidebarTags(tree) : [];
   const tagItems: NavItem[] = tags.map((tag) => ({
     key: `tag-${tag}`,
-    icon: "🏷️",
+    icon: IconTag,
     label: tag,
     rawLabel: true,
     go: () => openTag(tag),
