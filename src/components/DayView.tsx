@@ -10,6 +10,7 @@ import { findItem } from "@/domain/goalTree";
 import { dayWindow, toMinutes, toHHMM, DEFAULT_DURATION_MIN } from "@/domain/schedule";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
+import { IconSparkle } from "./ui/icons";
 
 // 日视图：把某天的行动摊在一条竖直时间轴上。纯渲染（date 由 props 注入，绝不在渲染里 new Date）。
 // 时间块按 startTime 绝对定位、按 durationMin 定高；像素/分钟比固定，便于眼睛对齐刻度。
@@ -173,7 +174,14 @@ export function DayView({
             disabled={arranging || items.length === 0}
             className="ml-auto !px-4 !py-2 text-xs"
           >
-            {arranging ? t("正在排…") : t("✨ AI 帮我排今天")}
+            {arranging ? (
+              t("正在排…")
+            ) : (
+              <span className="inline-flex items-center gap-1.5">
+                <IconSparkle className="h-4 w-4" />
+                {t("AI 帮我排今天")}
+              </span>
+            )}
           </Button>
         </div>
       </Card>

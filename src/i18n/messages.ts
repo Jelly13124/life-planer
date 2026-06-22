@@ -353,7 +353,7 @@ export const EN: Record<string, string> = {
   "该回看目标了：有 {n} 个目标一周没动过了。":
     "Time to review: {n} goal(s) haven't moved in a week.",
   我回看过了: "I've reviewed",
-  "✨ 帮我想几个目标": "✨ Suggest some goals",
+  "帮我想几个目标": "Suggest some goals",
   "正在想几个适合你的目标…": "Thinking of goals that fit you…",
   "把「{label}」设成第一个长期目标": "Make “{label}” your first long-term goal",
   "点「加入」才会进规划（长期目标会在树上长出一条路）":
@@ -365,7 +365,7 @@ export const EN: Record<string, string> = {
   长期目标: "Long-term goals",
   短期目标: "Short-term goals",
   "进度 {pct}%": "{pct}% done",
-  "📈 在树上看这条路": "📈 See this path on the tree",
+  "在树上看这条路": "See this path on the tree",
   "✨ 和达成目标的未来的你聊聊": "✨ Talk to the future you who got there",
   "加一个短期目标（踏脚石）": "Add a short-term goal (stepping stone)",
   "正在拆解…": "Breaking it down…",
@@ -407,7 +407,6 @@ export const EN: Record<string, string> = {
   "进取敢冲": "Bold, go for it",
 
   // ── 本周回顾 WeeklyReviewSheet ──
-  "📅 本周回顾": "📅 Weekly Review",
   本周回顾: "Weekly Review",
   "本周完成 {n} 件 · 活跃 {d} 天 · 🔥连续 {s} 天":
     "{n} done this week · {d} active days · 🔥{s}-day streak",
@@ -501,8 +500,7 @@ export const EN: Record<string, string> = {
   每天: "Daily",
   每周: "Weekly",
   "🔥 连续 {n}": "🔥 {n}-day streak",
-  "🔥 连续 {n} 天": "🔥 {n}-day streak",
-  "🔥 连续 {n} 周": "🔥 {n}-week streak",
+  "连续 {n} 周": "{n}-week streak",
 
   // ── 首次上手引导 Getting started ──
   "上手 3 步": "Get started in 3 steps",
@@ -521,7 +519,7 @@ export const EN: Record<string, string> = {
   后一天: "Next day",
   起床: "Wake",
   睡觉: "Sleep",
-  "✨ AI 帮我排今天": "✨ Let AI plan my day",
+  "AI 帮我排今天": "Let AI plan my day",
   "正在排…": "Arranging…",
   未排时间: "No time set",
   未定时: "Untimed",
@@ -561,10 +559,10 @@ export const EN: Record<string, string> = {
   开始: "Start",
   结束: "End",
   "设置时间范围": "Set date range",
-  "🌳 成长为人生树的一条分支（AI 推演这条路的未来）":
-    "🌳 Grow it into a branch of your life tree (AI predicts where this path leads)",
+  "成长为人生树的一条分支（AI 推演这条路的未来）":
+    "Grow it into a branch of your life tree (AI predicts where this path leads)",
   "✎ 编辑": "✎ Edit",
-  "✅ 标记达成": "✅ Mark achieved",
+  "标记达成": "Mark achieved",
   已达成: "Achieved",
   收藏: "Favorite",
   取消收藏: "Unfavorite",
@@ -604,7 +602,7 @@ export const EN: Record<string, string> = {
   周五: "Fri",
   周六: "Sat",
   // AI 拆解目标
-  "✨ AI 拆解目标": "✨ Break this down with AI",
+  "AI 拆解目标": "Break this down with AI",
   "AI 正在拆解…": "AI is breaking it down…",
   稍后再试: "Try again later",
   "AI 拆好了这些建议。勾掉不要的，点「全部添加」才会进规划——只会新增，随时能删。":

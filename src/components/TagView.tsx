@@ -6,6 +6,7 @@ import { allTasks } from "@/domain/goalTree";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
 import { GroupedTasks } from "./lib/taskGroups";
+import { IconTag } from "./ui/icons";
 
 // 「标签」视图：读取 selectedTag，列出带该标签的目标 + 它们的任务（复用全部任务的分组渲染）。
 export function TagView() {
@@ -24,19 +25,24 @@ export function TagView() {
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-8">
       <SectionHeader
         eyebrow="Tag"
-        title={`🏷️ ${tag}`}
+        title={
+          <span className="inline-flex items-center gap-2">
+            <IconTag className="h-6 w-6 text-[var(--accent)]" />
+            {tag}
+          </span>
+        }
         subtitle={t("带这个标签的目标和它们的任务。")}
       />
 
       {taggedGoalIds.size === 0 ? (
         <EmptyState
-          icon="🏷️"
+          icon={<IconTag className="h-7 w-7" />}
           accent="var(--accent)"
           description={t("没有带这个标签的目标。去「目标」给目标加上标签。")}
         />
       ) : locs.length === 0 ? (
         <EmptyState
-          icon="🏷️"
+          icon={<IconTag className="h-7 w-7" />}
           accent="var(--accent)"
           description={t("这些目标下还没有任务。去「目标」加几条任务。")}
         />

@@ -17,6 +17,7 @@ import { addDays, branchPositionAge, currentStreak, heatmap } from "@/domain/dai
 import { unscheduledActions } from "@/domain/calendar";
 import { goalProgress } from "@/domain/goals";
 import { localTodayStr } from "@/lib/dailyClient";
+import { IconFlame, IconCalendar, IconTrophy, IconTarget, IconTree } from "./ui/icons";
 
 const _bootToday = localTodayStr();
 
@@ -86,11 +87,11 @@ export function CalendarPlannerScreen() {
         title={t("规划")}
         subtitle={
           <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="inline-flex items-center gap-1.5 text-[var(--c-amber)]">🔥 {t("连续 {n} 天", { n: streak })}</span>
+            <span className="inline-flex items-center gap-1.5 text-[var(--c-amber)]"><IconFlame className="h-3.5 w-3.5" /> {t("连续 {n} 天", { n: streak })}</span>
             <HeatStrip days={hm} t={t} />
           </span>
         }
-        actions={<Button variant="subtle" onClick={() => setWeeklyOpen(true)}>{t("📅 本周回顾")}</Button>}
+        actions={<Button variant="subtle" onClick={() => setWeeklyOpen(true)}><span className="inline-flex items-center gap-1.5"><IconCalendar className="h-4 w-4" />{t("本周回顾")}</span></Button>}
       />
 
       {!tree.guideDismissed && <GettingStarted tree={tree} />}
@@ -99,7 +100,7 @@ export function CalendarPlannerScreen() {
         <div className="mb-6 space-y-2">
           {doneGoals.map((g) => (
             <div key={g.id} className="flex items-center gap-2.5 rounded-2xl border border-[var(--c-emerald)]/40 bg-[var(--c-emerald)]/10 px-4 py-3 text-sm">
-              <span aria-hidden="true">🏆</span>
+              <IconTrophy className="h-4 w-4 flex-shrink-0 text-[var(--c-emerald)]" />
               <span className="min-w-0 text-[var(--fg)]">{t("你真的做到了：{title}", { title: g.title })}</span>
               {g.pathId && (
                 <button onClick={() => openPath(g.pathId as string)} className="ml-auto flex-shrink-0 rounded-full border border-[var(--accent)]/50 px-3 py-1 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/15">
@@ -194,7 +195,7 @@ export function CalendarPlannerScreen() {
             {activeGoals.length === 0 ? (
               <EmptyState
                 size="inline"
-                icon="🎯"
+                icon={<IconTarget className="h-6 w-6" />}
                 description={t("还没有目标。去「我的规划」加一个。")}
                 action={
                   <button onClick={openPlan} className="rounded-full border border-[var(--accent)]/50 px-3 py-1.5 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/15">
@@ -244,7 +245,7 @@ export function CalendarPlannerScreen() {
               ) : (
                 <EmptyState
                   size="inline"
-                  icon="🌳"
+                  icon={<IconTree className="h-6 w-6" />}
                   description={t("还没有路。去「我的规划」加一个长期目标，它会在树上长出一条路。")}
                   action={
                     <button onClick={openPlan} className="rounded-full border border-[var(--accent)]/50 px-3 py-1.5 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/15">

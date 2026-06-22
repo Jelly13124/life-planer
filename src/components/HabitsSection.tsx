@@ -8,6 +8,7 @@ import { recurringActions, habitStreak } from "@/domain/habits";
 import { localTodayStr } from "@/lib/dailyClient";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
+import { IconRepeat, IconFlame } from "./ui/icons";
 
 const _bootToday = localTodayStr();
 
@@ -37,7 +38,7 @@ export function HabitsSection() {
 
       {habits.length === 0 ? (
         <EmptyState
-          icon="🔁"
+          icon={<IconRepeat className="h-7 w-7" />}
           accent="var(--accent)"
           description={t("还没有习惯。去「我的规划」把某条行动设成每天或每周重复。")}
         />
@@ -49,8 +50,8 @@ export function HabitsSection() {
             const repeatLabel = habit.repeat === "daily" ? t("每天") : t("每周");
             const streakLabel =
               habit.repeat === "weekly"
-                ? t("🔥 连续 {n} 周", { n: streak })
-                : t("🔥 连续 {n} 天", { n: streak });
+                ? t("连续 {n} 周", { n: streak })
+                : t("连续 {n} 天", { n: streak });
             return (
               <li key={habit.id}>
                 <div className="flex w-full items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3 transition hover:border-[var(--accent)]/50 hover:bg-[var(--bg-2)]">
@@ -88,7 +89,8 @@ export function HabitsSection() {
 
                   {/* Streak */}
                   {streak > 0 && (
-                    <span className="flex-shrink-0 text-[11px] text-[var(--c-amber)]">
+                    <span className="flex flex-shrink-0 items-center gap-1 text-[11px] text-[var(--c-amber)]">
+                      <IconFlame className="h-3 w-3" />
                       {streakLabel}
                     </span>
                   )}

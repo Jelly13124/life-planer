@@ -3,6 +3,7 @@
 import type { LifeTree } from "@/domain/types";
 import { useT } from "@/prefs/PreferencesContext";
 import { actionsOnDay, monthGrid } from "@/domain/calendar";
+import { IconRepeat } from "./ui/icons";
 
 // 周一起始：表头用完整「周X」token，经 t() 译成 Mon…Sun（避免英文下漏出中文）。
 const WEEKDAY_HEAD = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
@@ -96,12 +97,13 @@ export function MonthCalendar({
                       e.dataTransfer.setData("text/plain", item.id);
                       e.dataTransfer.setData("application/x-lp-kind", "task");
                     }}
-                    className={`truncate rounded px-1 py-0.5 text-[10px] leading-tight ${
+                    className={`flex items-center gap-1 truncate rounded px-1 py-0.5 text-[10px] leading-tight ${
                       done ? "text-[var(--fg-faint)] line-through" : kind === "scheduled" ? "bg-[var(--accent)]/15 text-[var(--accent)]" : "text-[var(--fg-dim)]"
                     }`}
                     title={item.text}
                   >
-                    {kind !== "scheduled" ? "🔁 " : ""}{item.text}
+                    {kind !== "scheduled" && <IconRepeat className="h-2.5 w-2.5 flex-shrink-0" />}
+                    <span className="truncate">{item.text}</span>
                   </div>
                 ))}
                 {acts.length > 3 && <div className="px-1 text-[10px] text-[var(--fg-faint)]">+{acts.length - 3}</div>}

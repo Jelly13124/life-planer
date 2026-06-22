@@ -11,6 +11,7 @@ import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { SectionHeader } from "./ui/SectionHeader";
 import { MetricCard } from "./ui/MetricCard";
+import { IconFlame, IconCalendar } from "./ui/icons";
 
 // ───────────────────────────────────────────────────────────────────────────
 // Boot today once at module load; re-sync on visibility change (see effect).
@@ -74,7 +75,12 @@ export function InsightsSection() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 animate-fade">
         <MetricCard
           label={t("当前连续")}
-          value={`🔥 ${t("{n} 天", { n: summary.streak })}`}
+          value={
+            <span className="inline-flex items-center gap-1.5">
+              <IconFlame className="h-5 w-5" />
+              {t("{n} 天", { n: summary.streak })}
+            </span>
+          }
           accent="var(--c-amber)"
         />
         <MetricCard
@@ -126,7 +132,10 @@ export function InsightsSection() {
       {/* Weekly Review button */}
       <div className="mt-6 animate-fade">
         <Button variant="subtle" onClick={() => setWeeklyOpen(true)} className="w-full sm:w-auto">
-          {t("📅 本周回顾")}
+          <span className="inline-flex items-center gap-1.5">
+            <IconCalendar className="h-4 w-4" />
+            {t("本周回顾")}
+          </span>
         </Button>
       </div>
 

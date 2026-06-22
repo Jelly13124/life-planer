@@ -9,6 +9,8 @@ import type { Goal, LifeTree } from "@/domain/types";
 import { Card } from "./ui/Card";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
+import { AreaIcon } from "./lib/areaMeta";
+import { IconCompass } from "./ui/icons";
 
 // 人生面各领域的色彩主题（内联 CSS 变量引用）。other = 中性灰（无分数，仅用于底部分组）。
 const AREA_COLORS: Record<string, string> = {
@@ -169,7 +171,7 @@ export function AreasSection() {
       {otherGoals.length > 0 && (
         <Card pad="md" className="mt-3 flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            <span aria-hidden="true">📦</span>
+            <AreaIcon area="other" className="h-4 w-4" />
             <span className="text-sm font-bold" style={{ color: otherColor }}>
               {t(GOAL_AREA_LABELS.other)}
             </span>
@@ -193,7 +195,7 @@ export function AreasSection() {
       {summaries.every((s) => s.goals.length === 0) && (
         <EmptyState
           className="mt-8"
-          icon="🧭"
+          icon={<IconCompass className="h-7 w-7" />}
           accent="var(--accent)"
           description={t("各个维度还没有目标，去规划一个吧。")}
           action={

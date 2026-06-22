@@ -25,11 +25,23 @@ import {
   type GoalDecomposition,
   type GoalSuggestion,
 } from "@/lib/goalClient";
+import { AreaIcon } from "./lib/areaMeta";
+import {
+  IconPencil,
+  IconSparkle,
+  IconTree,
+  IconChart,
+  IconCheckCircle,
+  IconRepeat,
+  IconCalendar,
+  IconSprout,
+} from "./ui/icons";
 
 // 启动时取一次"今天"作初值（render 内不可调用 new Date）；挂载后用 effect 刷新。
 const _bootToday = localTodayStr();
 
-// 六个目标领域的色彩 + 图标（5 个人生面沿用 AreasSection 色板 + 中性「其他」）。
+// 六个目标领域的色彩（5 个人生面沿用 AreasSection 色板 + 中性「其他」）。
+// 领域图标改用 <AreaIcon area={…} />（按 AREA_COLOR 着色），替代彩色 emoji。
 const AREA_COLORS: Record<GoalArea, string> = {
   career: "var(--c-sky)",
   wealth: "var(--c-amber)",
@@ -37,14 +49,6 @@ const AREA_COLORS: Record<GoalArea, string> = {
   health: "var(--c-emerald)",
   growth: "var(--accent)",
   other: "var(--fg-faint)",
-};
-const AREA_ICONS: Record<GoalArea, string> = {
-  career: "💼",
-  wealth: "💰",
-  relationships: "❤️",
-  health: "🌿",
-  growth: "🌱",
-  other: "📦",
 };
 
 type TFn = (zh: string, vars?: Record<string, string | number>) => string;
@@ -124,7 +128,7 @@ function MetricRow({
 
   return (
     <div className="flex items-center gap-2 rounded-xl border border-[var(--line)] bg-black/[0.02] px-3 py-2">
-      <span aria-hidden="true" className="text-xs">📊</span>
+      <IconChart className="h-3.5 w-3.5 flex-shrink-0 text-[var(--fg-faint)]" />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
           <span className="min-w-0 truncate text-sm text-[var(--fg)]">{metric.label}</span>
@@ -289,7 +293,7 @@ function HabitRow({ habit, t }: { habit: Habit; t: TFn }) {
         : t("每周");
   return (
     <div className="flex items-center gap-2.5 px-1 py-1">
-      <span aria-hidden="true" className="text-xs">🔁</span>
+      <IconRepeat className="h-3.5 w-3.5 flex-shrink-0 text-[var(--fg-faint)]" />
       <span className="min-w-0 flex-1 text-sm text-[var(--fg)]">{habit.text}</span>
       <span className="flex-shrink-0 rounded-full border border-[var(--accent)]/30 px-2 py-0.5 text-[10px] text-[var(--accent)]">
         {repeatLabel}
@@ -610,14 +614,15 @@ function GoalForm({
               key={a}
               type="button"
               onClick={() => setArea(a)}
-              className="rounded-full border px-3 py-1 text-xs transition"
+              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition"
               style={
                 active
                   ? { borderColor: color, color, background: `color-mix(in srgb, ${color} 15%, transparent)` }
                   : { borderColor: "var(--line)", color: "var(--fg-dim)" }
               }
             >
-              {AREA_ICONS[a]} {t(GOAL_AREA_LABELS[a])}
+              <AreaIcon area={a} className="h-3.5 w-3.5" color={active ? color : "currentColor"} />
+              {t(GOAL_AREA_LABELS[a])}
             </button>
           );
         })}
@@ -666,7 +671,8 @@ function GoalForm({
             onChange={(e) => setWithBranch(e.target.checked)}
             className="h-3.5 w-3.5 accent-[var(--accent)]"
           />
-          {t("🌳 成长为人生树的一条分支（AI 推演这条路的未来）")}
+          <IconTree className="h-3.5 w-3.5 flex-shrink-0" />
+          {t("成长为人生树的一条分支（AI 推演这条路的未来）")}
         </label>
       )}
 
@@ -776,7 +782,7 @@ function DateRange({ goal, t }: { goal: Goal; t: TFn }) {
       onClick={() => setOpen(true)}
       className="inline-flex items-center gap-1.5 text-xs text-[var(--fg-faint)] transition hover:text-[var(--fg-dim)]"
     >
-      <span aria-hidden="true">🗓</span>
+      <IconCalendar className="h-3.5 w-3.5" />
       {goal.startDate || goal.endDate ? `${fmt(goal.startDate)} → ${fmt(goal.endDate)}` : t("设置时间范围")}
     </button>
   );
@@ -809,10 +815,10 @@ function CheckRow({
   );
 }
 
-function GroupHeader({ icon, label }: { icon: string; label: string }) {
+function GroupHeader({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--fg-faint)]">
-      <span aria-hidden="true">{icon}</span>
+      <span aria-hidden="true" className="inline-flex">{icon}</span>
       {label}
     </div>
   );
@@ -896,7 +902,7 @@ function DecomposePanel({
       {/* 指标 */}
       {dec.metrics.length > 0 && (
         <div className="space-y-0.5">
-          <GroupHeader icon="📊" label={t("指标")} />
+          <GroupHeader icon={<IconChart className="h-3 w-3" />} label={t("指标")} />
           {dec.metrics.map((m, i) => (
             <CheckRow key={`m${i}`} checked={on(`m${i}`)} onToggle={() => toggle(`m${i}`)}>
               {metricLabel(m)}
@@ -908,7 +914,7 @@ function DecomposePanel({
       {/* 任务 */}
       {dec.tasks.length > 0 && (
         <div className="space-y-0.5">
-          <GroupHeader icon="✅" label={t("任务")} />
+          <GroupHeader icon={<IconCheckCircle className="h-3 w-3" />} label={t("任务")} />
           {dec.tasks.map((task, i) => (
             <CheckRow key={`t${i}`} checked={on(`t${i}`)} onToggle={() => toggle(`t${i}`)}>
               {task.text}
@@ -920,7 +926,7 @@ function DecomposePanel({
       {/* 习惯 */}
       {dec.habits.length > 0 && (
         <div className="space-y-0.5">
-          <GroupHeader icon="🔁" label={t("习惯")} />
+          <GroupHeader icon={<IconRepeat className="h-3 w-3" />} label={t("习惯")} />
           {dec.habits.map((h, i) => (
             <CheckRow key={`h${i}`} checked={on(`h${i}`)} onToggle={() => toggle(`h${i}`)}>
               {h.text}
@@ -952,7 +958,10 @@ function DecomposePanel({
                       checked={on(`sg${i}-m${j}`)}
                       onToggle={() => toggle(`sg${i}-m${j}`)}
                     >
-                      <span className="text-[var(--fg-dim)]">📊 {metricLabel(m)}</span>
+                      <span className="inline-flex items-center gap-1.5 text-[var(--fg-dim)]">
+                        <IconChart className="h-3 w-3 flex-shrink-0" />
+                        {metricLabel(m)}
+                      </span>
                     </CheckRow>
                   ))}
                   {sg.tasks.map((task, j) => (
@@ -961,7 +970,10 @@ function DecomposePanel({
                       checked={on(`sg${i}-t${j}`)}
                       onToggle={() => toggle(`sg${i}-t${j}`)}
                     >
-                      <span className="text-[var(--fg-dim)]">✅ {task.text}</span>
+                      <span className="inline-flex items-center gap-1.5 text-[var(--fg-dim)]">
+                        <IconCheckCircle className="h-3 w-3 flex-shrink-0" />
+                        {task.text}
+                      </span>
                     </CheckRow>
                   ))}
                   {sg.habits.map((h, j) => (
@@ -970,8 +982,9 @@ function DecomposePanel({
                       checked={on(`sg${i}-h${j}`)}
                       onToggle={() => toggle(`sg${i}-h${j}`)}
                     >
-                      <span className="text-[var(--fg-dim)]">
-                        🔁 {h.text}
+                      <span className="inline-flex items-center gap-1.5 text-[var(--fg-dim)]">
+                        <IconRepeat className="h-3 w-3 flex-shrink-0" />
+                        {h.text}
                         <span className="ml-1.5 text-[var(--fg-faint)]">{habitLabel(h)}</span>
                       </span>
                     </CheckRow>
@@ -1091,6 +1104,16 @@ function GoalCard({
     >
       {/* 头部 */}
       <div className="flex items-start gap-2">
+        {/* 编辑：卡片头部最左角，切换行内 GoalForm 编辑 */}
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          aria-label={t("编辑")}
+          title={t("编辑")}
+          className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[var(--fg-faint)] transition hover:bg-black/[0.04] hover:text-[var(--fg)]"
+        >
+          <IconPencil className="h-3.5 w-3.5" />
+        </button>
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
@@ -1131,10 +1154,11 @@ function GoalCard({
           {goal.favorite ? "★" : "☆"}
         </button>
         <span
-          className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px]"
+          className="inline-flex flex-shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px]"
           style={{ background: `color-mix(in srgb, ${color} 15%, transparent)`, color }}
         >
-          {AREA_ICONS[goal.area]} {t(GOAL_AREA_LABELS[goal.area])}
+          <AreaIcon area={goal.area} className="h-3 w-3" color="currentColor" />
+          {t(GOAL_AREA_LABELS[goal.area])}
         </span>
       </div>
 
@@ -1160,9 +1184,10 @@ function GoalCard({
           <button
             type="button"
             onClick={() => goal.pathId && openPath(goal.pathId)}
-            className="rounded-full border border-[var(--accent)]/50 px-3 py-1 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/15"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--accent)]/50 px-3 py-1 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/15"
           >
-            {t("📈 在树上看这条路")}
+            <IconChart className="h-3.5 w-3.5" />
+            {t("在树上看这条路")}
           </button>
         </div>
       )}
@@ -1188,9 +1213,10 @@ function GoalCard({
                 type="button"
                 onClick={runDecompose}
                 disabled={decomposing}
-                className="rounded-full border border-[var(--accent)]/50 bg-[var(--accent)]/10 px-3 py-1 text-[11px] text-[var(--accent)] transition hover:bg-[var(--accent)]/20 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--accent)]/50 bg-[var(--accent)]/10 px-3 py-1 text-[11px] text-[var(--accent)] transition hover:bg-[var(--accent)]/20 disabled:opacity-60"
               >
-                {decomposing ? t("AI 正在拆解…") : t("✨ AI 拆解目标")}
+                {!decomposing && <IconSparkle className="h-3.5 w-3.5" />}
+                {decomposing ? t("AI 正在拆解…") : t("AI 拆解目标")}
               </button>
               {decomposeError && (
                 <span className="text-[11px] text-[var(--c-rose)]">{t("稍后再试")}</span>
@@ -1229,22 +1255,16 @@ function GoalCard({
         </div>
       )}
 
-      {/* 底部操作 */}
+      {/* 底部操作（编辑已移到卡片头部最左角） */}
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--line)] pt-3 text-xs">
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="rounded-full border border-[var(--line)] px-3 py-1 text-[var(--fg-dim)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
-        >
-          {t("✎ 编辑")}
-        </button>
         {!done && (
           <button
             type="button"
             onClick={() => completeGoalById(goal.id)}
-            className="rounded-full border border-[var(--c-emerald)]/50 px-3 py-1 text-[var(--c-emerald)] transition hover:bg-[var(--c-emerald)]/10"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--c-emerald)]/50 px-3 py-1 text-[var(--c-emerald)] transition hover:bg-[var(--c-emerald)]/10"
           >
-            {t("✅ 标记达成")}
+            <IconCheckCircle className="h-3.5 w-3.5" />
+            {t("标记达成")}
           </button>
         )}
         <button
@@ -1372,7 +1392,14 @@ export function PlanScreen() {
       {/* AI 建议 */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Button variant="subtle" onClick={suggest} disabled={suggesting}>
-          {suggesting ? t("正在想几个适合你的目标…") : t("✨ 帮我想几个目标")}
+          {suggesting ? (
+            t("正在想几个适合你的目标…")
+          ) : (
+            <span className="inline-flex items-center gap-1.5">
+              <IconSparkle className="h-4 w-4" />
+              {t("帮我想几个目标")}
+            </span>
+          )}
         </Button>
       </div>
 
@@ -1390,8 +1417,9 @@ export function PlanScreen() {
               >
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-[var(--fg)]">
-                    <span className="mr-1.5 rounded-full border border-[var(--line)] px-1.5 py-0.5 text-[10px] text-[var(--fg-dim)]">
-                      {AREA_ICONS[s.area]} {t(GOAL_AREA_LABELS[s.area])}
+                    <span className="mr-1.5 inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-1.5 py-0.5 text-[10px] text-[var(--fg-dim)]">
+                      <AreaIcon area={s.area} className="h-3 w-3" color="currentColor" />
+                      {t(GOAL_AREA_LABELS[s.area])}
                     </span>
                     {s.title}
                   </div>
@@ -1449,7 +1477,7 @@ export function PlanScreen() {
                   className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider"
                   style={{ color }}
                 >
-                  <span aria-hidden="true">{AREA_ICONS[area]}</span>
+                  <AreaIcon area={area} className="h-3.5 w-3.5" color="currentColor" />
                   {t(GOAL_AREA_LABELS[area])}
                   <span className="text-[var(--fg-faint)]">· {areaGoals.length}</span>
                 </h2>
@@ -1472,7 +1500,7 @@ export function PlanScreen() {
         goals.length === 0 && (
           <EmptyState
             className="mt-4"
-            icon="🌱"
+            icon={<IconSprout className="h-7 w-7" />}
             accent="var(--accent)"
             description={t("还没有目标。建一个目标，或让 AI 帮你想几个，看着它们在你的人生树上长出来。")}
             action={

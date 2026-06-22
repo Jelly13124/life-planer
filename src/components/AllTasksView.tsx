@@ -8,6 +8,7 @@ import { localTodayStr } from "@/lib/dailyClient";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
 import { GroupedTasks } from "./lib/taskGroups";
+import { IconCheckCircle } from "./ui/icons";
 
 // 「全部任务」视图：所有目标下的一次性任务，按领域 → 目标分组。
 // 过滤切换：进行中（默认，done===false）/ 全部。
@@ -64,7 +65,7 @@ export function AllTasksView() {
 
       {locs.length === 0 ? (
         <EmptyState
-          icon="✅"
+          icon={<IconCheckCircle className="h-7 w-7" />}
           accent="var(--c-emerald)"
           description={
             showAll

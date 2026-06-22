@@ -8,6 +8,7 @@ import { localTodayStr } from "@/lib/dailyClient";
 import { AreaIcon } from "./lib/areaMeta";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
+import { IconSun } from "./ui/icons";
 
 // 「今天」视图：列出今天该做的事 —— 手动挑的一次性任务 ∪ 今天到期的重复习惯。
 // 每行一个勾选按钮 → toggleTodayAction；展示所属目标 + 领域 emoji/色。
@@ -40,7 +41,7 @@ export function TodayView() {
 
       {items.length === 0 ? (
         <EmptyState
-          icon="☀️"
+          icon={<IconSun className="h-7 w-7" />}
           accent="var(--accent)"
           description={t("今天没有安排。去「目标」把某条任务排到今天，或在「习惯」里坚持重复。")}
         />

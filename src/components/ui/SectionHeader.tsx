@@ -12,7 +12,7 @@ export function SectionHeader({
   actions,
 }: {
   eyebrow?: string;
-  title: string;
+  title: ReactNode;
   subtitle?: ReactNode;
   actions?: ReactNode;
 }) {
