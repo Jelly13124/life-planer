@@ -35,7 +35,6 @@ function makeTree(goals: Goal[], activity: LifeTree["activity"] = []): LifeTree 
     decisions: [],
     goals,
     activity,
-    inbox: [],
     createdAt: NOW,
     updatedAt: NOW,
   };

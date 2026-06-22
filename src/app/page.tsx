@@ -10,7 +10,6 @@ import { AppShell } from "@/components/AppShell";
 import { HabitsSection } from "@/components/HabitsSection";
 import { AreasSection } from "@/components/AreasSection";
 import { InsightsSection } from "@/components/InsightsSection";
-import { InboxSection } from "@/components/InboxSection";
 import { PlanningAssistant } from "@/components/PlanningAssistant";
 import { PredictionOverlay } from "@/components/PredictionOverlay";
 import { SafetyCare } from "@/components/SafetyCare";
@@ -79,8 +78,6 @@ function Screen() {
           <AreasSection />
         ) : view === "insights" ? (
           <InsightsSection />
-        ) : view === "inbox" ? (
-          <InboxSection />
         ) : (
           <CalendarPlannerScreen />
         )}

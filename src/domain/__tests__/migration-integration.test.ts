@@ -62,7 +62,6 @@ function buildLegacyTree() {
     horizonYears: 20,
     paths: [path],
     decisions: [] as unknown[],
-    inbox: [] as unknown[],
     goals: [
       {
         id: "L1",
@@ -247,7 +246,6 @@ function buildTreeWithGoals(goals: unknown[]) {
     horizonYears: 20,
     paths: [path],
     decisions: [] as unknown[],
-    inbox: [] as unknown[],
     goals,
     activity: [] as unknown[],
     createdAt: "2026-01-01T00:00:00.000Z",

@@ -37,7 +37,6 @@ export function createTree(
     decisions: [],
     goals: [],
     activity: [],
-    inbox: [],
     createdAt: now,
     updatedAt: now,
   };

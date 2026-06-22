@@ -52,7 +52,6 @@ import { actionsOnDay, setActionScheduledDate } from "@/domain/calendar";
 import { arrangeDay, setActionTime, setDayWindow, dayWindow } from "@/domain/schedule";
 import { fetchArrangeDay } from "@/lib/scheduleClient";
 import { anyCrisisSignal } from "@/domain/safety";
-import { addInboxItem, removeInboxItem } from "@/domain/inbox";
 
 export type View =
   | "onboarding"
@@ -62,8 +61,7 @@ export type View =
   | "dashboard"
   | "habits"
   | "areas"
-  | "insights"
-  | "inbox";
+  | "insights";
 
 // 一次"AI 正在推演"的进行态：在 AI 把这一批路全部写完之前，分支不落到树上。
 export interface Predicting {
@@ -97,7 +95,6 @@ type Action =
   | { type: "openHabits" }
   | { type: "openAreas" }
   | { type: "openInsights" }
-  | { type: "openInbox" }
   | { type: "patchTree"; tree: LifeTree }
   | { type: "reset" }
   | { type: "safetyHold"; profile: Profile }
@@ -146,8 +143,6 @@ function reducer(state: State, action: Action): State {
       return { ...state, activePathId: null, view: "areas" };
     case "openInsights":
       return { ...state, activePathId: null, view: "insights" };
-    case "openInbox":
-      return { ...state, activePathId: null, view: "inbox" };
     case "patchTree":
       return { ...state, tree: action.tree };
     case "reset":
@@ -212,11 +207,6 @@ interface AppApi {
   openHabits: () => void;
   openAreas: () => void;
   openInsights: () => void;
-  openInbox: () => void;
-  captureToInbox: (text: string) => void;
-  removeInboxItem: (id: string) => void;
-  // 收件箱 → 目标（长目标：连带长出预测分支；简单：仅建目标）。
-  promoteInboxToGoal: (itemId: string, opts?: { withBranch?: boolean; area?: Goal["area"] }) => void;
   openTree: () => void;
   planActionToday: (actionId: string) => void;
   unplanActionToday: (actionId: string) => void;
@@ -536,44 +526,6 @@ export function AppProvider({
       openHabits: () => dispatch({ type: "openHabits" }),
       openAreas: () => dispatch({ type: "openAreas" }),
       openInsights: () => dispatch({ type: "openInsights" }),
-      openInbox: () => dispatch({ type: "openInbox" }),
-      captureToInbox: (text) => {
-        const baseTree = treeRef.current;
-        if (!baseTree) return;
-        dispatch({ type: "patchTree", tree: addInboxItem(baseTree, text, new Date().toISOString()) });
-      },
-      removeInboxItem: (id) => {
-        const baseTree = treeRef.current;
-        if (!baseTree) return;
-        dispatch({ type: "patchTree", tree: removeInboxItem(baseTree, id, new Date().toISOString()) });
-      },
-      // 收件箱 → 目标。withBranch=true（长目标）连带长出一条预测分支并 AI 推演；
-      // 否则只建一个简单目标。两种都用「单棵快照」同时移除收件项 + 加目标，避免
-      // predictAndCommit 期间收件项被旧树复活的竞态。
-      promoteInboxToGoal: (itemId, opts) => {
-        const base = treeRef.current;
-        if (!base) return;
-        const item = (base.inbox ?? []).find((i) => i.id === itemId);
-        if (!item) return;
-        const area = opts?.area ?? "career";
-        const ts = new Date().toISOString();
-        const cleaned = removeInboxItem(base, itemId, ts);
-        if (opts?.withBranch) {
-          if (predictingRef.current) return;
-          const working = addPath(cleaned, item.text, generator, ts);
-          if (working === cleaned) return;
-          const newPath = working.paths[working.paths.length - 1];
-          const { tree: withGoal } = addGoalToTree(
-            working,
-            { area, title: item.text, why: "", pathId: newPath.id },
-            ts,
-          );
-          void predictAndCommit(withGoal, [newPath], "branch");
-          return;
-        }
-        const { tree } = addGoalToTree(cleaned, { area, title: item.text, why: "" }, ts);
-        dispatch({ type: "patchTree", tree });
-      },
       // ── Subgoals ──
       addSubgoal: (goalId, title) => {
         const baseTree = treeRef.current;
