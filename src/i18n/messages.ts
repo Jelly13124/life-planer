@@ -649,4 +649,52 @@ export const EN: Record<string, string> = {
   这天没有安排: "Nothing on this day",
   "习惯（每日重复）：{text}": "Habit (recurring): {text}",
   去日视图设时间: "Set times in Day view",
+
+  // ── Phase 7：选择面板（ChoicePanel） ──
+  // 标题 / 副标题（「选择面板」键已在上方定义，复用）
+  "列出你在权衡的选择，逐项对比，推演未来，然后拍板。":
+    "Lay out the choices you're weighing, compare them side by side, predict the future, then decide.",
+  // 新建选择 composer
+  新建选择: "New choice",
+  我面临的选择: "The choice I'm facing",
+  "我在纠结什么？（如 留在现在的公司，还是跳槽？）":
+    "What am I torn about? (e.g. stay at my current job, or switch?)",
+  // 分区
+  未决: "Open",
+  已决: "Decided",
+  // 选项卡字段（「单行道」「可回头」键已在上方定义，复用）
+  选项名: "Option name",
+  "选项名（如 去大厂 / 创业）": "Option name (e.g. Big tech / Startup)",
+  新选项名: "New option name",
+  利: "Pros",
+  弊: "Cons",
+  成本: "Cost",
+  可逆性: "Reversibility",
+  直觉: "Gut feel",
+  "直觉 {n} 分": "Gut feel {n} of 5",
+  一行一条好处: "One upside per line",
+  一行一条坏处: "One downside per line",
+  "时间 / 金钱 / 机会": "Time / money / opportunity",
+  "＋ 选项": "＋ Option",
+  删除选项: "Remove option",
+  已选定: "Chosen",
+  // 选项操作
+  "🌳 推演这个选项": "🌳 Predict this option",
+  "🌳 在树上看": "🌳 See it on the tree",
+  "✅ 就选它": "✅ Choose this",
+  // 拍板确认
+  同时建成目标: "Also turn it into a goal",
+  归到领域: "Area",
+  目标领域: "Goal area",
+  确认: "Confirm",
+  // 已决选择头部
+  "已选 {label}": "Chose {label}",
+  "决定于 {date}": "Decided on {date}",
+  重新打开: "Reopen",
+  删除选择: "Delete choice",
+  "删除这个选择？它的选项和对比都会一起删除。":
+    "Delete this choice? Its options and comparison will be removed too.",
+  // 空状态
+  "还没有要权衡的选择。新建一个，把纠结摊开看。":
+    "No choices to weigh yet. Add one and lay your dilemma out in the open.",
 };
