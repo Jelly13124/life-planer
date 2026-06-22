@@ -5,12 +5,21 @@ import "@testing-library/jest-dom/vitest";
 import { AppShell } from "@/components/AppShell";
 
 const nav = {
+  tree: null,
+  selectedTag: null,
   openDashboard: vi.fn(),
   openPlan: vi.fn(),
   openHabits: vi.fn(),
   openAreas: vi.fn(),
   openInsights: vi.fn(),
   openTree: vi.fn(),
+  openToday: vi.fn(),
+  openUpcoming: vi.fn(),
+  openAllTasks: vi.fn(),
+  openCompleted: vi.fn(),
+  openChoices: vi.fn(),
+  openTag: vi.fn(),
+  openPlanFocused: vi.fn(),
 };
 
 vi.mock("@/state/AppContext", () => ({
@@ -24,14 +33,17 @@ vi.mock("@/prefs/PreferencesContext", () => ({
 describe("AppShell", () => {
   beforeEach(() => {
     cleanup();
-    Object.values(nav).forEach((f) => (f as ReturnType<typeof vi.fn>).mockClear());
+    Object.values(nav).forEach((f) => {
+      if (typeof f === "function") (f as ReturnType<typeof vi.fn>).mockClear();
+    });
   });
 
-  it("renders a nav landmark with all six sections", () => {
+  it("renders grouped nav landmarks covering every section", () => {
     render(<AppShell active="dashboard">content</AppShell>);
-    const navs = screen.getAllByRole("navigation", { name: "Sections" });
-    expect(navs.length).toBeGreaterThanOrEqual(1);
-    for (const label of ["日历", "目标", "习惯", "人生面", "洞察", "人生树"]) {
+    // 分组后每组各是一个 navigation landmark（待办/我的人生/选择/置顶人生树…）。
+    const navs = screen.getAllByRole("navigation");
+    expect(navs.length).toBeGreaterThanOrEqual(3);
+    for (const label of ["日历", "目标", "习惯", "人生面", "洞察", "我的人生树", "今天", "全部任务", "已完成", "选择面板"]) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
   });

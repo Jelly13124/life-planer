@@ -10,9 +10,27 @@ import { AppShell } from "@/components/AppShell";
 import { HabitsSection } from "@/components/HabitsSection";
 import { AreasSection } from "@/components/AreasSection";
 import { InsightsSection } from "@/components/InsightsSection";
+import { TodayView } from "@/components/TodayView";
+import { AllTasksView } from "@/components/AllTasksView";
+import { CompletedView } from "@/components/CompletedView";
+import { TagView } from "@/components/TagView";
 import { PlanningAssistant } from "@/components/PlanningAssistant";
 import { PredictionOverlay } from "@/components/PredictionOverlay";
 import { SafetyCare } from "@/components/SafetyCare";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { useT } from "@/prefs/PreferencesContext";
+
+// 即将到来 / 选择面板在 Phase 4/7 才建；先用一个轻量占位（共享空状态）顶上，build 不破。
+export function ComingSoon({ title }: { title: string }) {
+  const { t } = useT();
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-10 sm:px-8">
+      <SectionHeader title={t(title)} />
+      <EmptyState icon="🚧" description={t("正在搭建，今晚晚些时候上线")} />
+    </div>
+  );
+}
 
 function Screen() {
   const { view, tree, activePathId, hydrated, backToTree, predicting, aiEnabled, safetyHold, continueAfterSafety } = useApp();
@@ -78,6 +96,18 @@ function Screen() {
           <AreasSection />
         ) : view === "insights" ? (
           <InsightsSection />
+        ) : view === "today" ? (
+          <TodayView />
+        ) : view === "alltasks" ? (
+          <AllTasksView />
+        ) : view === "completed" ? (
+          <CompletedView />
+        ) : view === "tag" ? (
+          <TagView />
+        ) : view === "upcoming" ? (
+          <ComingSoon title="即将到来" />
+        ) : view === "choices" ? (
+          <ComingSoon title="选择面板" />
         ) : (
           <CalendarPlannerScreen />
         )}

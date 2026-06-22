@@ -594,4 +594,43 @@ export const EN: Record<string, string> = {
   子目标: "Subgoals",
   全部添加: "Add all",
   忽略: "Dismiss",
+
+  // ── Phase 3a：分组侧边栏 + 待办/全部任务/已完成/标签视图 ──
+  // 导航分组标题（今天/日历/习惯/全部/收藏/事业…等键已在上方定义，复用）
+  我的人生树: "My life tree",
+  即将到来: "Upcoming",
+  全部任务: "All tasks",
+  已完成: "Completed",
+  我的人生: "My life",
+  待办: "To-do",
+  选择: "Choices",
+  选择面板: "Choice board",
+  标签: "Tags",
+  进行中: "Active",
+  跳到目标: "Go to goal",
+  // 收藏项右侧时间小字
+  "距截止 {n} 天": "{n}d left",
+  "已过期 {n} 天": "{n}d overdue",
+  "{n} 天前": "{n}d ago",
+  // 占位（即将到来 / 选择面板，Phase 4/7 替换）
+  "正在搭建，今晚晚些时候上线": "Under construction — live later tonight.",
+  // 空状态
+  还没有完成的任务: "No completed tasks yet",
+  "今天没有安排。去「目标」把某条任务排到今天，或在「习惯」里坚持重复。":
+    "Nothing scheduled today. Schedule a task under Goals, or keep a habit going under Habits.",
+  "所有目标下的一次性任务，按人生面分组。":
+    "One-off tasks across all your goals, grouped by life area.",
+  "今天该做的任务和习惯，勾掉就算完成。":
+    "Today's tasks and habits — check them off to finish.",
+  "你已经完成的任务。取消勾选可以恢复。":
+    "Tasks you've finished. Uncheck to bring one back.",
+  "还没有任务。去「目标」给某个目标加几条任务。":
+    "No tasks yet. Add some to a goal under Goals.",
+  "没有进行中的任务。切到「全部」看已完成的，或去「目标」新建任务。":
+    "No active tasks. Switch to All to see finished ones, or add tasks under Goals.",
+  "带这个标签的目标和它们的任务。": "Goals with this tag and their tasks.",
+  "没有带这个标签的目标。去「目标」给目标加上标签。":
+    "No goals carry this tag. Add tags to goals under Goals.",
+  "这些目标下还没有任务。去「目标」加几条任务。":
+    "These goals have no tasks yet. Add some under Goals.",
 };

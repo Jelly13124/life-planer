@@ -3,19 +3,24 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useApp, type View } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
+import { localTodayStr } from "@/lib/dailyClient";
+import { favoriteGoals, favoriteTimeLabel, sidebarTags } from "@/domain/sidebar";
 
 // 持久化左侧栏的应用外壳：左侧导航 + 右侧可独立滚动的内容区。
 // 桌面端常驻侧栏；窄屏折叠成顶部栏 + 抽屉，避免内容被挤压。
 // 视觉沿用本项目的深色电影感：var(--bg-*) / var(--fg-*) / var(--accent) / var(--line)。
+// 导航分组（spec A1）：置顶「人生树」+ 待办 / 我的人生 / 选择 + 动态「收藏」「标签」。
 
-type NavKey = "dashboard" | "plan" | "habits" | "areas" | "insights" | "tree";
+const _bootToday = localTodayStr();
 
 interface NavItem {
-  key: NavKey;
+  key: string; // 唯一键（静态项 = 视图名；动态项 = 目标 id / 标签）
   icon: string;
-  label: string; // 中文原文，t() 包裹
+  label: string; // 中文原文，t() 包裹；动态项已是最终文本（不再 t()）
   go: () => void;
   active: boolean;
+  rawLabel?: boolean; // true = label 直接渲染（收藏/标签的动态文本），不过 t()
+  meta?: string; // 右侧小字（收藏项的时间标）
 }
 
 // 品牌小标记：一条笔直的"维持现状"线 + 一条分叉出去的彩色曲线——
@@ -87,20 +92,33 @@ function NavButton({ item, onNavigate }: { item: NavItem; onNavigate: () => void
       >
         {item.icon}
       </span>
-      <span className="truncate">{t(item.label)}</span>
+      <span className="min-w-0 flex-1 truncate text-left">
+        {item.rawLabel ? item.label : t(item.label)}
+      </span>
+      {item.meta && (
+        <span className="flex-shrink-0 text-[10px] tabular-nums text-[var(--fg-faint)]">
+          {item.meta}
+        </span>
+      )}
     </button>
   );
 }
 
-function NavList({
+// 一个导航分组：小写/中文小标题 + 该组的按钮们。label 已是最终文本。
+function NavSection({
+  label,
   items,
   onNavigate,
 }: {
+  label: string;
   items: NavItem[];
   onNavigate: () => void;
 }) {
   return (
-    <nav aria-label="Sections" className="flex flex-col gap-1">
+    <nav aria-label={label} className="flex flex-col gap-1">
+      <div className="px-3 pb-1 pt-1 text-[10px] font-medium uppercase tracking-[2px] text-[var(--fg-faint)]">
+        {label}
+      </div>
       {items.map((it) => (
         <NavButton key={it.key} item={it} onNavigate={onNavigate} />
       ))}
@@ -109,9 +127,34 @@ function NavList({
 }
 
 export function AppShell({ active, children }: { active: View; children: ReactNode }) {
-  const { openDashboard, openPlan, openHabits, openAreas, openInsights, openTree } = useApp();
+  const {
+    tree,
+    selectedTag,
+    openDashboard,
+    openPlan,
+    openHabits,
+    openAreas,
+    openInsights,
+    openTree,
+    openToday,
+    openUpcoming,
+    openAllTasks,
+    openCompleted,
+    openChoices,
+    openTag,
+    openPlanFocused,
+  } = useApp();
   const { t } = useT();
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // today 用启动常量 + 可见性事件刷新（不在模块作用域 new Date），供收藏时间标计算。
+  const [today, setToday] = useState(_bootToday);
+  useEffect(() => {
+    const update = () => setToday(localTodayStr());
+    update();
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
 
   // 抽屉打开时锁滚动；Esc 关闭。
   useEffect(() => {
@@ -128,16 +171,67 @@ export function AppShell({ active, children }: { active: View; children: ReactNo
     };
   }, [drawerOpen]);
 
-  const items: NavItem[] = [
+  // 置顶单项：人生树。
+  const pinned: NavItem = {
+    key: "tree",
+    icon: "🌳",
+    label: "我的人生树",
+    go: openTree,
+    active: active === "tree",
+  };
+
+  // 静态分组。
+  const todoItems: NavItem[] = [
+    { key: "today", icon: "☀️", label: "今天", go: openToday, active: active === "today" },
+    { key: "upcoming", icon: "🗓️", label: "即将到来", go: openUpcoming, active: active === "upcoming" },
     { key: "dashboard", icon: "📅", label: "日历", go: openDashboard, active: active === "dashboard" },
-    { key: "plan", icon: "🎯", label: "目标", go: openPlan, active: active === "plan" },
-    { key: "habits", icon: "🔁", label: "习惯", go: openHabits, active: active === "habits" },
-    { key: "areas", icon: "🧭", label: "人生面", go: openAreas, active: active === "areas" },
-    { key: "insights", icon: "📊", label: "洞察", go: openInsights, active: active === "insights" },
-    { key: "tree", icon: "🌳", label: "人生树", go: openTree, active: active === "tree" },
+    { key: "alltasks", icon: "✅", label: "全部任务", go: openAllTasks, active: active === "alltasks" },
+    { key: "completed", icon: "☑️", label: "已完成", go: openCompleted, active: active === "completed" },
   ];
 
-  // 侧栏内部：顶部品牌 + 导航。drawer 与桌面端共用。
+  const lifeItems: NavItem[] = [
+    { key: "areas", icon: "🧭", label: "人生面", go: openAreas, active: active === "areas" },
+    { key: "plan", icon: "🎯", label: "目标", go: openPlan, active: active === "plan" },
+    { key: "habits", icon: "🔁", label: "习惯", go: openHabits, active: active === "habits" },
+    { key: "insights", icon: "📊", label: "洞察", go: openInsights, active: active === "insights" },
+  ];
+
+  const choiceItems: NavItem[] = [
+    { key: "choices", icon: "⚖️", label: "选择面板", go: openChoices, active: active === "choices" },
+  ];
+
+  // 动态分组：收藏 / 标签。无树时都为空（组会被隐藏）。
+  const favs = tree ? favoriteGoals(tree) : [];
+  const favoriteItems: NavItem[] = favs.map((g) => {
+    const tl = favoriteTimeLabel(g, today);
+    const meta =
+      tl.kind === "due"
+        ? t("距截止 {n} 天", { n: tl.days })
+        : tl.kind === "overdue"
+          ? t("已过期 {n} 天", { n: tl.days })
+          : t("{n} 天前", { n: tl.days });
+    return {
+      key: `fav-${g.id}`,
+      icon: "⭐",
+      label: g.title,
+      rawLabel: true,
+      meta,
+      go: () => openPlanFocused(g.id),
+      active: false,
+    };
+  });
+
+  const tags = tree ? sidebarTags(tree) : [];
+  const tagItems: NavItem[] = tags.map((tag) => ({
+    key: `tag-${tag}`,
+    icon: "🏷️",
+    label: tag,
+    rawLabel: true,
+    go: () => openTag(tag),
+    active: active === "tag" && selectedTag === tag,
+  }));
+
+  // 侧栏内部：顶部品牌 + 置顶项 + 各分组。drawer 与桌面端共用。
   const sidebarInner = (onNavigate: () => void) => (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2.5 px-3 pb-6 pt-1">
@@ -148,8 +242,22 @@ export function AppShell({ active, children }: { active: View; children: ReactNo
         </div>
       </div>
 
-      <div className="px-2">
-        <NavList items={items} onNavigate={onNavigate} />
+      <div className="flex flex-col gap-4 overflow-y-auto px-2 pb-4">
+        {/* 置顶：人生树 */}
+        <nav aria-label={t("我的人生树")}>
+          <NavButton item={pinned} onNavigate={onNavigate} />
+        </nav>
+
+        <NavSection label={t("待办")} items={todoItems} onNavigate={onNavigate} />
+        <NavSection label={t("我的人生")} items={lifeItems} onNavigate={onNavigate} />
+        <NavSection label={t("选择")} items={choiceItems} onNavigate={onNavigate} />
+
+        {favoriteItems.length > 0 && (
+          <NavSection label={t("收藏")} items={favoriteItems} onNavigate={onNavigate} />
+        )}
+        {tagItems.length > 0 && (
+          <NavSection label={t("标签")} items={tagItems} onNavigate={onNavigate} />
+        )}
       </div>
     </div>
   );
