@@ -2,7 +2,7 @@
 
 import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
-import { AREA_LABELS } from "@/domain/types";
+import { GOAL_AREA_LABELS } from "@/domain/types";
 import { areaSummaries, type AreaSummary } from "@/domain/areas";
 import { goalProgress } from "@/domain/goals";
 import type { Goal, LifeTree } from "@/domain/types";
@@ -10,13 +10,14 @@ import { Card } from "./ui/Card";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
 
-// 人生面各领域的色彩主题（内联 CSS 变量引用）
+// 人生面各领域的色彩主题（内联 CSS 变量引用）。other = 中性灰（无分数，仅用于底部分组）。
 const AREA_COLORS: Record<string, string> = {
   career:        "var(--c-sky)",
   wealth:        "var(--c-amber)",
   relationships: "var(--c-rose)",
   health:        "var(--c-emerald)",
   growth:        "var(--accent)",
+  other:         "var(--fg-faint)",
 };
 
 function ScoreBar({ score, color }: { score: number; color: string }) {
@@ -73,7 +74,7 @@ function AreaCard({ summary, tree }: { summary: AreaSummary; tree: LifeTree }) {
   const { openPlan, openPath } = useApp();
   const { t } = useT();
   const color = AREA_COLORS[summary.area] ?? "var(--accent)";
-  const label = t(AREA_LABELS[summary.area]);
+  const label = t(GOAL_AREA_LABELS[summary.area]);
 
   return (
     <Card
@@ -136,12 +137,18 @@ function AreaCard({ summary, tree }: { summary: AreaSummary; tree: LifeTree }) {
 }
 
 export function AreasSection() {
-  const { tree, openPlan } = useApp();
+  const { tree, openPlan, openPath } = useApp();
   const { t } = useT();
 
   if (!tree) return null;
 
   const summaries = areaSummaries(tree);
+  // 「其他」是中性桶，没有分数 —— 不进 areaSummaries / ScoreBar。这里单独捞它的进行中目标，
+  // 放在页面底部一个无分数的分组里（有目标才渲染）。
+  const otherColor = AREA_COLORS.other;
+  const otherGoals = (tree.goals ?? []).filter(
+    (g) => g.status === "active" && g.area === "other",
+  );
 
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-10 sm:px-8">
@@ -157,6 +164,30 @@ export function AreasSection() {
           <AreaCard key={s.area} summary={s} tree={tree} />
         ))}
       </div>
+
+      {/* 其他：无分数分组，列出 area==="other" 的进行中目标（有才显示） */}
+      {otherGoals.length > 0 && (
+        <Card pad="md" className="mt-3 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <span aria-hidden="true">📦</span>
+            <span className="text-sm font-bold" style={{ color: otherColor }}>
+              {t(GOAL_AREA_LABELS.other)}
+            </span>
+            <span className="text-[10px] text-[var(--fg-faint)]">{t("不计入分数")}</span>
+          </div>
+          <div className="space-y-2.5">
+            {otherGoals.map((g) => (
+              <GoalProgressRow
+                key={g.id}
+                goal={g}
+                tree={tree}
+                color={otherColor}
+                onOpen={() => g.pathId && openPath(g.pathId)}
+              />
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Global CTA when no goals at all */}
       {summaries.every((s) => s.goals.length === 0) && (

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { LifeTree } from "@/domain/types";
-import { AREA_LABELS } from "@/domain/types";
+import { GOAL_AREA_LABELS } from "@/domain/types";
 import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { actionsOnDay, weekdayOf } from "@/domain/calendar";
@@ -149,7 +149,7 @@ export function DayView({
                 <span className={`min-w-0 flex-1 truncate text-sm ${done ? "text-[var(--fg-faint)] line-through" : "text-[var(--fg)]"}`}>
                   {item.text}
                 </span>
-                <span className="flex-shrink-0 text-[10px] text-[var(--fg-faint)]">{t(AREA_LABELS[goal.area])}</span>
+                <span className="flex-shrink-0 text-[10px] text-[var(--fg-faint)]">{t(GOAL_AREA_LABELS[goal.area])}</span>
                 <input
                   type="time"
                   aria-label={t("设置开始时间")}
@@ -231,7 +231,7 @@ export function DayView({
                       </span>
                       <span className="mt-0.5 flex w-full items-center gap-1.5 text-[10px] text-[var(--fg-faint)]">
                         <span className="tabular-nums">{toHHMM(s)}–{toHHMM(s + dur)}</span>
-                        <span className="truncate">{t(AREA_LABELS[goal.area])}</span>
+                        <span className="truncate">{t(GOAL_AREA_LABELS[goal.area])}</span>
                       </span>
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { Button } from "./ui/Button";
@@ -8,11 +8,11 @@ import { Card } from "./ui/Card";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
 import {
-  AREA_LABELS,
-  LIFE_AREAS,
+  GOAL_AREA_LABELS,
+  GOAL_AREAS,
   type Goal,
+  type GoalArea,
   type Habit,
-  type LifeArea,
   type Metric,
   type Subgoal,
   type Task,
@@ -29,20 +29,22 @@ import {
 // 启动时取一次"今天"作初值（render 内不可调用 new Date）；挂载后用 effect 刷新。
 const _bootToday = localTodayStr();
 
-// 五个人生面的色彩 + 图标（沿用 AreasSection 的色板，本屏自带图标）。
-const AREA_COLORS: Record<LifeArea, string> = {
+// 六个目标领域的色彩 + 图标（5 个人生面沿用 AreasSection 色板 + 中性「其他」）。
+const AREA_COLORS: Record<GoalArea, string> = {
   career: "var(--c-sky)",
   wealth: "var(--c-amber)",
   relationships: "var(--c-rose)",
   health: "var(--c-emerald)",
   growth: "var(--accent)",
+  other: "var(--fg-faint)",
 };
-const AREA_ICONS: Record<LifeArea, string> = {
+const AREA_ICONS: Record<GoalArea, string> = {
   career: "💼",
   wealth: "💰",
   relationships: "❤️",
   health: "🌿",
   growth: "🌱",
+  other: "📦",
 };
 
 type TFn = (zh: string, vars?: Record<string, string | number>) => string;
@@ -564,7 +566,7 @@ function SubgoalBlock({
 // 目标编辑器：title / why / area / 起止日期。新建 + 编辑共用。
 // ───────────────────────────────────────────────────────────────────────────
 interface GoalDraft {
-  area: LifeArea;
+  area: GoalArea;
   title: string;
   why: string;
   startDate: string;
@@ -586,7 +588,7 @@ function GoalForm({
   submitLabel: string;
   showBranchOption?: boolean;
 }) {
-  const [area, setArea] = useState<LifeArea>(initial?.area ?? "career");
+  const [area, setArea] = useState<GoalArea>(initial?.area ?? "career");
   const [title, setTitle] = useState(initial?.title ?? "");
   const [why, setWhy] = useState(initial?.why ?? "");
   const [startDate, setStartDate] = useState(initial?.startDate ?? "");
@@ -598,9 +600,9 @@ function GoalForm({
 
   return (
     <Card pad="md" className="space-y-3 border-[var(--accent)]/40">
-      {/* 领域 */}
+      {/* 领域（6 桶：5 个人生面 + 其他） */}
       <div className="flex flex-wrap gap-1.5">
-        {LIFE_AREAS.map((a) => {
+        {GOAL_AREAS.map((a) => {
           const active = area === a;
           const color = AREA_COLORS[a];
           return (
@@ -615,7 +617,7 @@ function GoalForm({
                   : { borderColor: "var(--line)", color: "var(--fg-dim)" }
               }
             >
-              {AREA_ICONS[a]} {t(AREA_LABELS[a])}
+              {AREA_ICONS[a]} {t(GOAL_AREA_LABELS[a])}
             </button>
           );
         })}
@@ -1006,9 +1008,28 @@ function DecomposePanel({
 // 目标卡 GoalCard：可折叠。头部 = 标题/why/进度/时间范围/领域/标签/状态。
 // 展开体 = 目标级指标/任务/习惯 + 子目标。
 // ───────────────────────────────────────────────────────────────────────────
-function GoalCard({ goal, t }: { goal: Goal; t: TFn }) {
-  const { tree, openPath, updateGoal, removeGoalById, completeGoalById, addSubgoal } = useApp();
+function GoalCard({
+  goal,
+  t,
+  focused,
+  onFocused,
+}: {
+  goal: Goal;
+  t: TFn;
+  focused?: boolean;
+  onFocused?: () => void;
+}) {
+  const { tree, openPath, updateGoal, removeGoalById, completeGoalById, addSubgoal, toggleGoalFavorite } = useApp();
+  // 聚焦跳转时强制展开（默认也是展开）；用 prop 直接驱动初值，避免在 effect 里同步 setState。
   const [expanded, setExpanded] = useState(true);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // 从「收藏」「全部任务」等处跳来聚焦本卡：居中滚入，然后清掉聚焦标记。展开由 expanded 默认 true 保证。
+  useEffect(() => {
+    if (!focused) return;
+    cardRef.current?.scrollIntoView({ block: "center" });
+    onFocused?.();
+  }, [focused, onFocused]);
   const [editing, setEditing] = useState(false);
   const [addingSub, setAddingSub] = useState(false);
   // AI 拆解目标：loading / 结果 / 出错（即便有兜底也兜不住时）。
@@ -1063,7 +1084,11 @@ function GoalCard({ goal, t }: { goal: Goal; t: TFn }) {
   }
 
   return (
-    <Card pad="md" className={done ? "opacity-70" : ""}>
+    <Card
+      ref={cardRef}
+      pad="md"
+      className={`${done ? "opacity-70" : ""} ${focused ? "ring-1 ring-[var(--accent)]/60" : ""}`}
+    >
       {/* 头部 */}
       <div className="flex items-start gap-2">
         <button
@@ -1092,11 +1117,24 @@ function GoalCard({ goal, t }: { goal: Goal; t: TFn }) {
             <div className="mt-1 text-xs leading-relaxed text-[var(--fg-dim)]">{goal.why}</div>
           )}
         </div>
+        {/* 收藏 ⭐：填充=已收藏。进侧边栏「收藏」组。 */}
+        <button
+          type="button"
+          onClick={() => toggleGoalFavorite(goal.id)}
+          aria-label={goal.favorite ? t("取消收藏") : t("收藏")}
+          aria-pressed={!!goal.favorite}
+          title={goal.favorite ? t("取消收藏") : t("收藏")}
+          className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[13px] transition hover:bg-white/5 ${
+            goal.favorite ? "text-[var(--c-amber)]" : "text-[var(--fg-faint)] hover:text-[var(--fg)]"
+          }`}
+        >
+          {goal.favorite ? "★" : "☆"}
+        </button>
         <span
           className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px]"
           style={{ background: `color-mix(in srgb, ${color} 15%, transparent)`, color }}
         >
-          {AREA_ICONS[goal.area]} {t(AREA_LABELS[goal.area])}
+          {AREA_ICONS[goal.area]} {t(GOAL_AREA_LABELS[goal.area])}
         </span>
       </div>
 
@@ -1229,7 +1267,7 @@ function GoalCard({ goal, t }: { goal: Goal; t: TFn }) {
 // PlanScreen：领域分组 → 目标卡（嵌套子目标/指标/任务/习惯），全层级 CRUD。
 // ───────────────────────────────────────────────────────────────────────────
 export function PlanScreen() {
-  const { tree, addGoal, addGoalWithBranch, markDueGoalsReviewed } = useApp();
+  const { tree, addGoal, addGoalWithBranch, markDueGoalsReviewed, focusGoalId, clearFocusGoal } = useApp();
   const { t } = useT();
 
   const [todayStr, setTodayStr] = useState(_bootToday);
@@ -1253,12 +1291,12 @@ export function PlanScreen() {
   // 当筛选标签随目标删除而消失时，回落到全部
   const effectiveFilter = tagFilter && treeTags.includes(tagFilter) ? tagFilter : null;
 
-  // 按领域分组（5 个固定领域）。仅展示有目标的领域。
+  // 按领域分组（6 桶：5 个人生面 + 其他）。仅展示有目标的领域，所以「其他」组有目标才出现。
   const grouped = useMemo(() => {
     const visible = goals.filter(
       (g) => effectiveFilter === null || (g.tags ?? []).includes(effectiveFilter),
     );
-    return LIFE_AREAS.map((area) => ({
+    return GOAL_AREAS.map((area) => ({
       area,
       goals: visible.filter((g) => g.area === area),
     })).filter((grp) => grp.goals.length > 0);
@@ -1353,7 +1391,7 @@ export function PlanScreen() {
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-[var(--fg)]">
                     <span className="mr-1.5 rounded-full border border-[var(--line)] px-1.5 py-0.5 text-[10px] text-[var(--fg-dim)]">
-                      {AREA_ICONS[s.area]} {t(AREA_LABELS[s.area])}
+                      {AREA_ICONS[s.area]} {t(GOAL_AREA_LABELS[s.area])}
                     </span>
                     {s.title}
                   </div>
@@ -1412,12 +1450,18 @@ export function PlanScreen() {
                   style={{ color }}
                 >
                   <span aria-hidden="true">{AREA_ICONS[area]}</span>
-                  {t(AREA_LABELS[area])}
+                  {t(GOAL_AREA_LABELS[area])}
                   <span className="text-[var(--fg-faint)]">· {areaGoals.length}</span>
                 </h2>
                 <div className="space-y-3">
                   {areaGoals.map((g) => (
-                    <GoalCard key={g.id} goal={g} t={t} />
+                    <GoalCard
+                      key={g.id}
+                      goal={g}
+                      t={t}
+                      focused={focusGoalId === g.id}
+                      onFocused={clearFocusGoal}
+                    />
                   ))}
                 </div>
               </section>

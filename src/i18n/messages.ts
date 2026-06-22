@@ -81,6 +81,7 @@ export const EN: Record<string, string> = {
   关系: "Relationships",
   健康: "Health",
   成长: "Growth",
+  其他: "Other",
   财务: "Finance",
   "感情/家庭": "Love/Family",
   居住: "Housing",
@@ -441,6 +442,7 @@ export const EN: Record<string, string> = {
   去规划: "Plan now",
   "{n} 个习惯": "{n} habit(s)",
   "各个维度还没有目标，去规划一个吧。": "No goals in any area yet — go set one.",
+  不计入分数: "Not scored",
 
   // ── 洞察 InsightsSection ──
   "过去 90 天的行动轨迹与坚持力量": "Your action trail and consistency over the last 90 days",
@@ -544,6 +546,8 @@ export const EN: Record<string, string> = {
   "✎ 编辑": "✎ Edit",
   "✅ 标记达成": "✅ Mark achieved",
   已达成: "Achieved",
+  收藏: "Favorite",
+  取消收藏: "Unfavorite",
   展开: "Expand",
   保存: "Save",
   "确定移除这个目标？它的子目标、任务、习惯、指标都会一起删除；关联的人生树分支也会被剪掉。":
