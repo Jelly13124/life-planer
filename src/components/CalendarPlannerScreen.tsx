@@ -187,38 +187,8 @@ export function CalendarPlannerScreen() {
           </Card>
         </div>
 
-        {/* RIGHT: backlog + goals + prediction */}
+        {/* RIGHT: goals + prediction + backlog */}
         <div className="flex flex-col gap-4 lg:w-[40%]">
-          {/* 待安排 backlog — drag source, persistent across year/month/day */}
-          <Card pad="md">
-            <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("待安排")}</div>
-            <div className="mb-2 text-[11px] text-[var(--fg-dim)]">{t("未排期任务")}</div>
-            <div className="flex flex-wrap gap-1.5">
-              {unsched.length === 0 && <span className="text-xs text-[var(--fg-faint)]">{t("没有未排期的任务")}</span>}
-              {unsched.map(({ item }) => (
-                <button
-                  key={item.id}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData("text/plain", item.id);
-                    e.dataTransfer.setData("application/x-lp-kind", "task");
-                  }}
-                  onClick={() => setPendingActionId((cur) => (cur === item.id ? null : item.id))}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
-                    pendingActionId === item.id ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]" : "border-[var(--line)] text-[var(--fg-dim)] hover:border-[var(--accent)]"
-                  }`}
-                >
-                  {item.text}
-                </button>
-              ))}
-            </div>
-            {unsched.length > 0 && (
-              <div className="mt-2.5 text-[11px] text-[var(--fg-faint)]">
-                {pendingActionId ? t("点日历某天放下它") : t("拖到日历某天安排")}
-              </div>
-            )}
-          </Card>
-
           <Card pad="md">
             <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("目标")}</div>
             {activeGoals.length === 0 ? (
@@ -263,21 +233,54 @@ export function CalendarPlannerScreen() {
             )}
           </Card>
 
-          <Card pad="sm" sunken>
-            <div className="mb-2 px-1 text-[11px] text-[var(--fg-faint)]">{t("未来预测 ·「你在这里」随里程碑前进")}</div>
-            {hasChoicePaths ? (
-              <LifeMap tree={tree} compact markers={markers} onSelectPath={openPath} onForkAtNode={() => openTree()} />
-            ) : (
-              <EmptyState
-                size="inline"
-                icon="🌳"
-                description={t("还没有路。去「我的规划」加一个长期目标，它会在树上长出一条路。")}
-                action={
-                  <button onClick={openPlan} className="rounded-full border border-[var(--accent)]/50 px-3 py-1.5 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/15">
-                    {t("去规划")}
-                  </button>
-                }
-              />
+          {/* 未来预测 — 日视图下隐藏 */}
+          {calView !== "day" && (
+            <Card pad="sm" sunken>
+              <div className="mb-2 px-1 text-[11px] text-[var(--fg-faint)]">{t("未来预测 ·「你在这里」随里程碑前进")}</div>
+              {hasChoicePaths ? (
+                <LifeMap tree={tree} compact markers={markers} onSelectPath={openPath} onForkAtNode={() => openTree()} />
+              ) : (
+                <EmptyState
+                  size="inline"
+                  icon="🌳"
+                  description={t("还没有路。去「我的规划」加一个长期目标，它会在树上长出一条路。")}
+                  action={
+                    <button onClick={openPlan} className="rounded-full border border-[var(--accent)]/50 px-3 py-1.5 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/15">
+                      {t("去规划")}
+                    </button>
+                  }
+                />
+              )}
+            </Card>
+          )}
+
+          {/* 待安排 backlog — drag source, persistent across year/month/day */}
+          <Card pad="md">
+            <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("待安排")}</div>
+            <div className="mb-2 text-[11px] text-[var(--fg-dim)]">{t("未排期任务")}</div>
+            <div className="flex flex-wrap gap-1.5">
+              {unsched.length === 0 && <span className="text-xs text-[var(--fg-faint)]">{t("没有未排期的任务")}</span>}
+              {unsched.map(({ item }) => (
+                <button
+                  key={item.id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/plain", item.id);
+                    e.dataTransfer.setData("application/x-lp-kind", "task");
+                  }}
+                  onClick={() => setPendingActionId((cur) => (cur === item.id ? null : item.id))}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
+                    pendingActionId === item.id ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]" : "border-[var(--line)] text-[var(--fg-dim)] hover:border-[var(--accent)]"
+                  }`}
+                >
+                  {item.text}
+                </button>
+              ))}
+            </div>
+            {unsched.length > 0 && (
+              <div className="mt-2.5 text-[11px] text-[var(--fg-faint)]">
+                {pendingActionId ? t("点日历某天放下它") : t("拖到日历某天安排")}
+              </div>
             )}
           </Card>
         </div>

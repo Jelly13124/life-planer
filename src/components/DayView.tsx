@@ -178,24 +178,34 @@ export function DayView({
         </div>
       </Card>
 
-      {/* 3) 未排时间 */}
-      {untimed.length > 0 && (
-        <Card pad="sm">
-          <div className="mb-2.5 text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">
-            {t("未排时间")}
-          </div>
-          <ul className="space-y-1.5">
-            {untimed.map(({ goal, item, done }) => {
+      {/* 3) 时间轴（顶部一条「未定时」chip 带：未排时间但已排到当天的任务，可拖到网格定时） */}
+      <Card pad="sm">
+        {untimed.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-1.5 border-b border-[var(--line)]/60 pb-3">
+            <span className="mr-1 self-center text-[10px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">
+              {t("未定时")}
+            </span>
+            {untimed.map(({ item, done }) => {
               const isOpen = expandedId === item.id;
               return (
-                <li key={item.id} className="flex items-center gap-2">
+                <span
+                  key={item.id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/plain", item.id);
+                    e.dataTransfer.setData("application/x-lp-kind", "task");
+                  }}
+                  className={`inline-flex max-w-[12rem] cursor-grab items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] transition active:cursor-grabbing ${
+                    isOpen ? "border-[var(--accent)] bg-[var(--accent)]/15" : "border-[var(--line)] hover:border-[var(--accent)]/60"
+                  }`}
+                >
                   <button
                     onClick={() => toggleActionOn(item.id, date)}
                     aria-label={done ? t("标记未完成") : t("标记完成")}
-                    className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border text-[10px] ${
+                    className={`flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded-full border text-[9px] transition ${
                       done
                         ? "border-[var(--c-emerald)] bg-[var(--c-emerald)]/20 text-[var(--c-emerald)]"
-                        : "border-[var(--line)]"
+                        : "border-[var(--line)] hover:border-[var(--accent)]"
                     }`}
                   >
                     {done ? "✓" : ""}
@@ -204,36 +214,17 @@ export function DayView({
                     onClick={() => toggleExpand(item.id)}
                     aria-expanded={isOpen}
                     aria-label={isOpen ? t("收起任务详情") : t("展开任务详情")}
-                    className={`min-w-0 flex-1 truncate rounded text-left text-sm transition hover:text-[var(--accent)] ${
-                      done ? "text-[var(--fg-faint)] line-through" : "text-[var(--fg)]"
-                    } ${isOpen ? "text-[var(--accent)]" : ""}`}
+                    className={`min-w-0 truncate text-left ${
+                      done ? "text-[var(--fg-faint)] line-through" : isOpen ? "text-[var(--accent)]" : "text-[var(--fg-dim)]"
+                    }`}
                   >
                     {item.text}
                   </button>
-                  <span className="flex-shrink-0 text-[10px] text-[var(--fg-faint)]">{t(GOAL_AREA_LABELS[goal.area])}</span>
-                  <input
-                    type="time"
-                    aria-label={t("设置开始时间")}
-                    onChange={(e) => setActionTimeById(item.id, e.target.value || null)}
-                    className="flex-shrink-0 rounded-lg border border-[var(--line)] bg-transparent px-2 py-1 text-xs text-[var(--fg-dim)] outline-none transition focus:border-[var(--accent)]/60 [color-scheme:dark]"
-                  />
-                  <button
-                    onClick={() => removeActionById(item.id)}
-                    aria-label={t("删除任务")}
-                    title={t("删除任务")}
-                    className="flex-shrink-0 rounded-full px-1.5 py-1 text-[11px] text-[var(--fg-faint)] transition hover:text-[var(--c-rose)]"
-                  >
-                    ✕
-                  </button>
-                </li>
+                </span>
               );
             })}
-          </ul>
-        </Card>
-      )}
-
-      {/* 4) 时间轴（放置目标：拖任务进来按落点定时；拖目标进来设起始日） */}
-      <Card pad="sm">
+          </div>
+        )}
         <div
           onDragOver={(e) => {
             e.preventDefault();

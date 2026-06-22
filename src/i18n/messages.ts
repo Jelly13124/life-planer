@@ -524,6 +524,7 @@ export const EN: Record<string, string> = {
   "✨ AI 帮我排今天": "✨ Let AI plan my day",
   "正在排…": "Arranging…",
   未排时间: "No time set",
+  未定时: "Untimed",
   设置开始时间: "Set start time",
   清除时间: "Clear time",
   删除任务: "Delete task",
