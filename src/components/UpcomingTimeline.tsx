@@ -7,9 +7,10 @@ import { useT } from "@/prefs/PreferencesContext";
 import { actionsOnDay, unscheduledActions, weekdayOf } from "@/domain/calendar";
 import { addDays } from "@/domain/daily";
 import { localTodayStr } from "@/lib/dailyClient";
-import { AREA_COLOR, AREA_EMOJI } from "./lib/areaMeta";
+import { AREA_COLOR, AreaIcon } from "./lib/areaMeta";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
+import { IconRepeat, IconPointer } from "./ui/icons";
 
 // 「即将到来」视图：从今天起的多日横向规划带。
 // - 14 个日期列（横向滚动可见更多，渲染到 21 天）。今天列高亮。
@@ -128,7 +129,7 @@ export function UpcomingTimeline() {
           onClick={clearSelection}
           className="mb-4 flex w-full items-center gap-2 rounded-2xl border border-[var(--accent)]/50 bg-[var(--accent)]/[0.12] px-4 py-2.5 text-left text-sm text-[var(--fg)] transition hover:bg-[var(--accent)]/[0.18]"
         >
-          <span className="flex-shrink-0">👆</span>
+          <IconPointer className="h-4 w-4 flex-shrink-0" />
           <span className="min-w-0 flex-1 truncate">{t("已选 {text}", { text: selectedText })}</span>
           <span className="flex-shrink-0 text-xs text-[var(--fg-dim)]">{t("点某天放入")} · {t("取消")}</span>
         </button>
@@ -162,8 +163,6 @@ export function UpcomingTimeline() {
         ) : (
           <div className="flex flex-wrap gap-2">
             {unsched.map(({ goal, item }) => {
-              const color = AREA_COLOR[goal.area];
-              const emoji = AREA_EMOJI[goal.area];
               const sel = selectedId === item.id;
               return (
                 <button
@@ -191,9 +190,7 @@ export function UpcomingTimeline() {
                   }`}
                   title={`${item.text} · ${goal.title}`}
                 >
-                  <span aria-hidden="true" style={{ color }}>
-                    {emoji}
-                  </span>
+                  <AreaIcon area={goal.area} className="h-3.5 w-3.5" />
                   <span className="min-w-0 truncate">{item.text}</span>
                 </button>
               );
@@ -330,7 +327,6 @@ function DayColumn({
             {/* 任务条（领域配色、可拖、可点选、勾选完成） */}
             {cell.tasks.map(({ goal, task, done }) => {
               const color = AREA_COLOR[goal.area];
-              const emoji = AREA_EMOJI[goal.area];
               const sel = selectedId === task.id;
               return (
                 <div
@@ -366,9 +362,7 @@ function DayColumn({
                     className="flex min-w-0 flex-1 items-center gap-1 text-left"
                     title={`${task.text} · ${goal.title}`}
                   >
-                    <span aria-hidden="true" className="flex-shrink-0 text-[10px]" style={{ color }}>
-                      {emoji}
-                    </span>
+                    <AreaIcon area={goal.area} className="h-3 w-3 flex-shrink-0" />
                     <span
                       className={`min-w-0 truncate text-[11px] leading-tight ${
                         done ? "text-[var(--fg-faint)] line-through" : sel ? "text-[var(--accent)]" : "text-[var(--fg)]"
@@ -391,8 +385,8 @@ function DayColumn({
                   className="flex items-center gap-1 rounded-lg border border-dashed border-[var(--line)] px-1.5 py-1 opacity-70"
                   title={`${habit.text} · ${goal.title}`}
                 >
-                  <span aria-hidden="true" className="flex-shrink-0 text-[10px]" style={{ color }}>
-                    🔁
+                  <span aria-hidden="true" className="flex-shrink-0" style={{ color }}>
+                    <IconRepeat className="h-3 w-3" />
                   </span>
                   <span className="min-w-0 truncate text-[11px] leading-tight text-[var(--fg-faint)]">
                     {habit.text}

@@ -4,7 +4,7 @@ import type { Goal, LifeTree, Task } from "@/domain/types";
 import { GOAL_AREAS, GOAL_AREA_LABELS } from "@/domain/types";
 import type { TaskLoc } from "@/domain/goalTree";
 import { useT } from "@/prefs/PreferencesContext";
-import { AREA_COLOR, AREA_EMOJI } from "./areaMeta";
+import { AreaIcon } from "./areaMeta";
 
 // ───────────────────────────────────────────────────────────────────────────
 // taskGroups —— 「全部任务」「标签」视图共享的任务行 + 按领域→目标分组渲染。
@@ -103,9 +103,7 @@ export function GroupedTasks({
         return (
           <section key={area} aria-label={t(GOAL_AREA_LABELS[area])}>
             <div className="mb-2 flex items-center gap-2 px-1">
-              <span aria-hidden="true" className="text-sm" style={{ color: AREA_COLOR[area] }}>
-                {AREA_EMOJI[area]}
-              </span>
+              <AreaIcon area={area} className="h-4 w-4" />
               <h2 className="text-xs font-semibold uppercase tracking-[2px] text-[var(--fg-dim)]">
                 {t(GOAL_AREA_LABELS[area])}
               </h2>

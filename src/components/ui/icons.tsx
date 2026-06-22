@@ -183,3 +183,201 @@ export function IconTag({ className }: IconProps) {
     </Svg>
   );
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// 人生面（GoalArea）领域图标：career/wealth/relationships/health/growth/other。
+// 经 areaMeta 的 AREA_ICON / AreaIcon 着色（用 AREA_COLOR[area]），替代彩色 emoji。
+// ───────────────────────────────────────────────────────────────────────────
+
+// 事业：公文包。
+export function IconBriefcase({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <rect x="3" y="7.5" width="18" height="12" rx="2.2" />
+      <path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5" />
+      <path d="M3 12.5h18M11 12h2" />
+    </Svg>
+  );
+}
+
+// 财富：硬币（圆 + 内圈刻度，暗示币面）。
+export function IconCoins({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <ellipse cx="9" cy="7" rx="5.5" ry="2.6" />
+      <path d="M3.5 7v4c0 1.44 2.46 2.6 5.5 2.6s5.5-1.16 5.5-2.6V7" />
+      <path d="M9 13.6v3.4c0 1.44 2.46 2.6 5.5 2.6S20 18.44 20 17v-6.6" />
+      <ellipse cx="14.5" cy="10.4" rx="5.5" ry="2.6" />
+    </Svg>
+  );
+}
+
+// 关系：心形。
+export function IconHeart({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M12 20.5l-7.4-7.1a4.6 4.6 0 0 1 6.5-6.5l.9.9.9-.9a4.6 4.6 0 0 1 6.5 6.5z" />
+    </Svg>
+  );
+}
+
+// 健康：脉搏波。
+export function IconActivity({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M3 12h3.5l2-6 3.5 12 2.5-7 1.5 1h4.5" />
+    </Svg>
+  );
+}
+
+// 成长：抽芽（茎 + 两片叶）。
+export function IconSprout({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M12 20v-7" />
+      <path d="M12 13C12 9.5 9 8 5.5 8 5.5 11.5 8.5 13 12 13z" />
+      <path d="M12 11.5c0-3 2.6-4.3 5.8-4.3.2 3-2.4 4.3-5.8 4.3z" />
+    </Svg>
+  );
+}
+
+// 其他：盒子（中性桶）。
+export function IconBox({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M12 3.5l8 4.2v8.6l-8 4.2-8-4.2V7.7z" />
+      <path d="M4.2 7.8L12 12l7.8-4.2M12 12v9.5" />
+    </Svg>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// 通用动作/状态图标。
+// ───────────────────────────────────────────────────────────────────────────
+
+// AI / 灵感：四角星花（✨）。
+export function IconSparkle({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M12 3l1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6z" />
+      <path d="M18.5 15.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" />
+    </Svg>
+  );
+}
+
+// 达成 / 奖杯（🏆）。
+export function IconTrophy({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M7 4.5h10v4a5 5 0 0 1-10 0z" />
+      <path d="M7 6H4.5v1.5A3 3 0 0 0 7 10.4M17 6h2.5v1.5A3 3 0 0 1 17 10.4" />
+      <path d="M12 13.5V16M9 19.5h6M9.5 19.5l.5-3.5h4l.5 3.5" />
+    </Svg>
+  );
+}
+
+// 连续 / 火苗（🔥）。
+export function IconFlame({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M12 3.5c2.5 3 4.5 5 4.5 8.5a4.5 4.5 0 0 1-9 0c0-1.4.6-2.5 1.5-3.5.3 1 .9 1.6 1.7 1.9-.2-2.6 .5-5 1.3-6.9z" />
+    </Svg>
+  );
+}
+
+// 时间 / 时钟（🕐 / ⏰）。
+export function IconClock({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </Svg>
+  );
+}
+
+// 关闭 / 删除（✕）。
+export function IconX({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </Svg>
+  );
+}
+
+// 新增（＋）。
+export function IconPlus({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M12 5v14M5 12h14" />
+    </Svg>
+  );
+}
+
+// 空态 / 收件箱（📥 / 📦 替代）。
+export function IconInbox({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M3.5 13.5L6 5.5h12l2.5 8v5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5z" />
+      <path d="M3.5 13.5H8l1.2 2.2h5.6L16 13.5h4.5" />
+    </Svg>
+  );
+}
+
+// 指针 / 提示（👆 替代：向上的轻指引）。
+export function IconPointer({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M12 21V8" />
+      <path d="M8 12l4-4 4 4" />
+    </Svg>
+  );
+}
+
+// 分享（📤 替代）。
+export function IconShare({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M12 15V4M8.5 7.5L12 4l3.5 3.5" />
+      <path d="M6 11.5H5a1.5 1.5 0 0 0-1.5 1.5v6A1.5 1.5 0 0 0 5 20.5h14a1.5 1.5 0 0 0 1.5-1.5v-6A1.5 1.5 0 0 0 19 11.5h-1" />
+    </Svg>
+  );
+}
+
+// 编辑（✎ / ✏️ 替代）。
+export function IconPencil({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M4 20h4l10-10-4-4L4 16z" />
+      <path d="M13.5 6.5l4 4" />
+    </Svg>
+  );
+}
+
+// 对话气泡（💬 替代）。
+export function IconChat({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M4 5.5h16a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 20 16.5H9l-4 3.5v-3.5h-1A1.5 1.5 0 0 1 2.5 15V7A1.5 1.5 0 0 1 4 5.5z" />
+    </Svg>
+  );
+}
+
+// 重推 / 刷新（🔄 替代；与 IconRepeat 区分：单环 + 箭头）。
+export function IconRefresh({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M20 11.5A8 8 0 1 0 19 16" />
+      <path d="M20 5.5V11h-5.5" />
+    </Svg>
+  );
+}
+
+// 庆祝（🎉 替代：礼花）。
+export function IconParty({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M4 20l4.5-12 7.5 7.5z" />
+      <path d="M14 4.5c1.2.4 1.8 1.4 1.6 2.6M17.5 8c1.2-.2 2.2.4 2.6 1.6M15 3l.3 1.6M20.4 8.2L19 8.5M18.5 4.5l-1 1.2" />
+    </Svg>
+  );
+}

@@ -5,9 +5,10 @@ import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { allTasks } from "@/domain/goalTree";
 import { localTodayStr } from "@/lib/dailyClient";
-import { AREA_COLOR, AREA_EMOJI } from "./lib/areaMeta";
+import { AreaIcon } from "./lib/areaMeta";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
+import { IconCheckCircle } from "./ui/icons";
 
 // 「已完成」视图：所有已完成的一次性任务，最近完成的在前（allTasks 顺序反转即可）。
 // 行：勾选（已勾）→ 取消完成恢复（按任务自己的排期日记录，未排期落今天）；文本划线；展示所属目标。
@@ -42,15 +43,13 @@ export function CompletedView() {
 
       {done.length === 0 ? (
         <EmptyState
-          icon="☑️"
+          icon={<IconCheckCircle className="h-7 w-7" />}
           accent="var(--c-emerald)"
           description={t("还没有完成的任务")}
         />
       ) : (
         <ul className="space-y-2">
           {done.map(({ goal, task }) => {
-            const color = AREA_COLOR[goal.area];
-            const emoji = AREA_EMOJI[goal.area];
             return (
               <li key={task.id}>
                 <div className="flex w-full items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3 transition hover:border-[var(--accent)]/50 hover:bg-[var(--bg-2)]">
@@ -74,9 +73,7 @@ export function CompletedView() {
                     className="hidden flex-shrink-0 items-center gap-1.5 text-[11px] text-[var(--fg-faint)] transition hover:text-[var(--fg)] sm:flex"
                     title={goal.title}
                   >
-                    <span aria-hidden="true" style={{ color }}>
-                      {emoji}
-                    </span>
+                    <AreaIcon area={goal.area} className="h-3.5 w-3.5 flex-shrink-0" />
                     <span className="max-w-[10rem] truncate">{goal.title}</span>
                   </button>
                 </div>

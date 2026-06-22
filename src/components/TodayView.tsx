@@ -5,7 +5,7 @@ import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { todayItems } from "@/domain/daily";
 import { localTodayStr } from "@/lib/dailyClient";
-import { AREA_COLOR, AREA_EMOJI } from "./lib/areaMeta";
+import { AreaIcon } from "./lib/areaMeta";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
 
@@ -47,8 +47,6 @@ export function TodayView() {
       ) : (
         <ul className="space-y-2">
           {items.map(({ goal, item, kind, doneToday }) => {
-            const color = AREA_COLOR[goal.area];
-            const emoji = AREA_EMOJI[goal.area];
             return (
               <li key={item.id}>
                 <div className="flex w-full items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3 transition hover:border-[var(--accent)]/50 hover:bg-[var(--bg-2)]">
@@ -87,9 +85,7 @@ export function TodayView() {
                     className="hidden flex-shrink-0 items-center gap-1.5 text-[11px] text-[var(--fg-faint)] transition hover:text-[var(--fg)] sm:flex"
                     title={goal.title}
                   >
-                    <span aria-hidden="true" style={{ color }}>
-                      {emoji}
-                    </span>
+                    <AreaIcon area={goal.area} className="h-3.5 w-3.5" />
                     <span className="max-w-[10rem] truncate">{goal.title}</span>
                   </button>
                 </div>
