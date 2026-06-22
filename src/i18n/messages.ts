@@ -531,6 +531,19 @@ export const EN: Record<string, string> = {
   标记未完成: "Mark not done",
   "这天还没有安排。去日历把行动排到这天，或在「目标」里加行动。":
     "Nothing on this day yet. Schedule actions onto it from the calendar, or add actions under Goals.",
+  "这天还没有安排。把行动拖到时间轴上排时间，或在「目标」里加行动。":
+    "Nothing on this day yet. Drop an action onto the timeline to set a time, or add actions under Goals.",
+  // 任务详情面板（点开任务后展开）
+  展开任务详情: "Show task detail",
+  收起任务详情: "Hide task detail",
+  任务详情: "Task detail",
+  所属目标: "Goal",
+  所属子目标: "Subgoal",
+  排期: "Date",
+  时间: "Time",
+  时长: "Duration",
+  分钟: "min",
+  去目标: "Go to goal",
 
   // ── 嵌套规划 PlanScreen（领域 → 目标 → 子目标 → 指标/任务/习惯） ──
   "把人生分成五个领域，每个目标拆成子目标、指标、任务和习惯，一步步靠近它。":
