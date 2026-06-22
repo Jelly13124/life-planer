@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { localDecompose } from "../decompose-goal/route";
+import { localDecompose } from "@/lib/decompose";
 import { LIFE_AREAS } from "@/domain/types";
 
 // localDecompose 是纯函数离线兜底：每个领域都该给出可立即用的非空指标/任务/习惯。

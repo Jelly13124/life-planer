@@ -1,7 +1,7 @@
 // 客户端安全：规划主线几条 AI 路由的网络封装。
 import type { Goal, LifeArea, LifeTree } from "@/domain/types";
 import { currentLocale } from "@/i18n/locale";
-import { localDecompose, type GoalDecomposition } from "@/app/api/decompose-goal/route";
+import { localDecompose, type GoalDecomposition } from "@/lib/decompose";
 
 export type { GoalDecomposition };
 
