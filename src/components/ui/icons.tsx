@@ -255,7 +255,7 @@ export function IconBox({ className }: IconProps) {
 // 通用动作/状态图标。
 // ───────────────────────────────────────────────────────────────────────────
 
-// AI / 灵感：四角星花（✨）。
+// AI / 灵感：四角星花（sparkle）。
 export function IconSparkle({ className }: IconProps) {
   return (
     <Svg className={className}>
@@ -265,7 +265,7 @@ export function IconSparkle({ className }: IconProps) {
   );
 }
 
-// 达成 / 奖杯（🏆）。
+// 达成 / 奖杯（trophy）。
 export function IconTrophy({ className }: IconProps) {
   return (
     <Svg className={className}>
@@ -276,7 +276,7 @@ export function IconTrophy({ className }: IconProps) {
   );
 }
 
-// 连续 / 火苗（🔥）。
+// 连续 / 火苗（flame）。
 export function IconFlame({ className }: IconProps) {
   return (
     <Svg className={className}>
@@ -285,7 +285,7 @@ export function IconFlame({ className }: IconProps) {
   );
 }
 
-// 时间 / 时钟（🕐 / ⏰）。
+// 时间 / 时钟（clock）。
 export function IconClock({ className }: IconProps) {
   return (
     <Svg className={className}>
@@ -313,7 +313,7 @@ export function IconPlus({ className }: IconProps) {
   );
 }
 
-// 空态 / 收件箱（📥 / 📦 替代）。
+// 空态 / 收件箱（inbox 替代）。
 export function IconInbox({ className }: IconProps) {
   return (
     <Svg className={className}>
@@ -323,7 +323,7 @@ export function IconInbox({ className }: IconProps) {
   );
 }
 
-// 指针 / 提示（👆 替代：向上的轻指引）。
+// 指针 / 提示（pointer 替代：向上的轻指引）。
 export function IconPointer({ className }: IconProps) {
   return (
     <Svg className={className}>
@@ -333,7 +333,7 @@ export function IconPointer({ className }: IconProps) {
   );
 }
 
-// 分享（📤 替代）。
+// 分享（share 替代）。
 export function IconShare({ className }: IconProps) {
   return (
     <Svg className={className}>
@@ -343,7 +343,7 @@ export function IconShare({ className }: IconProps) {
   );
 }
 
-// 编辑（✎ / ✏️ 替代）。
+// 编辑（pencil 替代）。
 export function IconPencil({ className }: IconProps) {
   return (
     <Svg className={className}>
@@ -353,7 +353,7 @@ export function IconPencil({ className }: IconProps) {
   );
 }
 
-// 对话气泡（💬 替代）。
+// 对话气泡（chat 替代）。
 export function IconChat({ className }: IconProps) {
   return (
     <Svg className={className}>
@@ -362,7 +362,7 @@ export function IconChat({ className }: IconProps) {
   );
 }
 
-// 重推 / 刷新（🔄 替代；与 IconRepeat 区分：单环 + 箭头）。
+// 重推 / 刷新（refresh 替代；与 IconRepeat 区分：单环 + 箭头）。
 export function IconRefresh({ className }: IconProps) {
   return (
     <Svg className={className}>
@@ -372,7 +372,7 @@ export function IconRefresh({ className }: IconProps) {
   );
 }
 
-// 庆祝（🎉 替代：礼花）。
+// 庆祝（party 替代：礼花）。
 export function IconParty({ className }: IconProps) {
   return (
     <Svg className={className}>

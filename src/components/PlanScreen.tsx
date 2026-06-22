@@ -150,7 +150,7 @@ function MetricRow({
           ＋
         </IconButton>
         <IconButton label={t("编辑指标")} onClick={() => setEditing(true)}>
-          ✎
+          <IconPencil className="h-3.5 w-3.5" />
         </IconButton>
         <IconButton label={t("删除指标")} danger onClick={() => removeMetric(ownerId, metric.id)}>
           ✕
@@ -1140,7 +1140,7 @@ function GoalCard({
             <div className="mt-1 text-xs leading-relaxed text-[var(--fg-dim)]">{goal.why}</div>
           )}
         </div>
-        {/* 收藏 ⭐：填充=已收藏。进侧边栏「收藏」组。 */}
+        {/* 收藏（star）：填充=已收藏。进侧边栏「收藏」组。 */}
         <button
           type="button"
           onClick={() => toggleGoalFavorite(goal.id)}

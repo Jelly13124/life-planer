@@ -13,6 +13,7 @@ import { useT } from "@/prefs/PreferencesContext";
 import { detectCrisisSignal } from "@/domain/safety";
 import { crisisCareText } from "@/lib/crisisMessage";
 import { Button } from "./ui/Button";
+import { IconClock, IconSprout, IconRefresh } from "./ui/icons";
 import { useApp } from "@/state/AppContext";
 
 export function FutureSelfChat({
@@ -127,13 +128,14 @@ export function FutureSelfChat({
           {messages.length === 0 && !thinking && (
             <div className="animate-fade flex h-full flex-col items-center justify-center text-center">
               <div
-                className="mb-3 flex h-14 w-14 items-center justify-center rounded-full text-2xl"
+                className="mb-3 flex h-14 w-14 items-center justify-center rounded-full"
                 style={{
                   backgroundColor: `${accent}22`,
                   border: `1px solid ${accent}55`,
+                  color: accent,
                 }}
               >
-                🕰️
+                <IconClock className="h-7 w-7" />
               </div>
               <p className="max-w-xs text-sm text-[var(--fg-dim)]">
                 {t("问问那个走了这条路的你…")}
@@ -226,8 +228,9 @@ export function FutureSelfChat({
         {onAddBranch && (input.trim() || branched) && (
           <div className="flex items-center justify-between gap-2 border-t border-[var(--line)] px-5 pt-3 text-xs">
             {branched ? (
-              <span className="text-[var(--c-emerald)]">
-                {t("🌱 已把「{label}」加进你的人生树", { label: branched })}
+              <span className="inline-flex items-center gap-1 text-[var(--c-emerald)]">
+                <IconSprout className="h-3.5 w-3.5" />
+                {t("已把「{label}」加进你的人生树", { label: branched })}
               </span>
             ) : (
               <>
@@ -270,10 +273,11 @@ export function FutureSelfChat({
                   regeneratePath(path.id, note);
                   onClose();
                 }}
-                className="w-full rounded-2xl border border-[var(--accent)]/50 bg-[var(--accent)]/8 px-4 py-2.5 text-sm font-medium text-[var(--accent)] transition hover:bg-[var(--accent)]/15 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-[var(--accent)]/50 bg-[var(--accent)]/8 px-4 py-2.5 text-sm font-medium text-[var(--accent)] transition hover:bg-[var(--accent)]/15 disabled:opacity-50"
                 style={{ borderColor: `${accent}66`, backgroundColor: `${accent}14`, color: accent }}
               >
-                {t("🔄 据我们聊的，重推这条路")}
+                <IconRefresh className="h-4 w-4" />
+                {t("据我们聊的，重推这条路")}
               </button>
               <p className="mt-1.5 text-center text-[11px] text-[var(--fg-faint)]">
                 {t("会把你在这里说的补充给未来的自己，重新推演这条路。")}

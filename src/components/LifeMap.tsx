@@ -586,14 +586,33 @@ function PathCurve({
           fill={color}
           style={{ filter: `drop-shadow(0 0 ${achieved ? 11 : 6}px ${color})`, transition: "r .15s ease" }}
         />
+        {achieved && (
+          <svg
+            x={p.end.x + 14}
+            y={p.end.y - 15}
+            width={14}
+            height={14}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="var(--fg)"
+            strokeWidth={1.6}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M7 4.5h10v4a5 5 0 0 1-10 0z" />
+            <path d="M7 6H4.5v1.5A3 3 0 0 0 7 10.4M17 6h2.5v1.5A3 3 0 0 1 17 10.4" />
+            <path d="M12 13.5V16M9 19.5h6M9.5 19.5l.5-3.5h4l.5 3.5" />
+          </svg>
+        )}
         <text
-          x={p.end.x + 14}
+          x={p.end.x + (achieved ? 32 : 14)}
           y={p.end.y - 3}
           fontSize={15}
           fontWeight={700}
           fill={isSq ? "var(--fg-dim)" : "var(--fg)"}
         >
-          {(achieved ? "🏆 " : "") + truncate(t(p.choiceLabel), 12)}
+          {truncate(t(p.choiceLabel), 12)}
         </text>
         <text x={p.end.x + 14} y={p.end.y + 15} fontSize={12} fill="var(--fg-dim)">
           {truncate(p.summary, 20)}

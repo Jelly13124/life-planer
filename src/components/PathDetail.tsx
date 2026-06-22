@@ -15,6 +15,7 @@ import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { MetricChart } from "./MetricChart";
 import { Button } from "./ui/Button";
+import { IconSparkle, IconPencil } from "./ui/icons";
 import { DecisionSheet } from "./DecisionSheet";
 import { RegenerateSheet } from "./RegenerateSheet";
 import { activeDecisionFor, reviewedDecisionsFor, togglePlanItem } from "@/domain/decisions";
@@ -121,10 +122,12 @@ export function PathDetail({
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button variant="primary" onClick={() => setChatting(true)}>
-            {t("✨ 和 {age} 岁的你聊聊", { age: futureAgeOf(path) })}
+            <IconSparkle className="h-4 w-4" />
+            {t("和 {age} 岁的你聊聊", { age: futureAgeOf(path) })}
           </Button>
           <Button variant="subtle" onClick={() => setRegenerating(true)}>
-            {t("✏️ 不太对？补充信息重推")}
+            <IconPencil className="h-4 w-4" />
+            {t("不太对？补充信息重推")}
           </Button>
         </div>
       </div>

@@ -6,6 +6,7 @@ import { useT } from "@/prefs/PreferencesContext";
 import { weeklyRecap } from "@/domain/weekly";
 import { ReviewSheet } from "./ReviewSheet";
 import { Button } from "./ui/Button";
+import { IconFlame, IconTrophy } from "./ui/icons";
 
 interface WeeklyReviewSheetProps {
   tree: LifeTree;
@@ -63,19 +64,21 @@ export function WeeklyReviewSheet({
         </div>
 
         {/* Stats row */}
-        <div className="mt-4 rounded-2xl border border-[var(--line)] bg-[var(--bg-0)] px-4 py-3 text-sm">
-          {t("本周完成 {n} 件 · 活跃 {d} 天 · 🔥连续 {s} 天", {
+        <div className="mt-4 inline-flex flex-wrap items-center gap-1 rounded-2xl border border-[var(--line)] bg-[var(--bg-0)] px-4 py-3 text-sm">
+          {t("本周完成 {n} 件 · 活跃 {d} 天 · 连续 {s} 天", {
             n: recap.completions,
             d: recap.activeDays,
             s: recap.streak,
           })}
+          <IconFlame className="h-4 w-4 text-[var(--c-amber)]" />
         </div>
 
         {/* Milestones this week */}
         {recap.milestonesThisWeek.length > 0 && (
           <div className="mt-4">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--fg-faint)]">
-              🏆 {t("本周达成")}
+            <h4 className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--fg-faint)]">
+              <IconTrophy className="h-3.5 w-3.5" />
+              {t("本周达成")}
             </h4>
             <ul className="mt-2 space-y-1.5">
               {recap.milestonesThisWeek.map((g) => (

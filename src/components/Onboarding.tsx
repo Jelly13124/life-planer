@@ -27,6 +27,7 @@ import { useT } from "@/prefs/PreferencesContext";
 import { Button } from "./ui/Button";
 import { Field } from "./ui/Field";
 import { Select } from "./ui/Select";
+import { IconSparkle } from "./ui/icons";
 
 const TOTAL_STEPS = 4;
 
@@ -329,7 +330,8 @@ export function Onboarding() {
                 {t("← 返回")}
               </Button>
               <Button variant="primary" onClick={submit}>
-                {t("✨ 生成我的人生树")}
+                <IconSparkle className="h-4 w-4" />
+                {t("生成我的人生树")}
               </Button>
             </div>
           </>

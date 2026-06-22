@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useT } from "@/prefs/PreferencesContext";
 import { CRISIS_RESOURCES } from "@/domain/safety";
 import { Button } from "./ui/Button";
+import { IconSprout } from "./ui/icons";
 
 export interface SafetyCareProps {
   onContinue: () => void;
@@ -46,13 +47,13 @@ export function SafetyCare({ onContinue }: SafetyCareProps) {
           animation: "sc-rise .55s ease .1s both",
         }}
       >
-        {/* Icon — a soft heart / warmth glyph */}
+        {/* Icon — a soft sprout / warmth glyph */}
         <div
-          className="mb-5 flex h-12 w-12 items-center justify-center rounded-full text-2xl"
-          style={{ background: "rgba(109,74,255,0.1)", border: "1px solid rgba(109,74,255,0.22)" }}
+          className="mb-5 flex h-12 w-12 items-center justify-center rounded-full"
+          style={{ background: "rgba(109,74,255,0.1)", border: "1px solid rgba(109,74,255,0.22)", color: "var(--accent)" }}
           aria-hidden
         >
-          🌿
+          <IconSprout className="h-6 w-6" />
         </div>
 
         <h2

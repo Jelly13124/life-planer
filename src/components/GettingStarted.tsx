@@ -4,6 +4,7 @@ import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { Card } from "./ui/Card";
 import { Button } from "./ui/Button";
+import { IconParty } from "./ui/icons";
 import { firstRunSteps } from "@/domain/guide";
 import type { LifeTree } from "@/domain/types";
 
@@ -79,7 +80,10 @@ export function GettingStarted({ tree }: { tree: LifeTree }) {
 
       {steps.allDone && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line)] pt-3">
-          <span className="text-sm text-[var(--c-emerald)]">{t("🎉 你已经走通了一圈！")}</span>
+          <span className="inline-flex items-center gap-1.5 text-sm text-[var(--c-emerald)]">
+            <IconParty className="h-4 w-4" />
+            {t("你已经走通了一圈！")}
+          </span>
           <Button variant="primary" onClick={dismissGuide} className="px-4 py-2">
             {t("开始用")}
           </Button>

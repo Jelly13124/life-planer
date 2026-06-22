@@ -7,6 +7,7 @@ import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
+import { IconScale, IconTree, IconCheckCircle } from "./ui/icons";
 import {
   GOAL_AREA_LABELS,
   GOAL_AREAS,
@@ -367,27 +368,30 @@ function OptionCard({
           <button
             type="button"
             onClick={() => option.pathId && openPath(option.pathId)}
-            className="rounded-full border border-[var(--accent)]/50 px-2.5 py-1 text-[11px] text-[var(--accent)] transition hover:bg-[var(--accent)]/15"
+            className="inline-flex items-center gap-1 rounded-full border border-[var(--accent)]/50 px-2.5 py-1 text-[11px] text-[var(--accent)] transition hover:bg-[var(--accent)]/15"
           >
-            {t("🌳 在树上看")}
+            <IconTree className="h-3.5 w-3.5" />
+            {t("在树上看")}
           </button>
         ) : (
           <button
             type="button"
             onClick={() => predictOptionBranch(choice.id, option.id)}
             disabled={!!predicting}
-            className="rounded-full border border-[var(--accent)]/50 px-2.5 py-1 text-[11px] text-[var(--accent)] transition hover:bg-[var(--accent)]/15 disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-full border border-[var(--accent)]/50 px-2.5 py-1 text-[11px] text-[var(--accent)] transition hover:bg-[var(--accent)]/15 disabled:opacity-50"
           >
-            {t("🌳 推演这个选项")}
+            <IconTree className="h-3.5 w-3.5" />
+            {t("推演这个选项")}
           </button>
         )}
         {!decided && !confirming && (
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="rounded-full border border-[var(--c-emerald)]/50 px-2.5 py-1 text-[11px] text-[var(--c-emerald)] transition hover:bg-[var(--c-emerald)]/10"
+            className="inline-flex items-center gap-1 rounded-full border border-[var(--c-emerald)]/50 px-2.5 py-1 text-[11px] text-[var(--c-emerald)] transition hover:bg-[var(--c-emerald)]/10"
           >
-            {t("✅ 就选它")}
+            <IconCheckCircle className="h-3.5 w-3.5" />
+            {t("就选它")}
           </button>
         )}
       </div>
@@ -560,7 +564,7 @@ export function ChoicePanel() {
       {choices.length === 0 ? (
         <EmptyState
           className="mt-2"
-          icon="⚖️"
+          icon={<IconScale className="h-7 w-7" />}
           accent="var(--accent)"
           description={t("还没有要权衡的选择。新建一个，把纠结摊开看。")}
         />
@@ -570,7 +574,7 @@ export function ChoicePanel() {
           {open.length > 0 && (
             <section>
               <h2 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--accent)]">
-                <span aria-hidden="true">⚖️</span>
+                <IconScale className="h-3.5 w-3.5" />
                 {t("未决")}
                 <span className="text-[var(--fg-faint)]">· {open.length}</span>
               </h2>
@@ -586,7 +590,7 @@ export function ChoicePanel() {
           {decided.length > 0 && (
             <section>
               <h2 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--c-emerald)]">
-                <span aria-hidden="true">✅</span>
+                <IconCheckCircle className="h-3.5 w-3.5" />
                 {t("已决")}
                 <span className="text-[var(--fg-faint)]">· {decided.length}</span>
               </h2>

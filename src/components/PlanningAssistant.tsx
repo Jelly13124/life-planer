@@ -13,6 +13,14 @@ import { useT } from "@/prefs/PreferencesContext";
 import { detectCrisisSignal } from "@/domain/safety";
 import { crisisCareText } from "@/lib/crisisMessage";
 import { Button } from "./ui/Button";
+import {
+  IconChat,
+  IconClock,
+  IconTarget,
+  IconSparkle,
+  IconSprout,
+  IconCheckCircle,
+} from "./ui/icons";
 
 // 常驻浮窗的规划助手（P4）：帮你理清选择、提出新可能、一键加进树。
 // 也能"铺开几条路"：建议多条候选，但每条都要你点一下才画上（确认优先）。
@@ -99,7 +107,7 @@ export function PlanningAssistant() {
         onClick={() => setOpen(true)}
         className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-[var(--accent)]/50 bg-[var(--bg-1)]/90 px-4 py-2.5 text-sm font-medium text-[var(--fg)] shadow-xl backdrop-blur transition hover:bg-[var(--accent)]/15"
       >
-        <span className="text-base">💬</span> {t("规划助手")}
+        <IconChat className="h-4 w-4" /> {t("规划助手")}
       </button>
     );
   }
@@ -107,7 +115,10 @@ export function PlanningAssistant() {
   return (
     <div className="fixed bottom-5 right-5 z-40 flex h-[70vh] w-[min(92vw,380px)] flex-col overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--bg-1)] shadow-2xl animate-scale-in">
       <header className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3">
-        <div className="text-sm font-bold">💬 {t("规划助手")}</div>
+        <div className="flex items-center gap-1.5 text-sm font-bold">
+          <IconChat className="h-4 w-4" />
+          {t("规划助手")}
+        </div>
         <button
           onClick={() => setOpen(false)}
           aria-label={t("收起")}
@@ -175,8 +186,9 @@ export function PlanningAssistant() {
                     {s.why && (
                       <div className="mt-0.5 text-xs text-[var(--fg-dim)]">{s.why}</div>
                     )}
-                    <div className="mt-0.5 text-[11px] text-[var(--fg-faint)]">
-                      {t("🕒 分叉时机由 AI 按现实推演决定")}
+                    <div className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-[var(--fg-faint)]">
+                      <IconClock className="h-3 w-3" />
+                      {t("分叉时机由 AI 按现实推演决定")}
                     </div>
                   </div>
                   <div className="flex flex-shrink-0 flex-col items-stretch gap-1">
@@ -194,13 +206,23 @@ export function PlanningAssistant() {
                     <button
                       onClick={() => makeGoal(s)}
                       disabled={isGoal}
-                      className={`rounded-full px-2.5 py-1 text-[11px] transition ${
+                      className={`inline-flex items-center justify-center gap-1 rounded-full px-2.5 py-1 text-[11px] transition ${
                         isGoal
                           ? "text-[var(--c-emerald)]"
                           : "border border-[var(--c-fuchsia)]/50 text-[var(--c-fuchsia)] hover:bg-[var(--c-fuchsia)]/10"
                       }`}
                     >
-                      {isGoal ? t("🎯 已设成目标") : t("🎯 设成目标")}
+                      {isGoal ? (
+                        <>
+                          <IconCheckCircle className="h-3 w-3" />
+                          {t("已设成目标")}
+                        </>
+                      ) : (
+                        <>
+                          <IconTarget className="h-3 w-3" />
+                          {t("设成目标")}
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -230,9 +252,16 @@ export function PlanningAssistant() {
         <button
           onClick={suggestPaths}
           disabled={suggesting}
-          className="w-full rounded-full border border-[var(--accent)]/50 bg-[var(--accent)]/10 px-3 py-1.5 text-xs font-medium text-[var(--accent)] transition hover:bg-[var(--accent)]/20 disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-1.5 rounded-full border border-[var(--accent)]/50 bg-[var(--accent)]/10 px-3 py-1.5 text-xs font-medium text-[var(--accent)] transition hover:bg-[var(--accent)]/20 disabled:opacity-50"
         >
-          {suggesting ? t("正在铺开…") : t("✨ 帮我铺开几条值得探索的路")}
+          {suggesting ? (
+            t("正在铺开…")
+          ) : (
+            <>
+              <IconSparkle className="h-4 w-4" />
+              {t("帮我铺开几条值得探索的路")}
+            </>
+          )}
         </button>
       </div>
 
@@ -240,9 +269,15 @@ export function PlanningAssistant() {
       {(input.trim() || added || addedGoal) && (
         <div className="flex items-center justify-between gap-2 border-t border-[var(--line)] px-4 pt-2 text-xs">
           {added ? (
-            <span className="text-[var(--c-emerald)]">{t("🌱 已加进人生树：{label}", { label: added })}</span>
+            <span className="inline-flex items-center gap-1 text-[var(--c-emerald)]">
+              <IconSprout className="h-3.5 w-3.5" />
+              {t("已加进人生树：{label}", { label: added })}
+            </span>
           ) : addedGoal ? (
-            <span className="text-[var(--c-emerald)]">{t("🎯 已设成目标：{label}", { label: addedGoal })}</span>
+            <span className="inline-flex items-center gap-1 text-[var(--c-emerald)]">
+              <IconTarget className="h-3.5 w-3.5" />
+              {t("已设成目标：{label}", { label: addedGoal })}
+            </span>
           ) : (
             <>
               <span className="truncate text-[var(--fg-faint)]">{t("加「{label}」当一条新岔路？", { label: input.trim() })}</span>
@@ -256,9 +291,10 @@ export function PlanningAssistant() {
                     setAddedGoal(v);
                     setTimeout(() => setAddedGoal(null), 2600);
                   }}
-                  className="rounded-full border border-[var(--accent)]/50 px-2.5 py-1 text-[var(--accent)] transition hover:bg-[var(--accent)]/15"
+                  className="inline-flex items-center gap-1 rounded-full border border-[var(--accent)]/50 px-2.5 py-1 text-[var(--accent)] transition hover:bg-[var(--accent)]/15"
                 >
-                  {t("🎯 设成目标")}
+                  <IconTarget className="h-3.5 w-3.5" />
+                  {t("设成目标")}
                 </button>
                 <button
                   onClick={() => {

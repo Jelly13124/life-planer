@@ -6,6 +6,7 @@ import { useT } from "@/prefs/PreferencesContext";
 import { LifeMap } from "./LifeMap";
 import { AddBranchSheet, type ForkContext } from "./AddBranchSheet";
 import { Button } from "./ui/Button";
+import { IconSparkle, IconShare } from "./ui/icons";
 import { dueDecisions } from "@/domain/decisions";
 import { achievedPathIds } from "@/domain/goals";
 import { ReviewSheet } from "./ReviewSheet";
@@ -53,7 +54,8 @@ export function TreeScreen() {
           </p>
           {aiEnabled ? (
             <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-[var(--fg-faint)]">
-              {t("✨ 由真实 AI 生成")}
+              <IconSparkle className="h-3.5 w-3.5" />
+              {t("由真实 AI 生成")}
             </div>
           ) : null}
           {due.length > 0 && (
@@ -74,7 +76,7 @@ export function TreeScreen() {
               now: t("现在"),
             });
             downloadShareSvg(svg, "我的人生树.svg");
-          }}>{t("📤 分享")}</Button>
+          }}><IconShare className="h-4 w-4" />{t("分享")}</Button>
           <Button variant="primary" onClick={() => setAdding(true)}>{t("＋ 添加岔路")}</Button>
           <Button variant="ghost" onClick={reset} title={t("清空并重新开始")}>{t("↺ 重置")}</Button>
         </div>
