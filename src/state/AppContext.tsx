@@ -10,8 +10,9 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import type { Decision, Goal, LifePath, LifeTree, Metric, Profile, Scenario } from "@/domain/types";
+import type { ChoiceOption, Decision, Goal, GoalArea, LifePath, LifeTree, Metric, Profile, Scenario } from "@/domain/types";
 import { createDecision, upsertDecision, type DecisionInput } from "@/domain/decisions";
+import * as choices from "@/domain/choices";
 import type { PathGenerator } from "@/domain/generator/types";
 import { localGenerator } from "@/domain/generator/localGenerator";
 import type { TreeRepository } from "@/domain/repository/types";
@@ -255,6 +256,27 @@ interface AppApi {
   openPlanFocused: (goalId: string) => void; // 打开「计划」视图并聚焦某目标
   clearFocusGoal: () => void; // 清掉聚焦目标（组件滚动/展开后调用）
   toggleGoalFavorite: (goalId: string) => void; // 切换目标收藏状态
+  // ── 选择面板（Phase 6）：CRUD + 树联动（推演选项分支 / 拍板→目标）──
+  // 新建一个选择，返回新 id（无 tree / 空问题 → null）。
+  createChoice: (question: string) => string | null;
+  // 给某选择加一个选项，返回新 id（无 tree / 找不到 choice / 空标签 → null）。
+  addChoiceOption: (choiceId: string, label: string) => string | null;
+  // 行内编辑某选项字段（pros/cons/cost/reversibility/gut/label…）。
+  updateChoiceOption: (optionId: string, patch: Partial<ChoiceOption>) => void;
+  // 删一个选项（若是选定项，连带清掉 chosen/decidedAt）。
+  removeChoiceOption: (optionId: string) => void;
+  // 删整个选择。
+  removeChoice: (choiceId: string) => void;
+  // 重新打开已决选择（清 chosen/decidedAt）。
+  reopenChoice: (choiceId: string) => void;
+  // 拍板：置选定项；opts.makeGoal 时同一快照里再建一个目标（可指定 area）。
+  decideChoice: (
+    choiceId: string,
+    optionId: string,
+    opts?: { makeGoal?: boolean; area?: GoalArea },
+  ) => void;
+  // 为某选项在人生树上长出一条分支并回填 pathId，然后像目标分支一样 AI 推演。
+  predictOptionBranch: (choiceId: string, optionId: string) => void;
   planActionToday: (actionId: string) => void;
   unplanActionToday: (actionId: string) => void;
   toggleTodayAction: (actionId: string) => void;
@@ -596,6 +618,91 @@ export function AppProvider({
           type: "patchTree",
           tree: updateGoalById(baseTree, goalId, { favorite: !goal.favorite }),
         });
+      },
+      // ── 选择面板（Phase 6）：读最新树快照、单次 patchTree，镜像其它目标 mutator ──
+      // 新建选择：读最新树，choices.createChoice 折成一棵树后单次 patchTree。返回新 id。
+      createChoice: (question) => {
+        const baseTree = treeRef.current;
+        if (!baseTree || !question.trim()) return null;
+        const { tree, id } = choices.createChoice(baseTree, question, new Date().toISOString());
+        dispatch({ type: "patchTree", tree });
+        return id;
+      },
+      // 加选项：找不到 choice / 空 id 视为无操作（choices.addOption 已做安全兜底）。
+      addChoiceOption: (choiceId, label) => {
+        const baseTree = treeRef.current;
+        if (!baseTree || !label.trim()) return null;
+        const { tree, id } = choices.addOption(baseTree, choiceId, label, new Date().toISOString());
+        if (!id) return null; // 找不到 choiceId
+        dispatch({ type: "patchTree", tree });
+        return id;
+      },
+      updateChoiceOption: (optionId, patch) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: choices.updateOption(baseTree, optionId, patch) });
+      },
+      removeChoiceOption: (optionId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: choices.removeOption(baseTree, optionId) });
+      },
+      removeChoice: (choiceId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: choices.removeChoice(baseTree, choiceId) });
+      },
+      reopenChoice: (choiceId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({ type: "patchTree", tree: choices.reopenChoice(baseTree, choiceId) });
+      },
+      // 拍板：在同一快照里 decideChoice + （可选）建目标，避免两次 dispatch 互相覆盖。
+      // 从同一份 baseTree 快照查 option/choice，建目标复用 addGoal 走的 goalTree.addGoal，
+      // 关联该选项已推演出的分支（option.pathId）。
+      decideChoice: (choiceId, optionId, opts) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        const now = new Date().toISOString();
+        let t = choices.decideChoice(baseTree, choiceId, optionId, now);
+        if (opts?.makeGoal) {
+          const hit = choices.findChoiceByOption(baseTree, optionId);
+          if (hit && hit.choice.id === choiceId) {
+            const { choice, option } = hit;
+            const input: AddGoalInput = {
+              area: opts.area ?? "growth",
+              title: option.label,
+              why: choice.question,
+              pathId: option.pathId ?? null,
+            };
+            ({ tree: t } = addGoalToTree(t, input, now));
+          }
+        }
+        dispatch({ type: "patchTree", tree: t });
+      },
+      // 为某选项长出分支并推演，镜像 addGoalWithBranch：
+      // 1) 读最新树，定位选项；已有 pathId 则无操作（已推演过）。
+      // 2) addPath（choiceLabel=option.label，从「现在」根分叉）→ 拿到新 pathId →
+      //    在同一棵 working 树上 linkOptionPath，确保链接先落树（不依赖异步推演完成）。
+      // 3) patchTree 一次（把分支+链接先落树），再 predictAndCommit 推演这条分支
+      //    （沿用 addGoalWithBranch 的离线/本地兜底；predictAndCommit 读 working 的快照保留 choices）。
+      predictOptionBranch: (choiceId, optionId) => {
+        if (predictingRef.current) return;
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        const hit = choices.findChoiceByOption(baseTree, optionId);
+        if (!hit || hit.choice.id !== choiceId) return;
+        if (hit.option.pathId) return; // 已推演过，无操作
+        const ts = new Date().toISOString();
+        // 1) 长出这条选项的根分支（与 addGoalWithBranch 同样：从「现在」分叉、AI 可重定分叉年龄）
+        const working = addPath(baseTree, hit.option.label, generator, ts);
+        if (working === baseTree) return; // 空标签
+        const newPath = working.paths[working.paths.length - 1];
+        // 2) 在同一棵 working 树上回填链接，链接先落树（无论异步推演成败都不丢）
+        const linked = choices.linkOptionPath(working, optionId, newPath.id);
+        // 3) 先 patch（分支 + 链接），再推演这条分支（保留 choices/链接）
+        dispatch({ type: "patchTree", tree: linked });
+        void predictAndCommit(linked, [newPath], "branch");
       },
       // ── Subgoals ──
       addSubgoal: (goalId, title) => {
