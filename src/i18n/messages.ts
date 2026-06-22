@@ -579,4 +579,15 @@ export const EN: Record<string, string> = {
   周四: "Thu",
   周五: "Fri",
   周六: "Sat",
+  // AI 拆解目标
+  "✨ AI 拆解目标": "✨ Break this down with AI",
+  "AI 正在拆解…": "AI is breaking it down…",
+  稍后再试: "Try again later",
+  "AI 拆好了这些建议。勾掉不要的，点「全部添加」才会进规划——只会新增，随时能删。":
+    "AI suggested these. Uncheck what you don't want — nothing is added until you tap “Add all”. It only adds; you can delete anytime.",
+  指标: "Metrics",
+  任务: "Tasks",
+  子目标: "Subgoals",
+  全部添加: "Add all",
+  忽略: "Dismiss",
 };

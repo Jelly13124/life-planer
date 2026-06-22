@@ -19,7 +19,12 @@ import {
 } from "@/domain/types";
 import { allTags, dueGoalReviews, goalProgress } from "@/domain/goals";
 import { localTodayStr } from "@/lib/dailyClient";
-import { fetchGoalSuggestions, type GoalSuggestion } from "@/lib/goalClient";
+import {
+  fetchGoalDecomposition,
+  fetchGoalSuggestions,
+  type GoalDecomposition,
+  type GoalSuggestion,
+} from "@/lib/goalClient";
 
 // 启动时取一次"今天"作初值（render 内不可调用 new Date）；挂载后用 effect 刷新。
 const _bootToday = localTodayStr();
@@ -776,6 +781,228 @@ function DateRange({ goal, t }: { goal: Goal; t: TFn }) {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
+// AI 拆解目标 预览面板：把 fetchGoalDecomposition 的结果按 指标/任务/习惯/子目标
+// 分组展示，每条带勾选框（默认勾选）。「全部添加」只把勾选的折进目标（applyGoalDecomposition，
+// 纯新增、可删除）；「忽略」丢弃面板。不勾选的不会进规划。
+// ───────────────────────────────────────────────────────────────────────────
+function CheckRow({
+  checked,
+  onToggle,
+  children,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 transition hover:bg-white/[0.03]">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onToggle}
+        className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 accent-[var(--accent)]"
+      />
+      <span className="min-w-0 flex-1 text-sm text-[var(--fg)]">{children}</span>
+    </label>
+  );
+}
+
+function GroupHeader({ icon, label }: { icon: string; label: string }) {
+  return (
+    <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--fg-faint)]">
+      <span aria-hidden="true">{icon}</span>
+      {label}
+    </div>
+  );
+}
+
+function DecomposePanel({
+  goalId,
+  dec,
+  t,
+  onApplied,
+  onIgnore,
+}: {
+  goalId: string;
+  dec: GoalDecomposition;
+  t: TFn;
+  onApplied: () => void;
+  onIgnore: () => void;
+}) {
+  const { applyGoalDecomposition } = useApp();
+  // 勾选状态：用稳定 key（m{i} / t{i} / h{i} / sg{i} / sg{i}-m{j} …），默认全勾。
+  const [checked, setChecked] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    dec.metrics.forEach((_, i) => (init[`m${i}`] = true));
+    dec.tasks.forEach((_, i) => (init[`t${i}`] = true));
+    dec.habits.forEach((_, i) => (init[`h${i}`] = true));
+    dec.subgoals.forEach((sg, i) => {
+      init[`sg${i}`] = true;
+      sg.metrics.forEach((_, j) => (init[`sg${i}-m${j}`] = true));
+      sg.tasks.forEach((_, j) => (init[`sg${i}-t${j}`] = true));
+      sg.habits.forEach((_, j) => (init[`sg${i}-h${j}`] = true));
+    });
+    return init;
+  });
+  const on = (k: string) => checked[k] ?? false;
+  const toggle = (k: string) => setChecked((c) => ({ ...c, [k]: !c[k] }));
+
+  const habitLabel = (h: GoalDecomposition["habits"][number]) =>
+    h.repeat === "daily"
+      ? t("每日")
+      : h.repeatWeekday != null
+        ? `${t("每周")} · ${t(WEEKDAY_KEYS[h.repeatWeekday])}`
+        : t("每周");
+  const metricLabel = (m: GoalDecomposition["metrics"][number]) =>
+    `${m.label} · ${m.target}${m.unit}`;
+
+  // 收集勾选项 → 过滤后的 GoalDecomposition（子目标本体未勾则整组跳过）。
+  function applyChecked() {
+    const filtered: GoalDecomposition = {
+      metrics: dec.metrics.filter((_, i) => on(`m${i}`)),
+      tasks: dec.tasks.filter((_, i) => on(`t${i}`)),
+      habits: dec.habits.filter((_, i) => on(`h${i}`)),
+      subgoals: dec.subgoals
+        .map((sg, i) => ({ sg, i }))
+        .filter(({ i }) => on(`sg${i}`))
+        .map(({ sg, i }) => ({
+          title: sg.title,
+          metrics: sg.metrics.filter((_, j) => on(`sg${i}-m${j}`)),
+          tasks: sg.tasks.filter((_, j) => on(`sg${i}-t${j}`)),
+          habits: sg.habits.filter((_, j) => on(`sg${i}-h${j}`)),
+        })),
+    };
+    const nothing =
+      !filtered.metrics.length &&
+      !filtered.tasks.length &&
+      !filtered.habits.length &&
+      !filtered.subgoals.length;
+    if (nothing) {
+      onApplied();
+      return;
+    }
+    applyGoalDecomposition(goalId, filtered);
+    onApplied();
+  }
+
+  return (
+    <div className="mt-3 space-y-3 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/[0.05] p-3">
+      <div className="text-xs leading-relaxed text-[var(--fg-dim)]">
+        {t("AI 拆好了这些建议。勾掉不要的，点「全部添加」才会进规划——只会新增，随时能删。")}
+      </div>
+
+      {/* 指标 */}
+      {dec.metrics.length > 0 && (
+        <div className="space-y-0.5">
+          <GroupHeader icon="📊" label={t("指标")} />
+          {dec.metrics.map((m, i) => (
+            <CheckRow key={`m${i}`} checked={on(`m${i}`)} onToggle={() => toggle(`m${i}`)}>
+              {metricLabel(m)}
+            </CheckRow>
+          ))}
+        </div>
+      )}
+
+      {/* 任务 */}
+      {dec.tasks.length > 0 && (
+        <div className="space-y-0.5">
+          <GroupHeader icon="✅" label={t("任务")} />
+          {dec.tasks.map((task, i) => (
+            <CheckRow key={`t${i}`} checked={on(`t${i}`)} onToggle={() => toggle(`t${i}`)}>
+              {task.text}
+            </CheckRow>
+          ))}
+        </div>
+      )}
+
+      {/* 习惯 */}
+      {dec.habits.length > 0 && (
+        <div className="space-y-0.5">
+          <GroupHeader icon="🔁" label={t("习惯")} />
+          {dec.habits.map((h, i) => (
+            <CheckRow key={`h${i}`} checked={on(`h${i}`)} onToggle={() => toggle(`h${i}`)}>
+              {h.text}
+              <span className="ml-1.5 rounded-full border border-[var(--accent)]/30 px-1.5 py-0.5 text-[10px] text-[var(--accent)]">
+                {habitLabel(h)}
+              </span>
+            </CheckRow>
+          ))}
+        </div>
+      )}
+
+      {/* 子目标（含嵌套建议） */}
+      {dec.subgoals.length > 0 && (
+        <div className="space-y-2">
+          <GroupHeader icon="↳" label={t("子目标")} />
+          {dec.subgoals.map((sg, i) => (
+            <div
+              key={`sg${i}`}
+              className="rounded-lg border border-[var(--line)] bg-white/[0.02] p-2"
+            >
+              <CheckRow checked={on(`sg${i}`)} onToggle={() => toggle(`sg${i}`)}>
+                <span className="font-medium">{sg.title}</span>
+              </CheckRow>
+              {on(`sg${i}`) && (
+                <div className="ml-5 mt-1 space-y-0.5 border-l border-[var(--line)] pl-2">
+                  {sg.metrics.map((m, j) => (
+                    <CheckRow
+                      key={`sg${i}-m${j}`}
+                      checked={on(`sg${i}-m${j}`)}
+                      onToggle={() => toggle(`sg${i}-m${j}`)}
+                    >
+                      <span className="text-[var(--fg-dim)]">📊 {metricLabel(m)}</span>
+                    </CheckRow>
+                  ))}
+                  {sg.tasks.map((task, j) => (
+                    <CheckRow
+                      key={`sg${i}-t${j}`}
+                      checked={on(`sg${i}-t${j}`)}
+                      onToggle={() => toggle(`sg${i}-t${j}`)}
+                    >
+                      <span className="text-[var(--fg-dim)]">✅ {task.text}</span>
+                    </CheckRow>
+                  ))}
+                  {sg.habits.map((h, j) => (
+                    <CheckRow
+                      key={`sg${i}-h${j}`}
+                      checked={on(`sg${i}-h${j}`)}
+                      onToggle={() => toggle(`sg${i}-h${j}`)}
+                    >
+                      <span className="text-[var(--fg-dim)]">
+                        🔁 {h.text}
+                        <span className="ml-1.5 text-[var(--fg-faint)]">{habitLabel(h)}</span>
+                      </span>
+                    </CheckRow>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 底部：全部添加 / 忽略 */}
+      <div className="flex items-center justify-end gap-2 border-t border-[var(--line)] pt-2.5">
+        <button
+          type="button"
+          onClick={onIgnore}
+          className="rounded-full px-3 py-1.5 text-xs text-[var(--fg-faint)] transition hover:text-[var(--fg)]"
+        >
+          {t("忽略")}
+        </button>
+        <button
+          type="button"
+          onClick={applyChecked}
+          className="rounded-full border border-[var(--accent)]/60 bg-[var(--accent)]/10 px-3 py-1.5 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/20"
+        >
+          {t("全部添加")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 // 目标卡 GoalCard：可折叠。头部 = 标题/why/进度/时间范围/领域/标签/状态。
 // 展开体 = 目标级指标/任务/习惯 + 子目标。
 // ───────────────────────────────────────────────────────────────────────────
@@ -784,6 +1011,24 @@ function GoalCard({ goal, t }: { goal: Goal; t: TFn }) {
   const [expanded, setExpanded] = useState(true);
   const [editing, setEditing] = useState(false);
   const [addingSub, setAddingSub] = useState(false);
+  // AI 拆解目标：loading / 结果 / 出错（即便有兜底也兜不住时）。
+  const [decomposing, setDecomposing] = useState(false);
+  const [decomposition, setDecomposition] = useState<GoalDecomposition | null>(null);
+  const [decomposeError, setDecomposeError] = useState(false);
+
+  async function runDecompose() {
+    if (decomposing) return;
+    setDecomposeError(false);
+    setDecomposing(true);
+    try {
+      const dec = await fetchGoalDecomposition(goal);
+      setDecomposition(dec);
+    } catch {
+      setDecomposeError(true);
+    } finally {
+      setDecomposing(false);
+    }
+  }
 
   const color = AREA_COLORS[goal.area];
   // goalProgress 只读 goal 本身（tree 形参未用）；tree 不可能为空（PlanScreen 已守卫）。
@@ -897,6 +1142,32 @@ function GoalCard({ goal, t }: { goal: Goal; t: TFn }) {
             habits={goal.habits ?? []}
             t={t}
           />
+
+          {/* AI 拆解目标：按钮 → 预览面板（勾选后才落地） */}
+          {!decomposition && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={runDecompose}
+                disabled={decomposing}
+                className="rounded-full border border-[var(--accent)]/50 bg-[var(--accent)]/10 px-3 py-1 text-[11px] text-[var(--accent)] transition hover:bg-[var(--accent)]/20 disabled:opacity-60"
+              >
+                {decomposing ? t("AI 正在拆解…") : t("✨ AI 拆解目标")}
+              </button>
+              {decomposeError && (
+                <span className="text-[11px] text-[var(--c-rose)]">{t("稍后再试")}</span>
+              )}
+            </div>
+          )}
+          {decomposition && (
+            <DecomposePanel
+              goalId={goal.id}
+              dec={decomposition}
+              t={t}
+              onApplied={() => setDecomposition(null)}
+              onIgnore={() => setDecomposition(null)}
+            />
+          )}
 
           {/* 子目标 */}
           {(goal.subgoals ?? []).length > 0 && (

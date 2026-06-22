@@ -47,6 +47,7 @@ import {
   updateGoalById,
   type AddGoalInput,
 } from "@/domain/goalTree";
+import type { GoalDecomposition } from "@/lib/goalClient";
 import { completeAction, findAction, isActionDoneToday, planToday, removeActionEverywhere, uncompleteAction, unplanToday, localDay } from "@/domain/daily";
 import { actionsOnDay, setActionScheduledDate } from "@/domain/calendar";
 import { arrangeDay, setActionTime, setDayWindow, dayWindow } from "@/domain/schedule";
@@ -203,6 +204,8 @@ interface AppApi {
   setMetric: (ownerId: string, metric: Metric) => void;
   bumpMetric: (metricId: string, delta: number) => void;
   removeMetric: (ownerId: string, metricId: string) => void;
+  // ── AI 拆解目标：把一份（已勾选的）拆解结果一次性折进目标（仅新增，原子提交）──
+  applyGoalDecomposition: (goalId: string, dec: GoalDecomposition) => void;
   openDashboard: () => void;
   openHabits: () => void;
   openAreas: () => void;
@@ -598,6 +601,51 @@ export function AppProvider({
         const baseTree = treeRef.current;
         if (!baseTree) return;
         dispatch({ type: "patchTree", tree: removeMetricFromTree(baseTree, ownerId, metricId) });
+      },
+      // AI 拆解：把（已勾选的）指标/任务/习惯/子目标一次性折进一棵树，单次 patchTree。
+      // 仅新增、永不删除；now/uuid 在 state 层生成（domain 保持纯）。读最新树避免并发覆盖。
+      applyGoalDecomposition: (goalId, dec) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        const now = new Date().toISOString();
+        let t = baseTree;
+        // 目标级 指标 / 任务 / 习惯
+        for (const m of dec.metrics ?? []) {
+          t = setMetricInTree(t, goalId, {
+            id: crypto.randomUUID(),
+            label: m.label,
+            current: 0,
+            target: m.target,
+            unit: m.unit,
+          });
+        }
+        for (const task of dec.tasks ?? []) {
+          ({ tree: t } = addTaskToTree(t, goalId, null, task.text, now));
+        }
+        for (const h of dec.habits ?? []) {
+          ({ tree: t } = addHabitToTree(t, goalId, null, h.text, h.repeat, h.repeatWeekday, now));
+        }
+        // 每个子目标：先建，再把它自己的 指标/任务/习惯 折到新子目标 id 上。
+        for (const sg of dec.subgoals ?? []) {
+          let sgId: string;
+          ({ tree: t, id: sgId } = addSubgoalToTree(t, goalId, sg.title, now));
+          for (const m of sg.metrics ?? []) {
+            t = setMetricInTree(t, sgId, {
+              id: crypto.randomUUID(),
+              label: m.label,
+              current: 0,
+              target: m.target,
+              unit: m.unit,
+            });
+          }
+          for (const task of sg.tasks ?? []) {
+            ({ tree: t } = addTaskToTree(t, goalId, sgId, task.text, now));
+          }
+          for (const h of sg.habits ?? []) {
+            ({ tree: t } = addHabitToTree(t, goalId, sgId, h.text, h.repeat, h.repeatWeekday, now));
+          }
+        }
+        dispatch({ type: "patchTree", tree: t });
       },
       openTree: () => dispatch({ type: "backToTree" }),
       planActionToday: (actionId) => {
