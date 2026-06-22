@@ -261,7 +261,7 @@ export function CalendarPlannerScreen() {
           <Card pad="md">
             <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("待安排")}</div>
             <div className="mb-2 text-[11px] text-[var(--fg-dim)]">{t("未排期任务")}</div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-col gap-1.5">
               {unsched.length === 0 && <span className="text-xs text-[var(--fg-faint)]">{t("没有未排期的任务")}</span>}
               {unsched.map(({ item }) => (
                 <button
@@ -272,8 +272,9 @@ export function CalendarPlannerScreen() {
                     e.dataTransfer.setData("application/x-lp-kind", "task");
                   }}
                   onClick={() => setPendingActionId((cur) => (cur === item.id ? null : item.id))}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
-                    pendingActionId === item.id ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]" : "border-[var(--line)] text-[var(--fg-dim)] hover:border-[var(--accent)]"
+                  title={item.text}
+                  className={`w-full cursor-grab truncate rounded-xl border px-3 py-2 text-left text-xs transition active:cursor-grabbing ${
+                    pendingActionId === item.id ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]" : "border-[var(--line)] text-[var(--fg-dim)] hover:border-[var(--accent)]/60 hover:bg-black/[0.02]"
                   }`}
                 >
                   {item.text}

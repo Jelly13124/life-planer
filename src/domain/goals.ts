@@ -99,14 +99,15 @@ export function achievedPathIds(tree: LifeTree): Set<string> {
   return new Set(ids);
 }
 
-// 该回看的目标：active 且（从没复盘过 或 距上次复盘 ≥ 7 天）。today 注入，便于测试。
+// 该回看的目标：active 且距「上次复盘；从未复盘则距创建」≥ 7 天。
+// 以创建时间为基线 —— 刚建的目标不会立刻就"该回看"。today 注入，便于测试。
 export function dueGoalReviews(tree: LifeTree, today: string): Goal[] {
   const t = new Date(today).getTime();
-  return goals(tree).filter(
-    (g) =>
-      g.status === "active" &&
-      (!g.lastReviewedAt || t - new Date(g.lastReviewedAt).getTime() >= REVIEW_INTERVAL_MS),
-  );
+  return goals(tree).filter((g) => {
+    if (g.status !== "active") return false;
+    const baseline = g.lastReviewedAt ?? g.createdAt;
+    return t - new Date(baseline).getTime() >= REVIEW_INTERVAL_MS;
+  });
 }
 
 export function recordGoalReview(tree: LifeTree, goalId: string, now: string): LifeTree {

@@ -93,9 +93,9 @@ describe("weeklyRecap", () => {
 
   it("dueGoals returns goals due for review", () => {
     let tree = makeBaseTree();
-    // Goal with no lastReviewedAt is immediately due
+    // 从未复盘、且创建已超过 7 天的目标 → 进入「该回看」列表（新建目标不算）
     const built = withGoalTasks(tree, "career", "升职", [], "promo");
-    tree = built.tree;
+    tree = updateGoalById(built.tree, built.goalId, { createdAt: "2026-06-01T00:00:00.000Z" });
 
     const recap = weeklyRecap(tree, TODAY);
     expect(recap.dueGoals.some((x) => x.id === built.goalId)).toBe(true);
