@@ -44,7 +44,7 @@ export function TagView() {
         <GroupedTasks
           tree={tree}
           locs={locs}
-          onToggle={toggleTodayAction}
+          onToggle={(task) => toggleTodayAction(task.id)}
           onRemove={removeItemById}
           onOpenGoal={openPlanFocused}
         />

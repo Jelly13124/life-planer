@@ -1,20 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { allTasks } from "@/domain/goalTree";
+import { localTodayStr } from "@/lib/dailyClient";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
 import { GroupedTasks } from "./lib/taskGroups";
 
 // 「全部任务」视图：所有目标下的一次性任务，按领域 → 目标分组。
 // 过滤切换：进行中（默认，done===false）/ 全部。
-// 行操作：勾选完成（toggleTodayAction）、删除（removeItemById）、点标题跳目标（openPlanFocused）。
+// 行操作：勾选完成（按任务自己的排期日记录，未排期落今天）、删除、点标题跳目标。
+// today 用启动常量 + 可见性事件刷新（不在模块作用域 new Date）。
+const _bootToday = localTodayStr();
+
 export function AllTasksView() {
-  const { tree, toggleTodayAction, removeItemById, openPlanFocused } = useApp();
+  const { tree, toggleActionOn, removeItemById, openPlanFocused } = useApp();
   const { t } = useT();
   const [showAll, setShowAll] = useState(false);
+
+  const [today, setToday] = useState(_bootToday);
+  useEffect(() => {
+    const update = () => setToday(localTodayStr());
+    update();
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
 
   if (!tree) return null;
 
@@ -64,7 +76,7 @@ export function AllTasksView() {
         <GroupedTasks
           tree={tree}
           locs={locs}
-          onToggle={toggleTodayAction}
+          onToggle={(task) => toggleActionOn(task.id, task.scheduledDate ?? today)}
           onRemove={removeItemById}
           onOpenGoal={openPlanFocused}
         />

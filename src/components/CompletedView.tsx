@@ -1,17 +1,30 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { allTasks } from "@/domain/goalTree";
+import { localTodayStr } from "@/lib/dailyClient";
 import { AREA_COLOR, AREA_EMOJI } from "./lib/areaMeta";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
 
 // 「已完成」视图：所有已完成的一次性任务，最近完成的在前（allTasks 顺序反转即可）。
-// 行：勾选（已勾）→ 取消完成恢复（toggleTodayAction）；文本划线；展示所属目标。
+// 行：勾选（已勾）→ 取消完成恢复（按任务自己的排期日记录，未排期落今天）；文本划线；展示所属目标。
+// today 用启动常量 + 可见性事件刷新（不在模块作用域 new Date）。
+const _bootToday = localTodayStr();
+
 export function CompletedView() {
-  const { tree, toggleTodayAction, openPlanFocused } = useApp();
+  const { tree, toggleActionOn, openPlanFocused } = useApp();
   const { t } = useT();
+
+  const [today, setToday] = useState(_bootToday);
+  useEffect(() => {
+    const update = () => setToday(localTodayStr());
+    update();
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
 
   if (!tree) return null;
 
@@ -43,7 +56,7 @@ export function CompletedView() {
                 <div className="flex w-full items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--bg-1)] px-4 py-3 transition hover:border-[var(--accent)]/50 hover:bg-[var(--bg-2)]">
                   {/* 已勾 —— 点击取消完成、恢复任务 */}
                   <button
-                    onClick={() => toggleTodayAction(task.id)}
+                    onClick={() => toggleActionOn(task.id, task.scheduledDate ?? today)}
                     aria-label={t("标记未完成")}
                     className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-[var(--c-emerald)] bg-[var(--c-emerald)]/20 text-[11px] text-[var(--c-emerald)] transition"
                   >

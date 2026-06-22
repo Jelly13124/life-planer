@@ -383,9 +383,13 @@ export function AppProvider({
       ]);
 
       const finalPaths = workingTree.paths.map((p) => enrichedById.get(p.id) ?? p);
+      // 推演期间 UI 仍可编辑（选项字段/目标/任务/拍板…），这些都写进了更新的 treeRef。
+      // 提交时读最新树、只整体替换 paths（已含新分支+润色），保留期间的并发编辑，不回退。
+      // treeRef 为空（首次 onboarding）则退回 workingTree，行为不变。
+      const cur = treeRef.current ?? workingTree;
       dispatch({
         type: "setTree",
-        tree: { ...workingTree, paths: finalPaths, updatedAt: new Date().toISOString() },
+        tree: { ...cur, paths: finalPaths, updatedAt: new Date().toISOString() },
       });
       dispatch({ type: "predictEnd" });
     },

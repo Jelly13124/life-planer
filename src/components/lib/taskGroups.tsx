@@ -75,7 +75,8 @@ export function GroupedTasks({
 }: {
   tree: LifeTree;
   locs: TaskLoc[];
-  onToggle: (taskId: string) => void;
+  // 传整条 task（而非仅 id）：调用方可按 task.scheduledDate 决定把完成记到哪一天。
+  onToggle: (task: Task) => void;
   onRemove: (taskId: string) => void;
   onOpenGoal: (goalId: string) => void;
 }) {
@@ -125,7 +126,7 @@ export function GroupedTasks({
                         <TaskRow
                           task={task}
                           goal={goal}
-                          onToggle={() => onToggle(task.id)}
+                          onToggle={() => onToggle(task)}
                           onRemove={() => onRemove(task.id)}
                           onOpenGoal={() => onOpenGoal(goal.id)}
                         />
