@@ -1,23 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Fraunces } from "next/font/google";
+import { Geist } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./Providers";
 
+// Apple 白色极简：正文走系统 SF 栈（在 globals.css body 定义），
+// Geist 仍作为 --font-geist-sans 的 Latin 回退保留。展示字体不再用 Fraunces 衬线，
+// --font-display 现已在 globals.css :root 指向系统无衬线栈。
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
   display: "swap",
-});
-
-// 编辑感 Latin 展示字体（标题/品牌/数字/eyebrow）。中文仍走系统栈，避免 CJK 网络字体开销。
-// Fraunces：有性格的 old-style 衬线，光学尺寸 + 暖意，与 Geist 几何无衬线对比鲜明，远离默认 SaaS 观感。
-const fraunces = Fraunces({
-  variable: "--font-display",
-  subsets: ["latin"],
-  display: "swap",
-  // 可变字体：保留 wght 全轴 + 光学尺寸 opsz + 一点 SOFT 柔化字形末端。
-  // 用 axes 时不可再指定 weight（否则会被当作非可变字体）。
-  axes: ["opsz", "SOFT"],
 });
 
 export const metadata: Metadata = {
@@ -31,11 +23,11 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/apple-icon-180.png", sizes: "180x180" }],
   },
-  appleWebApp: { capable: true, title: "人生树", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "人生树", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0b1a",
+  themeColor: "#f5f5f7",
 };
 
 // 首屏前把已保存的语言写到 <html lang>，避免中英闪烁。
@@ -50,7 +42,7 @@ export default function RootLayout({
     <html
       lang="zh"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${fraunces.variable} h-full antialiased`}
+      className={`${geistSans.variable} h-full antialiased`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH }} />

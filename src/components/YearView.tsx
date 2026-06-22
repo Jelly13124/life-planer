@@ -111,7 +111,7 @@ export function YearView({
                       style={{
                         backgroundColor: shade(count),
                         opacity: count > 0 ? 1 : 0.35,
-                        color: count > 0 ? "#11132a" : "var(--fg-faint)",
+                        color: count > 0 ? "#ffffff" : "var(--fg-faint)",
                       }}
                     >
                       {Number(cell.date.slice(8, 10))}

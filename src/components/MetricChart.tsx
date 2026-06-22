@@ -27,7 +27,7 @@ export function MetricChart({
     : "";
 
   return (
-    <div className="rounded-2xl border border-[var(--line)] bg-white/[0.03] p-3">
+    <div className="rounded-2xl border border-[var(--line)] bg-black/[0.02] p-3">
       <div className="mb-1 flex items-baseline justify-between">
         <span className="text-sm text-[var(--fg)]">{label}</span>
         <span className="text-xs tabular-nums" style={{ color }}>

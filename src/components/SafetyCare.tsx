@@ -25,7 +25,7 @@ export function SafetyCare({ onContinue }: SafetyCareProps) {
       className="fixed inset-0 z-[70] flex flex-col items-center justify-center px-6"
       style={{
         background:
-          "radial-gradient(120% 90% at 50% 38%, rgba(27,31,58,0.92) 0%, rgba(10,11,26,0.97) 60%, var(--bg-0) 100%)",
+          "radial-gradient(120% 90% at 50% 38%, rgba(245,245,247,0.82) 0%, rgba(235,236,240,0.92) 60%, rgba(28,28,30,0.28) 100%)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         animation: "sc-enter .45s ease both",
@@ -40,16 +40,16 @@ export function SafetyCare({ onContinue }: SafetyCareProps) {
       <div
         className="w-full max-w-sm rounded-2xl p-7"
         style={{
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.09)",
-          boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
+          background: "var(--surface)",
+          border: "1px solid var(--line)",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
           animation: "sc-rise .55s ease .1s both",
         }}
       >
         {/* Icon — a soft heart / warmth glyph */}
         <div
           className="mb-5 flex h-12 w-12 items-center justify-center rounded-full text-2xl"
-          style={{ background: "rgba(167,139,250,0.12)", border: "1px solid rgba(167,139,250,0.22)" }}
+          style={{ background: "rgba(109,74,255,0.1)", border: "1px solid rgba(109,74,255,0.22)" }}
           aria-hidden
         >
           🌿
@@ -85,8 +85,8 @@ export function SafetyCare({ onContinue }: SafetyCareProps) {
                 key={r.label}
                 className="rounded-xl px-4 py-3"
                 style={{
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.07)",
+                  background: "rgba(0,0,0,0.025)",
+                  border: "1px solid var(--line)",
                 }}
               >
                 <div

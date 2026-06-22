@@ -82,7 +82,7 @@ export function TreeScreen() {
 
       {/* 地图：可平移缩放的多层人生决策树 */}
       <div className="mt-4 flex flex-1 items-center">
-        <div className="w-full overflow-hidden rounded-3xl border border-[var(--line)] bg-black/20 p-2 sm:p-4">
+        <div className="lp-media-dark w-full overflow-hidden rounded-3xl p-2 sm:p-4">
           <LifeMap
             tree={tree}
             achievedIds={achieved}

@@ -88,8 +88,8 @@ function NavButton({ item, onNavigate }: { item: NavItem; onNavigate: () => void
       aria-current={item.active ? "page" : undefined}
       className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
         item.active
-          ? "bg-[var(--accent)]/[0.14] text-[var(--fg)] font-semibold"
-          : "text-[var(--fg-dim)] hover:bg-white/[0.05] hover:text-[var(--fg)]"
+          ? "bg-[var(--accent)]/[0.1] text-[var(--accent)] font-semibold"
+          : "text-[var(--fg-dim)] hover:bg-black/[0.04] hover:text-[var(--fg)]"
       }`}
     >
       {/* 左侧高亮条 */}
@@ -282,7 +282,7 @@ export function AppShell({ active, children }: { active: View; children: ReactNo
   return (
     <div className="min-h-screen md:flex">
       {/* 桌面端常驻侧栏 */}
-      <aside className="sticky top-0 hidden h-screen w-60 flex-shrink-0 flex-col border-r border-[var(--line)] bg-[var(--bg-1)]/50 px-3 py-6 backdrop-blur-xl md:flex">
+      <aside className="sticky top-0 hidden h-screen w-60 flex-shrink-0 flex-col border-r border-[var(--line)] bg-[var(--bg-1)]/70 px-3 py-6 backdrop-blur-xl md:flex">
         {sidebarInner(() => {})}
       </aside>
 

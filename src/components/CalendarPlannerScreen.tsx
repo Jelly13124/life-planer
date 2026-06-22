@@ -123,7 +123,7 @@ export function CalendarPlannerScreen() {
                   onClick={() => setCalView(v)}
                   className={`rounded-full px-3.5 py-1 text-[12px] font-medium transition ${
                     calView === v
-                      ? "bg-[var(--accent)] text-[#11132a]"
+                      ? "bg-[var(--accent)] text-white"
                       : "text-[var(--fg-dim)] hover:text-[var(--fg)]"
                   }`}
                 >
@@ -225,7 +225,7 @@ export function CalendarPlannerScreen() {
                         </span>
                         <span className="ml-2 flex-shrink-0 text-[11px] tabular-nums text-[var(--fg-faint)]">{t("进度 {pct}%", { pct })}</span>
                       </div>
-                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[var(--accent)] transition-all" style={{ width: `${pct}%` }} /></div>
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/[0.08]"><div className="h-full rounded-full bg-[var(--accent)] transition-all" style={{ width: `${pct}%` }} /></div>
                     </button>
                   );
                 })}
@@ -238,7 +238,9 @@ export function CalendarPlannerScreen() {
             <Card pad="sm" sunken>
               <div className="mb-2 px-1 text-[11px] text-[var(--fg-faint)]">{t("未来预测 ·「你在这里」随里程碑前进")}</div>
               {hasChoicePaths ? (
-                <LifeMap tree={tree} compact markers={markers} onSelectPath={openPath} onForkAtNode={() => openTree()} />
+                <div className="lp-media-dark overflow-hidden rounded-2xl p-2">
+                  <LifeMap tree={tree} compact markers={markers} onSelectPath={openPath} onForkAtNode={() => openTree()} />
+                </div>
               ) : (
                 <EmptyState
                   size="inline"

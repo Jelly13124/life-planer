@@ -57,7 +57,7 @@ export function SectionPlaceholder({
           <p className="relative mt-1.5 text-sm text-[var(--fg-dim)]">{t("这一块马上就好")}</p>
 
           <div
-            className="relative mx-auto mt-5 h-1 w-24 overflow-hidden rounded-full bg-white/10"
+            className="relative mx-auto mt-5 h-1 w-24 overflow-hidden rounded-full bg-black/[0.08]"
             aria-hidden="true"
           >
             <div

@@ -80,10 +80,10 @@ export function MonthCalendar({
                   ? "border-[var(--accent)] bg-[var(--accent)]/10"
                   : isSel
                     ? "border-[var(--accent)]/60 bg-[var(--accent)]/[0.04]"
-                    : "border-[var(--line)] hover:border-white/20"
+                    : "border-[var(--line)] hover:border-black/20"
               } ${cell.inMonth ? "" : "opacity-35"} ${pendingActionId ? "hover:border-[var(--accent)] hover:bg-[var(--accent)]/[0.06]" : ""}`}
             >
-              <div className={`flex h-5 w-5 items-center justify-center text-[11px] ${isToday ? "rounded-full bg-[var(--accent)] font-bold text-[#11132a]" : isSel ? "font-semibold text-[var(--fg)]" : "text-[var(--fg-faint)]"}`}>
+              <div className={`flex h-5 w-5 items-center justify-center text-[11px] ${isToday ? "rounded-full bg-[var(--accent)] font-bold text-white" : isSel ? "font-semibold text-[var(--fg)]" : "text-[var(--fg-faint)]"}`}>
                 {Number(cell.date.slice(8, 10))}
               </div>
               <div className="mt-1 space-y-1">

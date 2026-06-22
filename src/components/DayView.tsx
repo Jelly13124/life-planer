@@ -155,7 +155,7 @@ export function DayView({
               type="time"
               value={win.start}
               onChange={(e) => setDayWindowValues(e.target.value || win.start, win.end)}
-              className="rounded-lg border border-[var(--line)] bg-transparent px-2 py-1 text-xs text-[var(--fg)] outline-none transition focus:border-[var(--accent)]/60 [color-scheme:dark]"
+              className="rounded-lg border border-[var(--line)] bg-transparent px-2 py-1 text-xs text-[var(--fg)] outline-none transition focus:border-[var(--accent)]/60 [color-scheme:light]"
             />
           </label>
           <label className="flex items-center gap-1.5 text-[11px] text-[var(--fg-faint)]">
@@ -164,7 +164,7 @@ export function DayView({
               type="time"
               value={win.end}
               onChange={(e) => setDayWindowValues(win.start, e.target.value || win.end)}
-              className="rounded-lg border border-[var(--line)] bg-transparent px-2 py-1 text-xs text-[var(--fg)] outline-none transition focus:border-[var(--accent)]/60 [color-scheme:dark]"
+              className="rounded-lg border border-[var(--line)] bg-transparent px-2 py-1 text-xs text-[var(--fg)] outline-none transition focus:border-[var(--accent)]/60 [color-scheme:light]"
             />
           </label>
           <Button
@@ -235,7 +235,7 @@ export function DayView({
             if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropOver(false);
           }}
           onDrop={handleDrop}
-          className={`rounded-lg transition ${dropOver ? "ring-2 ring-[var(--accent)]/60 ring-offset-2 ring-offset-[var(--bg)]" : ""}`}
+          className={`rounded-lg transition ${dropOver ? "ring-2 ring-[var(--accent)]/60 ring-offset-2 ring-offset-[var(--bg-1)]" : ""}`}
         >
           {items.length === 0 ? (
             <p className="px-1 py-6 text-center text-xs leading-relaxed text-[var(--fg-faint)]">
@@ -272,7 +272,7 @@ export function DayView({
                       top,
                       height,
                       borderColor: isOpen ? "var(--accent)" : done ? "var(--line)" : accent ? `${accent}66` : "var(--accent)",
-                      backgroundColor: done ? "transparent" : accent ? `${accent}1f` : "rgba(167,139,250,0.12)",
+                      backgroundColor: done ? "transparent" : accent ? `${accent}24` : "rgba(109,74,255,0.1)",
                     }}
                   >
                     {/* 块体不再整体切换完成；只有左侧的勾选框切换 */}
@@ -310,7 +310,7 @@ export function DayView({
                       onClick={() => setActionTimeById(item.id, null)}
                       aria-label={t("清除时间")}
                       title={t("清除时间")}
-                      className="absolute right-6 top-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] text-[var(--fg-faint)] transition hover:bg-white/10 hover:text-[var(--fg-dim)]"
+                      className="absolute right-6 top-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] text-[var(--fg-faint)] transition hover:bg-black/[0.06] hover:text-[var(--fg-dim)]"
                     >
                       ⌫
                     </button>
@@ -318,7 +318,7 @@ export function DayView({
                       onClick={() => removeActionById(item.id)}
                       aria-label={t("删除任务")}
                       title={t("删除任务")}
-                      className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] text-[var(--fg-faint)] transition hover:bg-white/10 hover:text-[var(--c-rose)]"
+                      className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] text-[var(--fg-faint)] transition hover:bg-black/[0.06] hover:text-[var(--c-rose)]"
                     >
                       ✕
                     </button>
@@ -421,7 +421,7 @@ function TaskDetail({
             value={startTime ?? ""}
             aria-label={t("设置开始时间")}
             onChange={(e) => onSetTime(item.id, e.target.value || null, dur)}
-            className="rounded-lg border border-[var(--line)] bg-transparent px-2 py-1 text-xs text-[var(--fg)] outline-none transition focus:border-[var(--accent)]/60 [color-scheme:dark]"
+            className="rounded-lg border border-[var(--line)] bg-transparent px-2 py-1 text-xs text-[var(--fg)] outline-none transition focus:border-[var(--accent)]/60 [color-scheme:light]"
           />
           {!startTime && <span className="text-[10px] text-[var(--fg-faint)]">{t("未排时间")}</span>}
           {startTime && (
@@ -441,10 +441,10 @@ function TaskDetail({
             value={dur}
             aria-label={t("时长")}
             onChange={(e) => onSetTime(item.id, startTime, Number(e.target.value))}
-            className="rounded-lg border border-[var(--line)] bg-transparent px-2 py-1 text-xs text-[var(--fg)] outline-none transition focus:border-[var(--accent)]/60 [color-scheme:dark]"
+            className="rounded-lg border border-[var(--line)] bg-transparent px-2 py-1 text-xs text-[var(--fg)] outline-none transition focus:border-[var(--accent)]/60 [color-scheme:light]"
           >
             {(DURATION_OPTIONS.includes(dur) ? DURATION_OPTIONS : [dur, ...DURATION_OPTIONS]).map((d) => (
-              <option key={d} value={d} className="bg-[var(--bg)] text-[var(--fg)]">
+              <option key={d} value={d} className="bg-[var(--bg-1)] text-[var(--fg)]">
                 {d} {t("分钟")}
               </option>
             ))}

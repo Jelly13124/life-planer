@@ -71,7 +71,7 @@ function IconButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] text-[var(--fg-faint)] transition hover:bg-white/5 ${
+      className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] text-[var(--fg-faint)] transition hover:bg-black/[0.04] ${
         danger ? "hover:text-[var(--c-rose)]" : "hover:text-[var(--fg)]"
       }`}
     >
@@ -82,7 +82,7 @@ function IconButton({
 
 function ProgressBar({ value, color }: { value: number; color?: string }) {
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/[0.08]">
       <div
         className="h-full rounded-full transition-all duration-500"
         style={{ width: `${Math.round(value * 100)}%`, background: color ?? "var(--accent)" }}
@@ -123,7 +123,7 @@ function MetricRow({
   }
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-[var(--line)] bg-white/[0.02] px-3 py-2">
+    <div className="flex items-center gap-2 rounded-xl border border-[var(--line)] bg-black/[0.02] px-3 py-2">
       <span aria-hidden="true" className="text-xs">📊</span>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
@@ -328,7 +328,7 @@ function HabitComposer({
   }
 
   return (
-    <div className="space-y-2 rounded-xl border border-[var(--line)] bg-white/[0.02] px-3 py-2.5">
+    <div className="space-y-2 rounded-xl border border-[var(--line)] bg-black/[0.02] px-3 py-2.5">
       <input
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -358,7 +358,7 @@ function HabitComposer({
           <select
             value={weekday}
             onChange={(e) => setWeekday(Number(e.target.value))}
-            className="rounded-full border border-[var(--line)] bg-[var(--bg-2)] px-2 py-1 text-[11px] text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:dark]"
+            className="rounded-full border border-[var(--line)] bg-[var(--bg-2)] px-2 py-1 text-[11px] text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:light]"
           >
             {WEEKDAY_KEYS.map((k, i) => (
               <option key={k} value={i}>
@@ -531,7 +531,7 @@ function SubgoalBlock({
 }) {
   const { removeSubgoal } = useApp();
   return (
-    <div className="rounded-xl border border-[var(--line)] bg-white/[0.02] p-3">
+    <div className="rounded-xl border border-[var(--line)] bg-black/[0.02] p-3">
       <div className="mb-2 flex items-center gap-2">
         <span aria-hidden="true" className="text-xs text-[var(--fg-dim)]">↳</span>
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--fg)]">
@@ -644,7 +644,7 @@ function GoalForm({
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-2 py-1 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:dark]"
+            className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-2 py-1 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:light]"
           />
         </label>
         <label className="flex items-center gap-1.5 text-[var(--fg-faint)]">
@@ -653,7 +653,7 @@ function GoalForm({
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-2 py-1 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:dark]"
+            className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-2 py-1 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:light]"
           />
         </label>
       </div>
@@ -747,7 +747,7 @@ function DateRange({ goal, t }: { goal: Goal; t: TFn }) {
             type="date"
             value={goal.startDate ?? ""}
             onChange={(e) => updateGoal(goal.id, { startDate: e.target.value || undefined })}
-            className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-2 py-0.5 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:dark]"
+            className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-2 py-0.5 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:light]"
           />
         </label>
         <label className="flex items-center gap-1.5 text-[var(--fg-faint)]">
@@ -756,7 +756,7 @@ function DateRange({ goal, t }: { goal: Goal; t: TFn }) {
             type="date"
             value={goal.endDate ?? ""}
             onChange={(e) => updateGoal(goal.id, { endDate: e.target.value || undefined })}
-            className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-2 py-0.5 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:dark]"
+            className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-2 py-0.5 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:light]"
           />
         </label>
         <button
@@ -797,7 +797,7 @@ function CheckRow({
   children: React.ReactNode;
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 transition hover:bg-white/[0.03]">
+    <label className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 transition hover:bg-black/[0.03]">
       <input
         type="checkbox"
         checked={checked}
@@ -939,7 +939,7 @@ function DecomposePanel({
           {dec.subgoals.map((sg, i) => (
             <div
               key={`sg${i}`}
-              className="rounded-lg border border-[var(--line)] bg-white/[0.02] p-2"
+              className="rounded-lg border border-[var(--line)] bg-black/[0.02] p-2"
             >
               <CheckRow checked={on(`sg${i}`)} onToggle={() => toggle(`sg${i}`)}>
                 <span className="font-medium">{sg.title}</span>
@@ -1124,7 +1124,7 @@ function GoalCard({
           aria-label={goal.favorite ? t("取消收藏") : t("收藏")}
           aria-pressed={!!goal.favorite}
           title={goal.favorite ? t("取消收藏") : t("收藏")}
-          className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[13px] transition hover:bg-white/5 ${
+          className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[13px] transition hover:bg-black/[0.04] ${
             goal.favorite ? "text-[var(--c-amber)]" : "text-[var(--fg-faint)] hover:text-[var(--fg)]"
           }`}
         >
@@ -1386,7 +1386,7 @@ export function PlanScreen() {
             return (
               <div
                 key={s.title}
-                className="flex items-start justify-between gap-2 rounded-xl border border-[var(--line)] bg-white/5 px-3 py-2"
+                className="flex items-start justify-between gap-2 rounded-xl border border-[var(--line)] bg-black/[0.02] px-3 py-2"
               >
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-[var(--fg)]">

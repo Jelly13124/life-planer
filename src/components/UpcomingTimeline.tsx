@@ -306,7 +306,7 @@ function DayColumn({
         </span>
         <span
           className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[13px] font-semibold tabular-nums ${
-            isToday ? "bg-[var(--accent)] text-[#11132a]" : "text-[var(--fg)]"
+            isToday ? "bg-[var(--accent)] text-white" : "text-[var(--fg)]"
           }`}
         >
           {dom}

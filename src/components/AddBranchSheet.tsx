@@ -121,7 +121,7 @@ function Chip({
       className={`rounded-full border px-3 py-1.5 text-sm transition ${
         wild
           ? "border-[var(--c-fuchsia)]/40 text-[var(--c-fuchsia)] hover:bg-[var(--c-fuchsia)]/10"
-          : "border-[var(--line)] bg-white/5 text-[var(--fg-dim)] hover:border-[var(--accent)] hover:text-[var(--fg)]"
+          : "border-[var(--line)] bg-black/[0.03] text-[var(--fg-dim)] hover:border-[var(--accent)] hover:text-[var(--fg)]"
       }`}
     >
       {text}

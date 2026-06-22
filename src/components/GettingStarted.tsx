@@ -39,7 +39,7 @@ export function GettingStarted({ tree }: { tree: LifeTree }) {
         <button
           onClick={dismissGuide}
           aria-label={t("关闭引导")}
-          className="-mr-1 -mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[var(--fg-faint)] transition hover:bg-white/10 hover:text-[var(--fg)]"
+          className="-mr-1 -mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[var(--fg-faint)] transition hover:bg-black/[0.06] hover:text-[var(--fg)]"
         >
           ✕
         </button>
@@ -52,7 +52,7 @@ export function GettingStarted({ tree }: { tree: LifeTree }) {
               aria-hidden="true"
               className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border text-[11px] ${
                 row.done
-                  ? "border-[var(--c-emerald)] bg-[var(--c-emerald)] text-[#11132a]"
+                  ? "border-[var(--c-emerald)] bg-[var(--c-emerald)] text-white"
                   : "border-[var(--line)] text-transparent"
               }`}
             >

@@ -5,15 +5,15 @@ import { forwardRef, type ButtonHTMLAttributes } from "react";
 type Variant = "primary" | "ghost" | "subtle";
 
 const styles: Record<Variant, string> = {
-  // 主操作：紫→品红渐变 + 紫调辉光，悬浮微抬升、按下回弹
+  // 主操作：压深的紫渐变 + 白字 + 柔影，悬浮微抬升、按下回弹（Apple 观感）
   primary:
-    "bg-[image:var(--grad-accent)] text-[#11132a] font-semibold shadow-[0_10px_28px_-8px_rgba(167,139,250,0.55),0_1px_0_0_rgba(255,255,255,0.25)_inset] hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-10px_rgba(167,139,250,0.65),0_1px_0_0_rgba(255,255,255,0.3)_inset] hover:brightness-[1.04] active:translate-y-0 active:brightness-95",
-  // 幽灵：克制描边，悬浮提亮文字与紫色描边
+    "bg-[image:var(--grad-accent)] text-white font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.08),0_6px_16px_-6px_rgba(109,74,255,0.45)] hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(0,0,0,0.1),0_12px_28px_-8px_rgba(109,74,255,0.55)] hover:brightness-[1.05] active:translate-y-0 active:brightness-95",
+  // 幽灵：克制发丝描边，悬浮加深文字与极浅灰底
   ghost:
-    "bg-transparent text-[var(--fg-dim)] border border-[var(--line)] hover:text-[var(--fg)] hover:border-[rgba(167,139,250,0.5)] hover:bg-white/[0.03] active:translate-y-px",
-  // 次级：玻璃面，悬浮加亮 + 顶缘高光
+    "bg-transparent text-[var(--fg-dim)] border border-[var(--line)] hover:text-[var(--fg)] hover:border-black/20 hover:bg-black/[0.03] active:translate-y-px",
+  // 次级：浅灰面，悬浮加深
   subtle:
-    "bg-white/[0.06] text-[var(--fg)] border border-[var(--line)] shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset] hover:bg-white/[0.1] hover:border-[rgba(167,139,250,0.3)] active:translate-y-px",
+    "bg-black/[0.04] text-[var(--fg)] border border-[var(--line)] hover:bg-black/[0.06] hover:border-black/15 active:translate-y-px",
 };
 
 export const Button = forwardRef<

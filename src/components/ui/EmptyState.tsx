@@ -47,9 +47,8 @@ export function EmptyState({
                   border: `1px solid color-mix(in srgb, ${accent} 40%, transparent)`,
                 }
               : {
-                  backgroundColor: "rgba(255,255,255,0.04)",
+                  backgroundColor: "rgba(0,0,0,0.03)",
                   border: "1px solid var(--line)",
-                  boxShadow: "0 1px 0 0 rgba(255,255,255,0.05) inset",
                 }
           }
           aria-hidden="true"

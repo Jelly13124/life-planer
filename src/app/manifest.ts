@@ -8,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "把人生路口变成一棵会生长的树：看见多重人生、和未来的自己聊聊、把选择落地成计划。",
     start_url: "/",
     display: "standalone",
-    background_color: "#0a0b1a",
-    theme_color: "#0a0b1a",
+    background_color: "#f5f5f7",
+    theme_color: "#f5f5f7",
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },

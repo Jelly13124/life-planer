@@ -195,7 +195,7 @@ function DecideConfirm({
             value={area}
             onChange={(e) => setArea(e.target.value as GoalArea)}
             aria-label={t("目标领域")}
-            className="rounded-lg border border-[var(--line)] bg-[var(--bg-2)] px-2 py-1 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:dark]"
+            className="rounded-lg border border-[var(--line)] bg-[var(--bg-2)] px-2 py-1 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:light]"
           >
             {GOAL_AREAS.map((a) => (
               <option key={a} value={a}>
@@ -269,7 +269,7 @@ function OptionCard({
       className={`flex w-64 flex-shrink-0 flex-col gap-2.5 rounded-2xl border p-3 transition ${
         chosen
           ? "border-[var(--c-emerald)]/60 bg-[var(--c-emerald)]/[0.07]"
-          : "border-[var(--line)] bg-white/[0.02]"
+          : "border-[var(--line)] bg-black/[0.02]"
       }`}
     >
       {/* 标签 + 选定标记 + 删除 */}
@@ -295,7 +295,7 @@ function OptionCard({
           onClick={() => removeChoiceOption(option.id)}
           aria-label={t("删除选项")}
           title={t("删除选项")}
-          className="mt-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[11px] text-[var(--fg-faint)] transition hover:bg-white/5 hover:text-[var(--c-rose)]"
+          className="mt-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[11px] text-[var(--fg-faint)] transition hover:bg-black/[0.04] hover:text-[var(--c-rose)]"
         >
           ✕
         </button>
@@ -454,7 +454,7 @@ function ChoiceCard({ choice, t }: { choice: Choice; t: TFn }) {
           }}
           aria-label={t("删除选择")}
           title={t("删除选择")}
-          className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] text-[var(--fg-faint)] transition hover:bg-white/5 hover:text-[var(--c-rose)]"
+          className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] text-[var(--fg-faint)] transition hover:bg-black/[0.04] hover:text-[var(--c-rose)]"
         >
           ✕
         </button>

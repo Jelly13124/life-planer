@@ -23,7 +23,7 @@ const AREA_COLORS: Record<string, string> = {
 function ScoreBar({ score, color }: { score: number; color: string }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+      <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-black/[0.08]">
         <div
           className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
           style={{ width: `${score}%`, background: color }}
@@ -60,7 +60,7 @@ function GoalProgressRow({
           {t("进度 {pct}%", { pct })}
         </span>
       </div>
-      <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
+      <div className="mt-1 h-1 overflow-hidden rounded-full bg-black/[0.08]">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{ width: `${pct}%`, background: color }}

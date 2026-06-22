@@ -129,7 +129,7 @@ export function PlanningAssistant() {
               className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
                 m.role === "assistant"
                   ? "rounded-tl-sm border border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--fg)]"
-                  : "rounded-tr-sm border border-[var(--line)] bg-white/5 text-[var(--fg)]"
+                  : "rounded-tr-sm border border-[var(--line)] bg-black/[0.03] text-[var(--fg)]"
               }`}
             >
               {m.content}
@@ -140,7 +140,7 @@ export function PlanningAssistant() {
           <div className="text-xs text-[var(--fg-faint)]">{t("助手正在想…")}</div>
         )}
         {failed && (
-          <div className="rounded-xl border border-[var(--line)] bg-white/5 px-3 py-2 text-center text-xs text-[var(--fg-faint)]">
+          <div className="rounded-xl border border-[var(--line)] bg-black/[0.03] px-3 py-2 text-center text-xs text-[var(--fg-faint)]">
             {t("（没接上 AI——确认 .env.local 配了 DEEPSEEK_API_KEY）")}
           </div>
         )}
@@ -168,7 +168,7 @@ export function PlanningAssistant() {
               return (
                 <div
                   key={s.label}
-                  className="flex items-start justify-between gap-2 rounded-xl border border-[var(--line)] bg-white/5 px-3 py-2"
+                  className="flex items-start justify-between gap-2 rounded-xl border border-[var(--line)] bg-black/[0.03] px-3 py-2"
                 >
                   <div className="min-w-0">
                     <div className="text-sm font-medium text-[var(--fg)]">{s.label}</div>
@@ -217,7 +217,7 @@ export function PlanningAssistant() {
               key={q}
               onClick={() => send(q)}
               disabled={thinking}
-              className="rounded-full border border-[var(--line)] bg-white/5 px-2.5 py-1 text-[11px] text-[var(--fg-dim)] transition hover:border-[var(--accent)] hover:text-[var(--fg)] disabled:opacity-40"
+              className="rounded-full border border-[var(--line)] bg-black/[0.03] px-2.5 py-1 text-[11px] text-[var(--fg-dim)] transition hover:border-[var(--accent)] hover:text-[var(--fg)] disabled:opacity-40"
             >
               {t(q)}
             </button>

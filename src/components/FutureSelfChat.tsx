@@ -157,7 +157,7 @@ export function FutureSelfChat({
               </div>
             ) : (
               <div key={i} className="animate-fade flex justify-end">
-                <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-tr-sm border border-[var(--line)] bg-white/5 px-4 py-2.5 text-sm leading-relaxed text-[var(--fg)]">
+                <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-tr-sm border border-[var(--line)] bg-black/[0.03] px-4 py-2.5 text-sm leading-relaxed text-[var(--fg)]">
                   {m.content}
                 </div>
               </div>
@@ -179,7 +179,7 @@ export function FutureSelfChat({
           )}
 
           {failed && (
-            <div className="animate-fade rounded-2xl border border-[var(--line)] bg-white/5 px-4 py-3 text-center text-xs text-[var(--fg-faint)]">
+            <div className="animate-fade rounded-2xl border border-[var(--line)] bg-black/[0.03] px-4 py-3 text-center text-xs text-[var(--fg-faint)]">
               {t("（没接上 AI，先聊不了——确认 .env.local 里配了 DEEPSEEK_API_KEY）")}
             </div>
           )}
@@ -193,7 +193,7 @@ export function FutureSelfChat({
                 key={q}
                 onClick={() => send(q)}
                 disabled={thinking}
-                className="rounded-full border border-[var(--line)] bg-white/5 px-3 py-1.5 text-xs text-[var(--fg-dim)] transition hover:border-[var(--accent)] hover:text-[var(--fg)] disabled:opacity-40"
+                className="rounded-full border border-[var(--line)] bg-black/[0.03] px-3 py-1.5 text-xs text-[var(--fg-dim)] transition hover:border-[var(--accent)] hover:text-[var(--fg)] disabled:opacity-40"
               >
                 {t(q)}
               </button>

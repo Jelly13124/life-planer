@@ -81,7 +81,7 @@ export function PredictionOverlay({
       role="status"
       aria-live="polite"
       aria-label={t("AI 正在推演你的人生")}
-      className="fixed inset-0 z-[60] flex flex-col items-center justify-center px-6"
+      className="lp-media-dark fixed inset-0 z-[60] flex flex-col items-center justify-center border-0 px-6"
       style={{
         background:
           "radial-gradient(120% 90% at 50% 38%, rgba(27,31,58,0.86) 0%, rgba(10,11,26,0.94) 60%, var(--bg-0) 100%)",
@@ -227,7 +227,7 @@ export function PredictionOverlay({
               </span>
               <span className="tabular-nums text-[var(--fg-dim)]">{pct}%</span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
+            <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
               <div
                 className="h-full rounded-full"
                 style={{
@@ -240,7 +240,7 @@ export function PredictionOverlay({
             </div>
           </>
         ) : (
-          <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
+          <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
             <div
               className="h-full w-1/3 rounded-full"
               style={{

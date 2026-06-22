@@ -107,7 +107,7 @@ export function PathDetail({
           <h2 className="text-2xl font-bold">{path.choiceLabel}</h2>
         </div>
         <p className="mt-2 text-[var(--fg-dim)]">{path.summary}</p>
-        <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-white/5 px-3 py-1 text-sm">
+        <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-black/[0.03] px-3 py-1 text-sm">
           <span className="text-[var(--fg-faint)]">
             {t("{name} 的综合人生指数 ·", { name: tree.profile.name })}
           </span>
@@ -133,7 +133,7 @@ export function PathDetail({
       {path.kind === "choice" && (
         <div className="mt-6 space-y-3">
           {decision ? (
-            <div className="rounded-2xl border border-[var(--line)] bg-white/5 p-4">
+            <div className="rounded-2xl border border-[var(--line)] bg-black/[0.03] p-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs uppercase tracking-wider text-[var(--fg-faint)]">
                   {t("你的决定")}
@@ -207,7 +207,7 @@ export function PathDetail({
             d.review ? (
               <div
                 key={d.id}
-                className="rounded-2xl border border-[var(--line)] bg-white/5 p-4"
+                className="rounded-2xl border border-[var(--line)] bg-black/[0.03] p-4"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs uppercase tracking-wider text-[var(--fg-faint)]">
@@ -230,7 +230,7 @@ export function PathDetail({
           <div className="text-xs uppercase tracking-wider text-[var(--fg-faint)]">
             {t("换个走向看看")}
           </div>
-          <div className="mt-2 inline-flex rounded-full border border-[var(--line)] bg-white/5 p-1">
+          <div className="mt-2 inline-flex rounded-full border border-[var(--line)] bg-black/[0.03] p-1">
             {SCENARIOS.map((s) => {
               const variant = tree.paths.find(
                 (p) =>
@@ -250,7 +250,7 @@ export function PathDetail({
                   }}
                   className={`rounded-full px-3.5 py-1.5 text-sm transition ${
                     active
-                      ? "bg-[var(--accent)] font-semibold text-[#11132a]"
+                      ? "bg-[var(--accent)] font-semibold text-white"
                       : "text-[var(--fg-dim)] hover:text-[var(--fg)]"
                   }`}
                 >
@@ -315,7 +315,7 @@ export function PathDetail({
                     {n.dimensions.map((d) => (
                       <span
                         key={d}
-                        className="rounded-full border border-[var(--line)] bg-white/5 px-2 py-0.5 text-[10px] text-[var(--fg-faint)]"
+                        className="rounded-full border border-[var(--line)] bg-black/[0.03] px-2 py-0.5 text-[10px] text-[var(--fg-faint)]"
                       >
                         {t(DIMENSION_LABELS[d])}
                       </span>

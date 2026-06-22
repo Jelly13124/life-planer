@@ -118,7 +118,7 @@ export function Onboarding() {
           <div
             key={i}
             className="h-1 flex-1 rounded-full transition-colors"
-            style={{ background: i <= step ? "var(--accent)" : "rgba(255,255,255,0.12)" }}
+            style={{ background: i <= step ? "var(--accent)" : "rgba(0,0,0,0.12)" }}
           />
         ))}
       </div>

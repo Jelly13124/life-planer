@@ -17,7 +17,7 @@ export function Select<T extends string>({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
-        className="w-full cursor-pointer appearance-none rounded-xl border border-[var(--line)] bg-white/[0.04] px-4 py-3 pr-10 text-base text-[var(--fg)] outline-none transition focus:border-[var(--accent)]"
+        className="w-full cursor-pointer appearance-none rounded-xl border border-[var(--line)] bg-black/[0.03] px-4 py-3 pr-10 text-base text-[var(--fg)] outline-none transition [color-scheme:light] focus:border-[var(--accent)]"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value} className="bg-[var(--bg-1)] text-[var(--fg)]">
