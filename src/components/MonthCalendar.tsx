@@ -19,6 +19,7 @@ export function MonthCalendar({
   onToday,
   onSelectDay,
   onSchedule,
+  onScheduleGoal,
   onPlaceHere,
 }: {
   tree: LifeTree;
@@ -31,7 +32,8 @@ export function MonthCalendar({
   onNext: () => void;
   onToday: () => void;
   onSelectDay: (date: string) => void;
-  onSchedule: (actionId: string, date: string) => void;   // desktop drop
+  onSchedule: (actionId: string, date: string) => void;   // desktop drop (task)
+  onScheduleGoal: (goalId: string, date: string) => void; // desktop drop (goal → startDate)
   onPlaceHere: (date: string) => void;                    // mobile tap-assign target
 }) {
   const { t } = useT();
@@ -68,7 +70,10 @@ export function MonthCalendar({
               onDrop={(e) => {
                 e.preventDefault();
                 const id = e.dataTransfer.getData("text/plain");
-                if (id) onSchedule(id, cell.date);
+                if (!id) return;
+                const kind = e.dataTransfer.getData("application/x-lp-kind") || "task";
+                if (kind === "goal") onScheduleGoal(id, cell.date);
+                else onSchedule(id, cell.date);
               }}
               className={`min-h-[56px] cursor-pointer rounded-lg border p-1.5 transition ${
                 isToday
@@ -86,7 +91,11 @@ export function MonthCalendar({
                   <div
                     key={item.id}
                     draggable={kind === "scheduled"}
-                    onDragStart={(e) => kind === "scheduled" && e.dataTransfer.setData("text/plain", item.id)}
+                    onDragStart={(e) => {
+                      if (kind !== "scheduled") return;
+                      e.dataTransfer.setData("text/plain", item.id);
+                      e.dataTransfer.setData("application/x-lp-kind", "task");
+                    }}
                     className={`truncate rounded px-1 py-0.5 text-[10px] leading-tight ${
                       done ? "text-[var(--fg-faint)] line-through" : kind === "scheduled" ? "bg-[var(--accent)]/15 text-[var(--accent)]" : "text-[var(--fg-dim)]"
                     }`}

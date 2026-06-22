@@ -21,7 +21,7 @@ import { localTodayStr } from "@/lib/dailyClient";
 const _bootToday = localTodayStr();
 
 export function CalendarPlannerScreen() {
-  const { tree, openTree, openPath, openPlan, scheduleAction, markDueGoalsReviewed, addBranch } = useApp();
+  const { tree, openTree, openPath, openPlan, scheduleAction, updateGoal, markDueGoalsReviewed, addBranch } = useApp();
   const { t } = useT();
 
   const [today, setToday] = useState(_bootToday);
@@ -137,6 +137,7 @@ export function CalendarPlannerScreen() {
                 tree={tree}
                 year={view.year}
                 today={today}
+                pendingActionId={pendingActionId}
                 onPrevYear={() => setView((v) => ({ ...v, year: v.year - 1 }))}
                 onNextYear={() => setView((v) => ({ ...v, year: v.year + 1 }))}
                 onPickMonth={(m) => {
@@ -147,6 +148,9 @@ export function CalendarPlannerScreen() {
                   setSelectedDay(d);
                   setCalView("day");
                 }}
+                onSchedule={(id, date) => scheduleAction(id, date)}
+                onScheduleGoal={(id, date) => updateGoal(id, { startDate: date })}
+                onPlaceHere={placeHere}
               />
             )}
 
@@ -166,6 +170,7 @@ export function CalendarPlannerScreen() {
                   setCalView("day");
                 }}
                 onSchedule={(id, date) => scheduleAction(id, date)}
+                onScheduleGoal={(id, date) => updateGoal(id, { startDate: date })}
                 onPlaceHere={placeHere}
               />
             )}
@@ -180,35 +185,40 @@ export function CalendarPlannerScreen() {
               />
             )}
           </Card>
-
-          {/* unscheduled tray — drag source, only in month view */}
-          {calView === "month" && (
-            <Card pad="sm">
-              <div className="mb-2.5 text-[11px] text-[var(--fg-faint)]">
-                {pendingActionId ? t("点一个日子放下它") : t("未排期 · 拖到某天，或点一下再点日子")}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {unsched.length === 0 && <span className="text-xs text-[var(--fg-faint)]">{t("没有未排期的行动")}</span>}
-                {unsched.map(({ item }) => (
-                  <button
-                    key={item.id}
-                    draggable
-                    onDragStart={(e) => e.dataTransfer.setData("text/plain", item.id)}
-                    onClick={() => setPendingActionId((cur) => (cur === item.id ? null : item.id))}
-                    className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
-                      pendingActionId === item.id ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]" : "border-[var(--line)] text-[var(--fg-dim)] hover:border-[var(--accent)]"
-                    }`}
-                  >
-                    {item.text}
-                  </button>
-                ))}
-              </div>
-            </Card>
-          )}
         </div>
 
-        {/* RIGHT: goals + prediction */}
+        {/* RIGHT: backlog + goals + prediction */}
         <div className="flex flex-col gap-4 lg:w-[40%]">
+          {/* 待安排 backlog — drag source, persistent across year/month/day */}
+          <Card pad="md">
+            <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("待安排")}</div>
+            <div className="mb-2 text-[11px] text-[var(--fg-dim)]">{t("未排期任务")}</div>
+            <div className="flex flex-wrap gap-1.5">
+              {unsched.length === 0 && <span className="text-xs text-[var(--fg-faint)]">{t("没有未排期的任务")}</span>}
+              {unsched.map(({ item }) => (
+                <button
+                  key={item.id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/plain", item.id);
+                    e.dataTransfer.setData("application/x-lp-kind", "task");
+                  }}
+                  onClick={() => setPendingActionId((cur) => (cur === item.id ? null : item.id))}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
+                    pendingActionId === item.id ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]" : "border-[var(--line)] text-[var(--fg-dim)] hover:border-[var(--accent)]"
+                  }`}
+                >
+                  {item.text}
+                </button>
+              ))}
+            </div>
+            {unsched.length > 0 && (
+              <div className="mt-2.5 text-[11px] text-[var(--fg-faint)]">
+                {pendingActionId ? t("点日历某天放下它") : t("拖到日历某天安排")}
+              </div>
+            )}
+          </Card>
+
           <Card pad="md">
             <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("目标")}</div>
             {activeGoals.length === 0 ? (
@@ -227,9 +237,22 @@ export function CalendarPlannerScreen() {
                 {activeGoals.map((g) => {
                   const pct = Math.round(goalProgress(tree, g) * 100);
                   return (
-                    <button key={g.id} onClick={() => g.pathId && openPath(g.pathId)} className="block w-full text-left">
+                    <button
+                      key={g.id}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("text/plain", g.id);
+                        e.dataTransfer.setData("application/x-lp-kind", "goal");
+                      }}
+                      onClick={() => g.pathId && openPath(g.pathId)}
+                      title={t("拖到日历 = 设为开始日")}
+                      className="block w-full cursor-grab text-left active:cursor-grabbing"
+                    >
                       <div className="flex items-center justify-between text-sm">
-                        <span className="truncate text-[var(--fg)]">{g.title}</span>
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <span aria-hidden="true" className="flex-shrink-0 text-[var(--fg-faint)]">⠿</span>
+                          <span className="truncate text-[var(--fg)]">{g.title}</span>
+                        </span>
                         <span className="ml-2 flex-shrink-0 text-[11px] tabular-nums text-[var(--fg-faint)]">{t("进度 {pct}%", { pct })}</span>
                       </div>
                       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[var(--accent)] transition-all" style={{ width: `${pct}%` }} /></div>

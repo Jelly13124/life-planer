@@ -11,18 +11,26 @@ export function YearView({
   tree,
   year,
   today,
+  pendingActionId,
   onPrevYear,
   onNextYear,
   onPickMonth,
   onPickDay,
+  onSchedule,
+  onScheduleGoal,
+  onPlaceHere,
 }: {
   tree: LifeTree;
   year: number;
   today: string;
+  pendingActionId: string | null;
   onPrevYear: () => void;
   onNextYear: () => void;
   onPickMonth: (month: number) => void;
   onPickDay: (date: string) => void;
+  onSchedule: (actionId: string, date: string) => void;   // desktop drop (task)
+  onScheduleGoal: (goalId: string, date: string) => void; // desktop drop (goal → startDate)
+  onPlaceHere: (date: string) => void;                    // mobile tap-assign target
 }) {
   const { t } = useT();
 
@@ -86,7 +94,16 @@ export function YearView({
                   return (
                     <button
                       key={cell.date}
-                      onClick={() => onPickDay(cell.date)}
+                      onClick={() => (pendingActionId ? onPlaceHere(cell.date) : onPickDay(cell.date))}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const id = e.dataTransfer.getData("text/plain");
+                        if (!id) return;
+                        const kind = e.dataTransfer.getData("application/x-lp-kind") || "task";
+                        if (kind === "goal") onScheduleGoal(id, cell.date);
+                        else onSchedule(id, cell.date);
+                      }}
                       title={count > 0 ? `${cell.date} · ${t("{n} 件", { n: count })}` : cell.date}
                       className={`flex h-4 w-full items-center justify-center rounded-[3px] text-[8px] leading-none transition hover:ring-1 hover:ring-[var(--accent)]/60 ${
                         isToday ? "ring-1 ring-[var(--accent)]" : ""

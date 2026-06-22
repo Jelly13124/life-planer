@@ -282,6 +282,10 @@ interface AppApi {
   toggleTodayAction: (actionId: string) => void;
   removeActionById: (actionId: string) => void;
   scheduleAction: (actionId: string, date: string | null) => void;
+  // 组合排程（单快照）：设 scheduledDate=date，并（若给了 startTime）同时设 startTime/durationMin。
+  // 复用 scheduleAction + setActionTimeById 各自走的 domain helper（先 setActionScheduledDate，
+  // 再在同一棵 working 树上 setActionTime），最后一次 patchTree。startTime 省略时等价 scheduleAction(id,date)。
+  scheduleActionAt: (actionId: string, date: string, startTime?: string | null, durationMin?: number) => void;
   toggleActionOn: (actionId: string, date: string) => void;
   setActionTimeById: (actionId: string, startTime: string | null, durationMin?: number) => void;
   setDayWindowValues: (start: string, end: string) => void;
@@ -869,6 +873,14 @@ export function AppProvider({
         const baseTree = treeRef.current;
         if (!baseTree) return;
         dispatch({ type: "patchTree", tree: setActionScheduledDate(baseTree, actionId, date) });
+      },
+      // 组合排程：在一棵 working 树上先 setActionScheduledDate，再（若给 startTime）setActionTime，单次 dispatch。
+      scheduleActionAt: (actionId, date, startTime, durationMin) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        let t = setActionScheduledDate(baseTree, actionId, date);
+        if (startTime !== undefined) t = setActionTime(t, actionId, startTime, durationMin);
+        dispatch({ type: "patchTree", tree: t });
       },
       toggleActionOn: (actionId, date) => {
         const baseTree = treeRef.current;
