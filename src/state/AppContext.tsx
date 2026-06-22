@@ -62,7 +62,13 @@ export type View =
   | "dashboard"
   | "habits"
   | "areas"
-  | "insights";
+  | "insights"
+  | "today"
+  | "upcoming"
+  | "alltasks"
+  | "completed"
+  | "choices"
+  | "tag";
 
 // 一次"AI 正在推演"的进行态：在 AI 把这一批路全部写完之前，分支不落到树上。
 export interface Predicting {
@@ -80,6 +86,8 @@ interface State {
   predicting: Predicting | null; // 非空 = 正在推演，显示全屏动画
   aiEnabled: boolean; // 后端是否接入了真实大模型
   safetyHold: Profile | null; // 非空 = 检测到危机信号，暂停推演，等用户确认
+  selectedTag: string | null; // 当前「标签」视图选中的标签
+  focusGoalId: string | null; // 跳到「计划」视图时要聚焦/展开的目标
 }
 
 type Action =
@@ -96,6 +104,14 @@ type Action =
   | { type: "openHabits" }
   | { type: "openAreas" }
   | { type: "openInsights" }
+  | { type: "openToday" }
+  | { type: "openUpcoming" }
+  | { type: "openAllTasks" }
+  | { type: "openCompleted" }
+  | { type: "openChoices" }
+  | { type: "openTag"; tag: string }
+  | { type: "openPlanFocused"; goalId: string }
+  | { type: "clearFocusGoal" }
   | { type: "patchTree"; tree: LifeTree }
   | { type: "reset" }
   | { type: "safetyHold"; profile: Profile }
@@ -144,6 +160,22 @@ function reducer(state: State, action: Action): State {
       return { ...state, activePathId: null, view: "areas" };
     case "openInsights":
       return { ...state, activePathId: null, view: "insights" };
+    case "openToday":
+      return { ...state, activePathId: null, view: "today" };
+    case "openUpcoming":
+      return { ...state, activePathId: null, view: "upcoming" };
+    case "openAllTasks":
+      return { ...state, activePathId: null, view: "alltasks" };
+    case "openCompleted":
+      return { ...state, activePathId: null, view: "completed" };
+    case "openChoices":
+      return { ...state, activePathId: null, view: "choices" };
+    case "openTag":
+      return { ...state, activePathId: null, view: "tag", selectedTag: action.tag };
+    case "openPlanFocused":
+      return { ...state, activePathId: null, view: "plan", focusGoalId: action.goalId };
+    case "clearFocusGoal":
+      return { ...state, focusGoalId: null };
     case "patchTree":
       return { ...state, tree: action.tree };
     case "reset":
@@ -164,6 +196,8 @@ interface AppApi {
   hydrated: boolean;
   predicting: Predicting | null;
   aiEnabled: boolean;
+  selectedTag: string | null; // 「标签」视图当前选中的标签（供组件读取）
+  focusGoalId: string | null; // 「计划」视图要聚焦的目标（供组件读取，看完后调 clearFocusGoal）
   completeOnboarding: (profile: Profile) => void;
   addBranch: (label: string, opts?: AddPathOptions) => void;
   // 一次加多条（如"全部画上"）：在同一个 base 上折叠，单次 dispatch，避免
@@ -211,6 +245,16 @@ interface AppApi {
   openAreas: () => void;
   openInsights: () => void;
   openTree: () => void;
+  // ── 新导航视图（Phase 2）：待办/即将到来/全部任务/已完成/选择/标签 ──
+  openToday: () => void;
+  openUpcoming: () => void;
+  openAllTasks: () => void;
+  openCompleted: () => void;
+  openChoices: () => void;
+  openTag: (tag: string) => void; // 打开「标签」视图并选中该标签
+  openPlanFocused: (goalId: string) => void; // 打开「计划」视图并聚焦某目标
+  clearFocusGoal: () => void; // 清掉聚焦目标（组件滚动/展开后调用）
+  toggleGoalFavorite: (goalId: string) => void; // 切换目标收藏状态
   planActionToday: (actionId: string) => void;
   unplanActionToday: (actionId: string) => void;
   toggleTodayAction: (actionId: string) => void;
@@ -248,6 +292,8 @@ export function AppProvider({
     predicting: null,
     aiEnabled: false,
     safetyHold: null,
+    selectedTag: null,
+    focusGoalId: null,
   });
 
   const repoRef = useRef<TreeRepository | null>(repository ?? null);
@@ -376,6 +422,8 @@ export function AppProvider({
       hydrated: state.hydrated,
       predicting: state.predicting,
       aiEnabled: state.aiEnabled,
+      selectedTag: state.selectedTag,
+      focusGoalId: state.focusGoalId,
       completeOnboarding: (profile) => {
         if (predictingRef.current) return;
         const crisis = anyCrisisSignal([
@@ -529,6 +577,26 @@ export function AppProvider({
       openHabits: () => dispatch({ type: "openHabits" }),
       openAreas: () => dispatch({ type: "openAreas" }),
       openInsights: () => dispatch({ type: "openInsights" }),
+      // ── 新导航视图（Phase 2）──
+      openToday: () => dispatch({ type: "openToday" }),
+      openUpcoming: () => dispatch({ type: "openUpcoming" }),
+      openAllTasks: () => dispatch({ type: "openAllTasks" }),
+      openCompleted: () => dispatch({ type: "openCompleted" }),
+      openChoices: () => dispatch({ type: "openChoices" }),
+      openTag: (tag) => dispatch({ type: "openTag", tag }),
+      openPlanFocused: (goalId) => dispatch({ type: "openPlanFocused", goalId }),
+      clearFocusGoal: () => dispatch({ type: "clearFocusGoal" }),
+      // 切换目标收藏：读最新树快照，按 id 翻转 favorite，单次 patchTree（镜像其它目标 mutator）。
+      toggleGoalFavorite: (goalId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        const goal = (baseTree.goals ?? []).find((g) => g.id === goalId);
+        if (!goal) return;
+        dispatch({
+          type: "patchTree",
+          tree: updateGoalById(baseTree, goalId, { favorite: !goal.favorite }),
+        });
+      },
       // ── Subgoals ──
       addSubgoal: (goalId, title) => {
         const baseTree = treeRef.current;
@@ -758,6 +826,8 @@ export function AppProvider({
       state.predicting,
       state.aiEnabled,
       state.safetyHold,
+      state.selectedTag,
+      state.focusGoalId,
       generator,
       repo,
       predictAndCommit,
