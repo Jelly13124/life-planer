@@ -633,4 +633,20 @@ export const EN: Record<string, string> = {
     "No goals carry this tag. Add tags to goals under Goals.",
   "这些目标下还没有任务。去「目标」加几条任务。":
     "These goals have no tasks yet. Add some under Goals.",
+
+  // ── Phase 4：多日横向时间轴（即将到来 UpcomingTimeline） ──
+  "把未排期的任务拖到某天，或点一下任务再点某天放入。今天起的两三周一览。":
+    "Drag an unscheduled task onto a day, or tap a task then tap a day. The next couple of weeks at a glance.",
+  未排期: "Unscheduled",
+  拖到某天安排: "Drag onto a day to schedule",
+  "没有未排期的任务，太棒了。": "No unscheduled tasks — nice.",
+  "已选 {text}": "Selected: {text}",
+  点某天放入: "tap a day to drop it",
+  "选择任务 {text}": "Select task {text}",
+  "{wd} {d} 日": "{wd} {d}",
+  "放到 {wd} {d} 日": "Drop onto {wd} {d}",
+  放到这天: "Drop here",
+  这天没有安排: "Nothing on this day",
+  "习惯（每日重复）：{text}": "Habit (recurring): {text}",
+  去日视图设时间: "Set times in Day view",
 };

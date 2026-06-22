@@ -11,6 +11,7 @@ import { HabitsSection } from "@/components/HabitsSection";
 import { AreasSection } from "@/components/AreasSection";
 import { InsightsSection } from "@/components/InsightsSection";
 import { TodayView } from "@/components/TodayView";
+import { UpcomingTimeline } from "@/components/UpcomingTimeline";
 import { AllTasksView } from "@/components/AllTasksView";
 import { CompletedView } from "@/components/CompletedView";
 import { TagView } from "@/components/TagView";
@@ -105,7 +106,7 @@ function Screen() {
         ) : view === "tag" ? (
           <TagView />
         ) : view === "upcoming" ? (
-          <ComingSoon title="即将到来" />
+          <UpcomingTimeline />
         ) : view === "choices" ? (
           <ComingSoon title="选择面板" />
         ) : (
