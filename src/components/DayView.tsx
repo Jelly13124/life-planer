@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { LifeTree } from "@/domain/types";
+import type { IcsEvent, LifeTree } from "@/domain/types";
 import { GOAL_AREA_LABELS } from "@/domain/types";
 import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
@@ -10,7 +10,7 @@ import { findItem, goalById } from "@/domain/goalTree";
 import { dayWindow, toMinutes, toHHMM, DEFAULT_DURATION_MIN } from "@/domain/schedule";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
-import { IconSparkle, IconPlus, IconRepeat } from "./ui/icons";
+import { IconSparkle, IconPlus, IconRepeat, IconCalendar } from "./ui/icons";
 
 // 日视图：把某天的行动摊在一条竖直时间轴上。纯渲染（date 由 props 注入，绝不在渲染里 new Date）。
 // 时间块按 startTime 绝对定位、按 durationMin 定高；像素/分钟比固定，便于眼睛对齐刻度。
@@ -28,12 +28,14 @@ const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 240];
 export function DayView({
   tree,
   date,
+  events = [],
   onPrevDay,
   onNextDay,
   onToday,
 }: {
   tree: LifeTree;
   date: string;
+  events?: IcsEvent[]; // 只读外部日历事件（ICS 导入），不参与拖拽/AI 排程
   onPrevDay: () => void;
   onNextDay: () => void;
   onToday: () => void;
@@ -75,6 +77,12 @@ export function DayView({
     .filter((i) => i.item.startTime)
     .sort((a, b) => toMinutes(a.item.startTime!) - toMinutes(b.item.startTime!));
   const untimed = items.filter((i) => !i.item.startTime);
+
+  // 只读外部日历（ICS）：分全天与定时。定时事件落到时间轴上当只读块；全天事件进顶部一条窄行。
+  const extAllDay = events.filter((e) => e.allDay || !e.startTime);
+  const extTimed = events
+    .filter((e) => !e.allDay && e.startTime)
+    .sort((a, b) => toMinutes(a.startTime!) - toMinutes(b.startTime!));
 
   const startMin = toMinutes(win.start);
   const endMin = toMinutes(win.end);
@@ -243,6 +251,24 @@ export function DayView({
 
       {/* 3) 时间轴（顶部一条「未定时」chip 带：未排时间但已排到当天的任务，可拖到网格定时） */}
       <Card pad="sm">
+        {/* 只读外部日历的全天事件：顶部一条窄行，虚线描边 + 日历图标，明显「外部·只读」 */}
+        {extAllDay.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-1.5 border-b border-[var(--line)]/60 pb-3">
+            <span className="mr-1 self-center text-[10px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">
+              {t("全天")}
+            </span>
+            {extAllDay.map((e) => (
+              <span
+                key={e.id}
+                className="inline-flex max-w-[14rem] items-center gap-1.5 rounded-full border border-dashed border-[var(--line)] px-2 py-1 text-[11px] text-[var(--fg-faint)]"
+                title={t("只读日历事件：{title}", { title: e.title })}
+              >
+                <IconCalendar className="h-3 w-3 flex-shrink-0" />
+                <span className="min-w-0 truncate">{e.title}</span>
+              </span>
+            ))}
+          </div>
+        )}
         {untimed.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-1.5 border-b border-[var(--line)]/60 pb-3">
             <span className="mr-1 self-center text-[10px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">
@@ -300,7 +326,7 @@ export function DayView({
           onDrop={handleDrop}
           className={`rounded-lg transition ${dropOver ? "ring-2 ring-[var(--accent)]/60 ring-offset-2 ring-offset-[var(--bg-1)]" : ""}`}
         >
-          {items.length === 0 ? (
+          {items.length === 0 && extTimed.length === 0 ? (
             <p className="px-1 py-6 text-center text-xs leading-relaxed text-[var(--fg-faint)]">
               {t("这天还没有安排。把行动拖到时间轴上排时间，或在「目标」里加行动。")}
             </p>
@@ -385,6 +411,33 @@ export function DayView({
                     >
                       ✕
                     </button>
+                  </div>
+                );
+              })}
+
+              {/* 只读外部日历定时事件：虚线描边 + 日历图标，无勾选/删除，不参与拖拽/AI 排程 */}
+              {extTimed.map((e) => {
+                const s = toMinutes(e.startTime!);
+                const end = e.endTime ? toMinutes(e.endTime) : s + DEFAULT_DURATION_MIN;
+                const dur = Math.max(15, end - s);
+                const top = Math.max(0, (s - startMin) * PX_PER_MIN);
+                const height = Math.max(18, dur * PX_PER_MIN);
+                return (
+                  <div
+                    key={`ics-${e.id}`}
+                    className="absolute right-0 left-1 overflow-hidden rounded-lg border border-dashed border-[var(--line)] bg-black/[0.03] px-2 py-1"
+                    style={{ top, height }}
+                    title={t("只读日历事件：{title}", { title: e.title })}
+                  >
+                    <div className="flex h-full w-full items-start gap-1.5 text-left">
+                      <IconCalendar className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[var(--fg-faint)]" />
+                      <div className="flex min-w-0 flex-1 flex-col justify-center">
+                        <span className="w-full truncate text-[12px] leading-tight text-[var(--fg-dim)]">{e.title}</span>
+                        <span className="mt-0.5 w-full text-[10px] tabular-nums text-[var(--fg-faint)]">
+                          {e.startTime}{e.endTime ? `–${e.endTime}` : ""} · {t("只读")}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 );
               })}

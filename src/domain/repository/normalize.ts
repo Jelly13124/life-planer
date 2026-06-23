@@ -16,6 +16,8 @@ export function normalizeLoadedTree(parsed: unknown): LifeTree | null {
   if (!Array.isArray(t.habits)) t.habits = [];
   if (!Array.isArray(t.choices)) t.choices = [];
   if (!Array.isArray(t.activity)) t.activity = [];
+  // 只读日历订阅源/事件（P4 ICS）：旧数据无此字段 → 补空数组。
+  if (!Array.isArray(t.calendarFeeds)) t.calendarFeeds = [];
 
   // 旧→两级目标迁移：任一目标带 `actions`/`horizon`（legacy）、带 `subgoals`（nested）、
   // 或缺 `kind`（未知/部分迁移）→ migrateGoals 统一升级。已是两级则不触发，原样通过。

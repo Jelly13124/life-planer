@@ -40,6 +40,7 @@ export function createTree(
     habits: [],
     choices: [],
     activity: [],
+    calendarFeeds: [],
     createdAt: now,
     updatedAt: now,
   };

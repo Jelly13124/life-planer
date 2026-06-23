@@ -49,6 +49,7 @@ function makeTree(
     habits: loose.habits ?? [],
     choices: [],
     activity,
+    calendarFeeds: [],
     createdAt: NOW,
     updatedAt: NOW,
   };

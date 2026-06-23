@@ -8,9 +8,11 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
-import type { ChoiceOption, Decision, Goal, GoalArea, LifePath, LifeTree, Metric, Profile, Scenario } from "@/domain/types";
+import type { CalendarFeed, ChoiceOption, Decision, Goal, GoalArea, IcsEvent, LifePath, LifeTree, Metric, Profile, Scenario } from "@/domain/types";
+import { fetchIcsEvents } from "@/lib/icsClient";
 import { createDecision, upsertDecision, type DecisionInput } from "@/domain/decisions";
 import * as choices from "@/domain/choices";
 import type { PathGenerator } from "@/domain/generator/types";
@@ -313,6 +315,15 @@ interface AppApi {
   // 应用预览方案：在一棵 working 树上设每个任务的 scheduledDate + 每个习惯的 repeatWeekday，单次 patchTree。
   applyShortPlan: (plan: PlanShortResult) => void;
   dismissGuide: () => void;
+  // ── 只读日历导入（P4 ICS）：订阅源/上传文件 CRUD + 解析后的事件供日历叠加 ──
+  // 加一个日历源：url（https .ics 订阅，进应用时代取）或 events（上传文件内联存）。返回新 id（无 tree → null）。
+  addCalendarFeed: (input: { name: string; url?: string; events?: IcsEvent[] }) => string | null;
+  // 删一个日历源（连带其内联/已取事件从叠加里消失）。
+  removeCalendarFeed: (feedId: string) => void;
+  // 给日历视图用的只读事件：内联文件事件 ∪ url 订阅源代取的事件（后者不持久化，存在组件态）。
+  importedEvents: IcsEvent[];
+  // 选择器：某天的只读事件（按本地日 YYYY-MM-DD 过滤 importedEvents）。
+  eventsOnDay: (date: string) => IcsEvent[];
   safetyHold: Profile | null;
   continueAfterSafety: () => void;
 }
@@ -366,11 +377,49 @@ export function AppProvider({
     predictingRef.current = state.predicting !== null;
   }, [state.predicting]);
 
+  // 只读日历（P4 ICS）：url 订阅源代取的事件存在组件态（不持久化，每次进应用按 url 重取）。
+  // key = feed.id，便于增删时增量替换。
+  const [feedEvents, setFeedEvents] = useState<Record<string, IcsEvent[]>>({});
+
   // 挂载：读取本地数据 + 探测 AI 是否接入
   useEffect(() => {
     dispatch({ type: "hydrate", tree: repo().load() });
     fetchEnrichEnabled().then((enabled) => dispatch({ type: "setAiEnabled", enabled }));
   }, [repo]);
+
+  // url 订阅源变化（增/删/改 url）→ 重新代取。以 id|url 串联成签名，签名不变则不重取。
+  const urlFeeds = state.tree?.calendarFeeds?.filter((f) => f.url) ?? [];
+  const urlFeedSig = urlFeeds.map((f) => `${f.id}|${f.url}`).join(",");
+  useEffect(() => {
+    let cancelled = false;
+    const feeds = (treeRef.current?.calendarFeeds ?? []).filter((f) => f.url);
+    if (!feeds.length) {
+      setFeedEvents((cur) => (Object.keys(cur).length ? {} : cur));
+      return;
+    }
+    void Promise.all(
+      feeds.map(async (f) => ({ id: f.id, events: await fetchIcsEvents(f.url!) })),
+    ).then((results) => {
+      if (cancelled) return;
+      const next: Record<string, IcsEvent[]> = {};
+      for (const r of results) next[r.id] = r.events;
+      setFeedEvents(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [urlFeedSig]);
+
+  // 给日历叠加的只读事件：内联文件事件（feed.events）∪ url 订阅源代取的事件（feedEvents）。
+  const importedEvents = useMemo<IcsEvent[]>(() => {
+    const feeds = state.tree?.calendarFeeds ?? [];
+    const out: IcsEvent[] = [];
+    for (const f of feeds) {
+      if (f.url) out.push(...(feedEvents[f.id] ?? []));
+      else if (f.events) out.push(...f.events);
+    }
+    return out;
+  }, [state.tree?.calendarFeeds, feedEvents]);
 
   // 持久化：tree 变化即写入本地（含 AI 润色后的合并结果）
   useEffect(() => {
@@ -1022,6 +1071,42 @@ export function AppProvider({
         if (!baseTree) return;
         dispatch({ type: "patchTree", tree: { ...baseTree, guideDismissed: true, updatedAt: new Date().toISOString() } });
       },
+      // ── 只读日历导入（P4 ICS）：feed CRUD（订阅源/文件）+ 叠加事件 ──
+      // 加一个日历源：name 必填；url（订阅）与 events（文件内联）二选一。仅存订阅地址/内联事件本身。
+      addCalendarFeed: ({ name, url, events }) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return null;
+        const id = crypto.randomUUID();
+        const feed: CalendarFeed = {
+          id,
+          name: name.trim() || (url ? url : "Calendar"),
+          ...(url ? { url } : {}),
+          ...(events ? { events } : {}),
+        };
+        dispatch({
+          type: "patchTree",
+          tree: {
+            ...baseTree,
+            calendarFeeds: [...(baseTree.calendarFeeds ?? []), feed],
+            updatedAt: new Date().toISOString(),
+          },
+        });
+        return id;
+      },
+      removeCalendarFeed: (feedId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        dispatch({
+          type: "patchTree",
+          tree: {
+            ...baseTree,
+            calendarFeeds: (baseTree.calendarFeeds ?? []).filter((f) => f.id !== feedId),
+            updatedAt: new Date().toISOString(),
+          },
+        });
+      },
+      importedEvents,
+      eventsOnDay: (date) => importedEvents.filter((e) => e.date === date),
       safetyHold: state.safetyHold,
       continueAfterSafety: () => {
         if (predictingRef.current) return;
@@ -1046,6 +1131,7 @@ export function AppProvider({
       repo,
       predictAndCommit,
       regenerateAndCommit,
+      importedEvents,
     ],
   );
 

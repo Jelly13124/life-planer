@@ -1,9 +1,9 @@
 "use client";
 
-import type { LifeTree } from "@/domain/types";
+import type { IcsEvent, LifeTree } from "@/domain/types";
 import { useT } from "@/prefs/PreferencesContext";
 import { actionsOnDay, monthGrid } from "@/domain/calendar";
-import { IconRepeat } from "./ui/icons";
+import { IconRepeat, IconCalendar } from "./ui/icons";
 
 // 周一起始：表头用完整「周X」token，经 t() 译成 Mon…Sun（避免英文下漏出中文）。
 const WEEKDAY_HEAD = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
@@ -22,6 +22,7 @@ export function MonthCalendar({
   onSchedule,
   onScheduleGoal,
   onPlaceHere,
+  eventsOnDay,
 }: {
   tree: LifeTree;
   today: string;
@@ -36,6 +37,7 @@ export function MonthCalendar({
   onSchedule: (actionId: string, date: string) => void;   // desktop drop (task)
   onScheduleGoal: (goalId: string, date: string) => void; // desktop drop (goal → startDate)
   onPlaceHere: (date: string) => void;                    // mobile tap-assign target
+  eventsOnDay?: (date: string) => IcsEvent[];             // 只读外部日历事件（ICS 导入）
 }) {
   const { t } = useT();
   const grid = monthGrid(year, month);
@@ -61,6 +63,7 @@ export function MonthCalendar({
       <div className="grid grid-cols-7 gap-1">
         {grid.map((cell) => {
           const acts = actionsOnDay(tree, cell.date);
+          const evts = eventsOnDay ? eventsOnDay(cell.date) : [];
           const isToday = cell.date === today;
           const isSel = cell.date === selectedDay;
           return (
@@ -107,6 +110,18 @@ export function MonthCalendar({
                   </div>
                 ))}
                 {acts.length > 3 && <div className="px-1 text-[10px] text-[var(--fg-faint)]">+{acts.length - 3}</div>}
+                {/* 只读外部日历事件（ICS 导入）：虚线描边 + 日历小图标，无勾选/不可拖，明显「外部·只读」 */}
+                {evts.slice(0, 2).map((e) => (
+                  <div
+                    key={e.id}
+                    className="flex items-center gap-1 truncate rounded border border-dashed border-[var(--line)] px-1 py-0.5 text-[10px] leading-tight text-[var(--fg-faint)]"
+                    title={t("只读日历事件：{title}", { title: e.title })}
+                  >
+                    <IconCalendar className="h-2.5 w-2.5 flex-shrink-0" />
+                    <span className="truncate">{e.title}</span>
+                  </div>
+                ))}
+                {evts.length > 2 && <div className="px-1 text-[10px] text-[var(--fg-faint)]">+{evts.length - 2}</div>}
               </div>
             </div>
           );

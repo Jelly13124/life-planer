@@ -14,6 +14,7 @@ import { MonthCalendar } from "./MonthCalendar";
 import { YearView } from "./YearView";
 import { DayView } from "./DayView";
 import { TodayReminders } from "./TodayReminders";
+import { CalendarImportCard } from "./CalendarImportCard";
 import { addDays, branchPositionAge, currentStreak, heatmap } from "@/domain/daily";
 import { unscheduledActions } from "@/domain/calendar";
 import { goalProgress } from "@/domain/goals";
@@ -28,7 +29,7 @@ const _bootToday = localTodayStr();
 const WEEKDAY_FULL = ["每周日", "每周一", "每周二", "每周三", "每周四", "每周五", "每周六"];
 
 export function CalendarPlannerScreen() {
-  const { tree, openTree, openPath, openPlan, openUpcoming, scheduleAction, updateGoal, markDueGoalsReviewed, addBranch, addLooseTask, quickAdd } = useApp();
+  const { tree, openTree, openPath, openPlan, openUpcoming, scheduleAction, updateGoal, markDueGoalsReviewed, addBranch, addLooseTask, quickAdd, eventsOnDay } = useApp();
   const { t } = useT();
 
   const [today, setToday] = useState(_bootToday);
@@ -170,6 +171,9 @@ export function CalendarPlannerScreen() {
         onOpenUpcoming={openUpcoming}
       />
 
+      {/* 导入日历（只读 ICS）：粘贴订阅链接 / 上传 .ics，叠加到月/日视图 */}
+      <CalendarImportCard tree={tree} />
+
       {!tree.guideDismissed && <GettingStarted tree={tree} />}
 
       {doneGoals.length > 0 && (
@@ -249,6 +253,7 @@ export function CalendarPlannerScreen() {
                 onSchedule={(id, date) => scheduleAction(id, date)}
                 onScheduleGoal={(id, date) => updateGoal(id, { startDate: date })}
                 onPlaceHere={placeHere}
+                eventsOnDay={eventsOnDay}
               />
             )}
 
@@ -256,6 +261,7 @@ export function CalendarPlannerScreen() {
               <DayView
                 tree={tree}
                 date={selectedDay}
+                events={eventsOnDay(selectedDay)}
                 onPrevDay={() => setSelectedDay(addDays(selectedDay, -1))}
                 onNextDay={() => setSelectedDay(addDays(selectedDay, 1))}
                 onToday={() => setSelectedDay(today)}

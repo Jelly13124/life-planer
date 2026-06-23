@@ -1,5 +1,8 @@
 // 领域模型 —— 见 docs/superpowers/specs/2026-06-15-life-planner-design.md 第 4 节
 
+import type { IcsEvent } from "./ics";
+export type { IcsEvent };
+
 export type LifeArea =
   | "career" // 事业
   | "wealth" // 财富
@@ -342,11 +345,23 @@ export interface LifeTree {
   habits: Habit[]; // 无目标的散习惯/日常（goal-less，如「上班」）—— 与 goal.habits 区分，挂树根
   choices: Choice[]; // 选择面板：决策对比（与人生树打通）
   activity: ActivityDay[]; // 每日激励闭环：今日计划/完成记录
+  calendarFeeds: CalendarFeed[]; // 只读外部日历（ICS 订阅源 / 上传文件），叠加在月/日视图
   dayStart?: string; // 清醒时段起点 HH:MM（未设默认 07:00）
   dayEnd?: string;   // 清醒时段终点 HH:MM（未设默认 23:00）
   guideDismissed?: boolean; // 首次上手引导是否已关闭（undefined=未关→仍显示，无需迁移）
   createdAt: string;
   updatedAt: string;
+}
+
+// ───────── 只读日历导入（P4 ICS）：外部订阅源 / 上传文件 → 月/日视图只读叠加 ─────────
+// url：订阅地址（https .ics），每次进应用按它重新代取最新事件（不持久化事件本身）。
+// events：上传 .ics 文件时把客户端解析出的事件内联存下（无 url，离线也在）。
+// 二者互斥使用：链接订阅用 url；文件上传用 events。
+export interface CalendarFeed {
+  id: string;
+  name: string;
+  url?: string;
+  events?: IcsEvent[];
 }
 
 // 综合人生指数：各领域加权平均（v1 等权）。刻意是"主观状态感受"，非客观真理。

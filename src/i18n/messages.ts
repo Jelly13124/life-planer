@@ -789,4 +789,20 @@ export const EN: Record<string, string> = {
   // 空状态
   "还没有要权衡的选择。新建一个，把纠结摊开看。":
     "No choices to weigh yet. Add one and lay your dilemma out in the open.",
+
+  // ── P4：只读 ICS 日历导入（订阅链接 / 上传文件，叠加在月/日视图） ──
+  导入日历: "Import calendar",
+  日历订阅: "Subscription",
+  "粘贴 .ics 链接": "Paste an .ics link",
+  "上传 .ics 文件": "Upload an .ics file",
+  上传文件: "Uploaded file",
+  只读: "Read-only",
+  "只读日历事件：{title}": "Read-only calendar event: {title}",
+  全天: "All-day",
+  "{n} 个日历订阅": "{n} calendar feed(s)",
+  "粘贴日历的 .ics 订阅链接，或上传 .ics 文件。导入的事件以只读日历事件显示，不参与排程。":
+    "Paste a calendar's .ics subscription link, or upload an .ics file. Imported events show as read-only and don't take part in scheduling.",
+  "请用 https 开头的 .ics 链接": "Use an .ics link that starts with https",
+  没从这个文件里读到日历事件: "No calendar events found in this file",
+  读取文件失败: "Couldn't read the file",
 };

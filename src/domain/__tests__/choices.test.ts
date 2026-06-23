@@ -29,6 +29,7 @@ function makeTree(choices: Choice[] = []): LifeTree {
     habits: [],
     choices,
     activity: [],
+    calendarFeeds: [],
     createdAt: NOW,
     updatedAt: NOW,
   };
