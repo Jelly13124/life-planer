@@ -33,6 +33,11 @@ const SCENARIOS: { value: Scenario; label: string }[] = [
   { value: "conservative", label: "保守" },
 ];
 
+// 可行度显示：四舍五入到最近的 5，避免给出"精确概率"的错觉。
+function roundFeasibility(x: number): number {
+  return Math.round(x / 5) * 5;
+}
+
 const MOOD_COLOR: Record<Mood, string> = {
   high: "#34d399",
   mid: "#f59e0b",
@@ -120,6 +125,21 @@ export function PathDetail({
         <p className="mt-2 text-xs text-[var(--fg-faint)]">
           {t("这是一种可能的人生，不是预测。数字代表综合状态感受，仅供想象与参考。")}
         </p>
+        {/* 现实可行度：仅 choice 路、且有值时显示（status-quo 是默认轨道，不评） */}
+        {path.kind === "choice" && typeof path.feasibility === "number" && (
+          <div className="mt-3">
+            <div className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-2xl border border-[var(--line)] bg-black/[0.03] px-3 py-2 text-sm">
+              <span className="text-[var(--fg-faint)]">{t("现实可行度")}</span>
+              <span className="font-semibold text-[var(--fg)]">
+                {t("约 {pct}%", { pct: roundFeasibility(path.feasibility) })}
+              </span>
+              {path.feasibilityNote && (
+                <span className="text-[var(--fg-dim)]">— {path.feasibilityNote}</span>
+              )}
+            </div>
+            <p className="mt-1.5 text-xs text-[var(--fg-faint)]">{t("AI 粗估，非精确概率")}</p>
+          </div>
+        )}
         <div className="mt-4 flex flex-wrap gap-2">
           <Button variant="primary" onClick={() => setChatting(true)}>
             <IconSparkle className="h-4 w-4" />

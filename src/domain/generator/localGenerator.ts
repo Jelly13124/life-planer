@@ -59,6 +59,21 @@ function moodFromShape(v: number): Mood {
   return "low";
 }
 
+// 离线粗估"现实可行度"（接入 AI 前的兜底）：把 endValue/曲线映射到克制的 35–65 区间。
+// 直觉：陡升=高回报但门槛更高（略低可行度），平稳/稳升=更够得着（略高）。确定性，不引随机。
+function coarseFeasibility(endValue: number, curve: CurveShape): number {
+  // endValue 0-100 → 基线 38–58（越高越够得着一点，但不让它一路飙高）
+  const base = 38 + (clamp(endValue) / 100) * 20;
+  const curveAdj: Record<CurveShape, number> = {
+    "rise-steep": -6, // 大跨越、回报高 → 门槛更高
+    "rise-gentle": 4, // 顺势稳升 → 更够得着
+    "dip-rise": -2, // 先苦后甜
+    flat: 3, // 稳态、变化不大
+    decline: 0,
+  };
+  return Math.round(clamp(base + curveAdj[curve], 35, 65));
+}
+
 // 为单个领域生成随年龄变化的轨迹：从起点漂移到目标，叠加确定性噪声。
 function buildAreaSeries(
   start: number,
@@ -191,6 +206,13 @@ export class LocalPathGenerator implements PathGenerator {
       parentId,
       forkAge: startAge,
       scenario,
+      // 仅 choice 路给一个粗估可行度（status-quo = 默认轨道，不评）。接入 AI 后会被覆盖为更准的值。
+      ...(kind === "choice"
+        ? {
+            feasibility: coarseFeasibility(endValue, archetype.curve),
+            feasibilityNote: "粗估，接入 AI 后更准",
+          }
+        : {}),
     };
   }
 }

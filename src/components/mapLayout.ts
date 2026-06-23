@@ -45,6 +45,7 @@ export interface PathLayout {
   scenario: Scenario;
   choiceLabel: string;
   summary: string;
+  feasibility?: number; // 现实可行度 0-100（仅 choice 路有；status-quo 不带）
   forkAge: number;
   endAge: number;
   depth: number; // 0 = 根分支
@@ -280,6 +281,8 @@ export function layoutMap(
       scenario: p.scenario,
       choiceLabel: p.kind === "status-quo" ? "维持现状" : p.choiceLabel,
       summary: p.summary,
+      // 可行度仅随 choice 路带出（status-quo 不评）；地图据此显示「约 N%」徽标。
+      feasibility: p.kind === "choice" ? p.feasibility : undefined,
       forkAge: p.forkAge,
       endAge,
       depth,

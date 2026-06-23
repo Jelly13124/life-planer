@@ -11,6 +11,8 @@ import { currentLocale } from "@/i18n/locale";
 
 export interface EnrichResult {
   forkDelayYears?: number; // AI 决定的"几年后才分叉"（仅根分支的选择会用）
+  feasibility?: number; // 现实可行度 0-100（仅 choice 有意义）
+  feasibilityNote?: string; // ≤20 字依据
   summary: string;
   nodes: {
     age: number;
@@ -107,8 +109,16 @@ export function applyEnrichment(
   const summary = result.summary || path.summary;
   // 起点没变（子分支/未重定）时不动 forkAge；根分支按 AI 重定。
   const forkAge = retime ? base : path.forkAge;
-  if (cleaned.length < 2) return { ...path, summary, forkAge };
-  return { ...path, summary, forkAge, nodes: cleaned };
+  // 现实可行度：仅 choice 路携带（status-quo 是默认轨道，不评可行度）。
+  const feas: Partial<LifePath> =
+    path.kind === "choice" && Number.isFinite(result.feasibility)
+      ? {
+          feasibility: Math.round(Math.max(0, Math.min(100, result.feasibility!))),
+          feasibilityNote: (result.feasibilityNote ?? "").trim() || undefined,
+        }
+      : {};
+  if (cleaned.length < 2) return { ...path, ...feas, summary, forkAge };
+  return { ...path, ...feas, summary, forkAge, nodes: cleaned };
 }
 
 // 查询后端是否已接入真实大模型

@@ -30,6 +30,9 @@ export const MAX_FORK_DELAY = 10; // AI 决定的"几年后分叉"上限
 const EnrichOut = z.object({
   // AI 自己判断：现实里这条路大约几年后才真正开始（0 = 现在/今年就走）。
   forkDelayYears: z.number().int().min(0).max(MAX_FORK_DELAY).default(0),
+  // 现实可行度：从主角真实起点到这条路要求的差距——对他多够得着（仅 choice 有意义）。
+  feasibility: z.number().int().min(0).max(100).default(50),
+  feasibilityNote: z.string().default(""),
   summary: z.string(),
   nodes: z.array(
     z.object({
@@ -193,6 +196,12 @@ function buildUserPrompt(input: EnrichInput): string {
     "- 金额用主角所在国/文化的真实货币与口径（中国用人民币、美国用美元年总包、欧洲欧元……）；表单里的月薪区间只是现状参考，推演里要写当地真实的具体数字，别照抄区间、也别默认套美元。每个金额紧跟其所在城市/国家；跨国流动时显式切换币种并说明原因。",
   );
   lines.push("- 克制可信、扎根现实，有真实的摩擦（如抽签没中、晋升卡壳），不要爽文。");
+  if (input.kind === "choice") {
+    lines.push("");
+    lines.push(
+      "评估这条路的【现实可行度】feasibility(0-100 整数)：衡量从主角真实起点（技能/资源/积蓄/约束/当前阶段）到这条路要求之间的差距——对他有多够得着。要校准、别都打高分：起点弱却要大跨越→低；顺势而为/已有基础→高。注意：可行度评估的是这条路本身的现实门槛，不随乐观/保守走向变化（同一选择的不同走向可行度应基本一致）。再给一句 ≤20 字的依据 feasibilityNote（如『有设计功底+已起号，但变现门槛高』）。",
+    );
+  }
   lines.push("");
   lines.push("只输出如下结构的 json：");
   lines.push(jsonExample(p.name, lo, hi));
@@ -215,6 +224,8 @@ function jsonExample(name: string, lo: number, hi: number): string {
   const a2 = Math.min(hi, lo + 5);
   return `{
   "forkDelayYears": 2,
+  "feasibility": 45,
+  "feasibilityNote": "一句依据",
   "summary": "一句话结局",
   "nodes": [
     {"age": ${a1}, "title": "小标题", "story": "至少 3 个完整句子、关于${name}的叙述，含具体人/机构、具体数字、一处内心或细节", "mood": "low", "dimensions": ["career", "identity"]},

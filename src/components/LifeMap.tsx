@@ -44,6 +44,11 @@ function truncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + "…" : s;
 }
 
+// 可行度显示：四舍五入到最近的 5，避免"精确概率"错觉（与 PathDetail 一致）。
+function roundFeasibility(x: number): number {
+  return Math.round(x / 5) * 5;
+}
+
 export function LifeMap({
   tree,
   onSelectPath,
@@ -617,6 +622,18 @@ function PathCurve({
         <text x={p.end.x + 14} y={p.end.y + 15} fontSize={12} fill="var(--fg-dim)">
           {truncate(p.summary, 20)}
         </text>
+        {/* 现实可行度徽标：仅 choice 路、有值时，聚焦（hover/选中）才显示，避免地图杂乱 */}
+        {!isSq && active && typeof p.feasibility === "number" && (
+          <text
+            x={p.end.x + 14}
+            y={p.end.y + 31}
+            fontSize={11}
+            fill="var(--fg-faint)"
+            style={{ paintOrder: "stroke", stroke: "var(--bg-0)", strokeWidth: 3 }}
+          >
+            {t("约 {pct}%", { pct: roundFeasibility(p.feasibility) })}
+          </text>
+        )}
       </g>
     </g>
   );

@@ -828,4 +828,10 @@ export const EN: Record<string, string> = {
   "云端连接异常，已暂时改用本地存档（数据不会丢）。":
     "Cloud connection issue — temporarily using local storage (your data is safe).",
   已从本地迁移到云端: "Your local data was migrated to the cloud",
+
+  // ── 现实可行度（per-choice feasibility %） ──
+  现实可行度: "Feasibility",
+  "约 {pct}%": "~{pct}%",
+  "AI 粗估，非精确概率": "Rough AI estimate, not a precise probability",
+  "粗估，接入 AI 后更准": "Rough estimate — more accurate once AI is connected",
 };
