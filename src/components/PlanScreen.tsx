@@ -19,6 +19,7 @@ import {
 } from "@/domain/types";
 import { allTags, dueGoalReviews, goalProgress } from "@/domain/goals";
 import { longGoals, shortGoalsOf, standaloneShortGoals } from "@/domain/goalTree";
+import type { PlanShortResult } from "@/domain/planShort";
 import { localTodayStr } from "@/lib/dailyClient";
 import {
   fetchGoalDecomposition,
@@ -55,6 +56,14 @@ const AREA_COLORS: Record<GoalArea, string> = {
 type TFn = (zh: string, vars?: Record<string, string | number>) => string;
 
 const WEEKDAY_KEYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"] as const;
+// 「每周X」里只需要末字（日/一/…/六），避免拼成「每周周三」。
+const WEEKDAY_TAIL = ["日", "一", "二", "三", "四", "五", "六"] as const;
+
+// 本地日 "YYYY-MM-DD" → "M月D日"（去掉前导零，简洁）。
+function monthDay(date: string): string {
+  const [, m, d] = date.split("-").map(Number);
+  return `${m}月${d}日`;
+}
 
 // ───────────────────────────────────────────────────────────────────────────
 // 小图标按钮：编辑/删除等次级操作，统一观感。
@@ -1173,12 +1182,45 @@ function ShortGoalCard({
   focused?: boolean;
   onFocused?: () => void;
 }) {
-  const { updateGoal, removeGoalById, completeGoalById } = useApp();
+  const { updateGoal, removeGoalById, completeGoalById, planShortGoal, applyShortPlan } = useApp();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(short.title);
   const cardRef = useRef<HTMLDivElement>(null);
   const color = AREA_COLORS[short.area];
   const done = short.status === "done";
+
+  // 「AI 规划这一段」：planning（loading）/ preview（方案预览）/ empty（这段没有可排的项）。
+  const [planning, setPlanning] = useState(false);
+  const [preview, setPreview] = useState<PlanShortResult | null>(null);
+  const [noneToPlan, setNoneToPlan] = useState(false);
+
+  // 是否值得显示 AI 按钮：有时间窗（短期目标常有起/止）且有未排期任务或每周习惯。
+  const hasWindow = !!(short.startDate || short.endDate);
+  const unscheduledTasks = (short.tasks ?? []).filter((tk) => !tk.scheduledDate && !tk.done);
+  const weeklyHabits = (short.habits ?? []).filter((h) => h.repeat === "weekly");
+  const canPlan = hasWindow && (unscheduledTasks.length > 0 || weeklyHabits.length > 0);
+
+  // 预览里需要的任务/习惯文本（按 id 查），用于「任务X → 6月25日」「习惯Y → 每周三」。
+  const taskTextById = (id: string) => (short.tasks ?? []).find((tk) => tk.id === id)?.text ?? id;
+  const habitTextById = (id: string) => (short.habits ?? []).find((h) => h.id === id)?.text ?? id;
+
+  async function runPlan() {
+    if (planning) return;
+    setNoneToPlan(false);
+    setPlanning(true);
+    try {
+      const plan = await planShortGoal(short.id);
+      if (!plan || (!Object.keys(plan.taskDates).length && !Object.keys(plan.habitWeekdays).length)) {
+        setNoneToPlan(true);
+      } else {
+        setPreview(plan);
+      }
+    } catch {
+      setNoneToPlan(true);
+    } finally {
+      setPlanning(false);
+    }
+  }
 
   // 从「收藏」「全部任务」等处跳来聚焦本短期目标：居中滚入，然后清掉聚焦标记。
   useEffect(() => {
@@ -1279,6 +1321,95 @@ function ShortGoalCard({
         t={t}
         habitHint
       />
+
+      {/* AI 规划这一段：在时间窗内按合理频率排未排期任务 + 给每周习惯定星期几（预览→应用）。 */}
+      {!done && canPlan && (
+        <div className="mt-3">
+          {!preview && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={runPlan}
+                disabled={planning}
+                aria-label={t("AI 规划这一段")}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--accent)]/50 bg-[var(--accent)]/10 px-3 py-1 text-[11px] text-[var(--accent)] transition hover:bg-[var(--accent)]/20 disabled:opacity-60"
+              >
+                {!planning && <IconSparkle className="h-3.5 w-3.5" />}
+                {planning ? t("正在规划…") : t("AI 规划这一段")}
+              </button>
+              {noneToPlan && (
+                <span className="text-[11px] text-[var(--fg-faint)]">{t("这段没有可排的任务")}</span>
+              )}
+            </div>
+          )}
+
+          {preview && (
+            <div className="space-y-2.5 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/[0.05] p-3">
+              <div className="text-xs leading-relaxed text-[var(--fg-dim)]">
+                {t("AI 把这段铺成了下面的安排。应用后任务会排到对应日期、每周习惯会定到对应星期几。")}
+              </div>
+
+              {/* 任务 → 日期 */}
+              {Object.entries(preview.taskDates).length > 0 && (
+                <div className="space-y-1">
+                  {Object.entries(preview.taskDates).map(([id, date]) => (
+                    <div
+                      key={id}
+                      className="flex items-center gap-1.5 text-sm text-[var(--fg)]"
+                    >
+                      <IconCalendar className="h-3.5 w-3.5 flex-shrink-0 text-[var(--fg-faint)]" />
+                      <span className="min-w-0 truncate">
+                        {t("{text} → {date}", { text: taskTextById(id), date: monthDay(date) })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 每周习惯 → 星期几 */}
+              {Object.entries(preview.habitWeekdays).length > 0 && (
+                <div className="space-y-1">
+                  {Object.entries(preview.habitWeekdays).map(([id, wd]) => (
+                    <div
+                      key={id}
+                      className="flex items-center gap-1.5 text-sm text-[var(--fg)]"
+                    >
+                      <IconRepeat className="h-3.5 w-3.5 flex-shrink-0 text-[var(--fg-faint)]" />
+                      <span className="min-w-0 truncate">
+                        {t("{text} → {wd}", {
+                          text: habitTextById(id),
+                          // 用整条「每周X」键（zh→「每周三」；en→「Weekly (Wed)」），避免拼接出「每周周三」。
+                          wd: t(`每周${WEEKDAY_TAIL[((wd % 7) + 7) % 7]}`),
+                        })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 border-t border-[var(--line)] pt-2.5">
+                <button
+                  type="button"
+                  onClick={() => setPreview(null)}
+                  className="rounded-full px-3 py-1.5 text-xs text-[var(--fg-faint)] transition hover:text-[var(--fg)]"
+                >
+                  {t("取消")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    applyShortPlan(preview);
+                    setPreview(null);
+                  }}
+                  className="rounded-full border border-[var(--accent)]/60 bg-[var(--accent)]/10 px-3 py-1.5 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/20"
+                >
+                  {t("应用")}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 标记达成 */}
       {!done && (

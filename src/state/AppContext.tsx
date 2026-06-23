@@ -58,7 +58,10 @@ import { completeAction, findAction, isActionDoneToday, planToday, removeActionE
 import { actionsOnDay, setActionScheduledDate } from "@/domain/calendar";
 import { arrangeDay, setActionTime, setDayWindow, dayWindow } from "@/domain/schedule";
 import { parseQuickInput } from "@/domain/quickParse";
+import { updateHabit as updateHabitInTree } from "@/domain/goalTree";
 import { fetchArrangeDay } from "@/lib/scheduleClient";
+import { fetchPlanShort } from "@/lib/planShortClient";
+import type { PlanShortResult } from "@/domain/planShort";
 import { anyCrisisSignal } from "@/domain/safety";
 
 export type View =
@@ -304,6 +307,11 @@ interface AppApi {
   setActionTimeById: (actionId: string, startTime: string | null, durationMin?: number) => void;
   setDayWindowValues: (start: string, end: string) => void;
   arrangeDayWithAI: (date: string) => Promise<void>;
+  // AI 规划一个短期目标这一段：在其时间窗内按合理频率排未排期任务、给每周习惯定星期几。
+  // 返回方案（供预览），不直接落地；找不到目标 / 无可排项 → null。离线走本地兜底。
+  planShortGoal: (goalId: string) => Promise<PlanShortResult | null>;
+  // 应用预览方案：在一棵 working 树上设每个任务的 scheduledDate + 每个习惯的 repeatWeekday，单次 patchTree。
+  applyShortPlan: (plan: PlanShortResult) => void;
   dismissGuide: () => void;
   safetyHold: Profile | null;
   continueAfterSafety: () => void;
@@ -966,6 +974,47 @@ export function AppProvider({
         // 应用时读最新树，避免动画/并发期间被覆盖；把所有结果折进一棵树，单次 dispatch。
         let t = treeRef.current ?? baseTree;
         for (const p of plan) t = setActionTime(t, p.id, p.startTime, p.durationMin);
+        dispatch({ type: "patchTree", tree: t });
+      },
+      // AI 规划短期目标这一段：收集该短期目标的未排期任务 + 每周习惯 + 时间窗 + 作息 + today，
+      // 调 fetchPlanShort（离线走本地兜底），返回方案给 UI 预览。不直接落地。
+      planShortGoal: async (goalId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return null;
+        const goal = goalByIdInTree(baseTree, goalId);
+        if (!goal) return null;
+        const today = localDay(new Date());
+        // 未排期任务：没排日期、未完成。
+        const tasks = (goal.tasks ?? [])
+          .filter((tk) => !tk.scheduledDate && !tk.done)
+          .map((tk) => ({ id: tk.id, text: tk.text }));
+        // 每周习惯参与定星期几；每日习惯随同传入但本地兜底不动它们。
+        const habits = (goal.habits ?? []).map((h) => ({ id: h.id, text: h.text, repeat: h.repeat }));
+        // 没什么可排（无任务且无每周习惯）→ null，让 UI 提示「这段没有可排的任务」。
+        if (!tasks.length && !habits.some((h) => h.repeat === "weekly")) return null;
+        const win = dayWindow(baseTree);
+        return fetchPlanShort({
+          goal: { title: goal.title, why: goal.why, startDate: goal.startDate, endDate: goal.endDate },
+          startDate: goal.startDate ?? today,
+          endDate: goal.endDate ?? "",
+          today,
+          dayStart: win.start,
+          dayEnd: win.end,
+          tasks,
+          habits,
+        });
+      },
+      // 应用预览方案：读最新树，在一棵 working 树上设每个任务 scheduledDate + 每个习惯 repeatWeekday，单次 patchTree。
+      applyShortPlan: (plan) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return;
+        let t = baseTree;
+        for (const [taskId, date] of Object.entries(plan.taskDates)) {
+          t = setActionScheduledDate(t, taskId, date);
+        }
+        for (const [habitId, wd] of Object.entries(plan.habitWeekdays)) {
+          t = updateHabitInTree(t, habitId, { repeatWeekday: wd });
+        }
         dispatch({ type: "patchTree", tree: t });
       },
       dismissGuide: () => {

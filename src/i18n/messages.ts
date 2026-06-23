@@ -666,6 +666,15 @@ export const EN: Record<string, string> = {
   "习惯会在本目标时间内重复": "Habits repeat within this goal's date range",
   // AI 拆成短期目标
   "AI 拆成短期目标": "Break into short-term goals with AI",
+  // AI 规划这一段（P2：在短期目标时间窗内排未排期任务 + 给每周习惯定星期几）
+  "AI 规划这一段": "AI plan this stretch",
+  "正在规划…": "Planning…",
+  应用: "Apply",
+  这段没有可排的任务: "Nothing to schedule for this stretch",
+  "AI 把这段铺成了下面的安排。应用后任务会排到对应日期、每周习惯会定到对应星期几。":
+    "AI laid this stretch out below. Apply to schedule tasks on these dates and set weekly habits to these weekdays.",
+  "{text} → {date}": "{text} → {date}",
+  "{text} → {wd}": "{text} → {wd}",
   // 上级长期目标（DayView 任务详情）
   上级目标: "Parent goal",
 
