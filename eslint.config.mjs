@@ -13,6 +13,31 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  // 领域层纯函数铁律：src/domain/** 不得取当前时间/随机数（time 由 state 层注入）。
+  // 只禁不纯的形式——无参 new Date()/Date.now()/Math.random()；new Date(注入值) 仍允许。
+  // 编辑后由 scripts/hooks/check-edit.mjs 自动执行；测试目录豁免。
+  {
+    files: ["src/domain/**/*.{ts,tsx}"],
+    ignores: ["src/domain/**/__tests__/**", "src/domain/**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "NewExpression[callee.name='Date'][arguments.length=0]",
+          message:
+            "domain 层禁用无参 new Date()（取当前时间不纯）。请由 state 层注入 now/today（如 new Date(iso)）。",
+        },
+        {
+          selector: "CallExpression[callee.object.name='Date'][callee.property.name='now']",
+          message: "domain 层禁用 Date.now()（不纯）。请由 state 层注入时间。",
+        },
+        {
+          selector: "CallExpression[callee.object.name='Math'][callee.property.name='random']",
+          message: "domain 层禁用 Math.random()（不纯）。请用 seed.ts 的种子化随机。",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;
