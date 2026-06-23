@@ -37,12 +37,14 @@ import {
   removeGoalTag,
 } from "@/domain/goals";
 import {
-  addGoal as addGoalToTree,
+  addLongGoal as addLongGoalToTree,
+  addShortGoal as addShortGoalToTree,
   addHabit as addHabitToTree,
-  addSubgoal as addSubgoalToTree,
   addTask as addTaskToTree,
   bumpMetric as bumpMetricInTree,
+  goalById as goalByIdInTree,
   removeGoalById as removeGoalFromTree,
+  removeItem as removeItemFromTree,
   removeMetric as removeMetricFromTree,
   setMetric as setMetricInTree,
   updateGoalById,
@@ -214,31 +216,30 @@ interface AppApi {
   updateDecision: (decision: Decision) => void; // 按 id 原地更新（勾选/复盘）
   regeneratePath: (pathId: string, note: string) => void; // 带补充信息重新推演这条路
   openPlan: () => void;
-  // ── Goals（嵌套模型：领域 → 目标(时间范围) → 子目标 → {指标/任务/习惯}）──
-  // 建一个目标（可选关联人生树分支 pathId）。返回新目标 id。
-  addGoal: (input: { area: Goal["area"]; title: string; why?: string; startDate?: string; endDate?: string; pathId?: string | null; tags?: string[] }) => string | null;
-  // 建一个目标并在人生树上长出一条对应分支（长目标），AI 推演后落树。
-  addGoalWithBranch: (input: { area: Goal["area"]; title: string; why?: string; startDate?: string; endDate?: string }) => void;
+  // ── Goals（两级模型：领域 → 长期目标 ⊃ 短期目标 → {指标/任务/习惯}）──
+  // 建一个长期目标（kind:"long"，可选关联人生树分支 pathId）。返回新目标 id。
+  addLongGoal: (input: { area: Goal["area"]; title: string; why?: string; startDate?: string; endDate?: string; pathId?: string | null; tags?: string[] }) => string | null;
+  // 建一个长期目标并在人生树上长出一条对应分支，AI 推演后落树（仅长期目标上树）。
+  addLongGoalWithBranch: (input: { area: Goal["area"]; title: string; why?: string; startDate?: string; endDate?: string }) => void;
+  // 在某长期目标下建一个短期目标（kind:"short"，parentGoalId=parentLongId；area 默认继承父长期目标）。返回新目标 id。
+  addShortGoal: (parentLongId: string, input: { title: string; why?: string; startDate?: string; endDate?: string; area?: Goal["area"] }) => string | null;
   // 改目标字段（title/why/area/startDate/endDate/tags…）。
   updateGoal: (goalId: string, patch: Partial<Goal>) => void;
-  // 删目标（级联子目标/任务/习惯，清 activity，剪掉关联分支）。
+  // 删目标（长期级联其短期子目标/任务/习惯，清 activity，剪掉关联分支；短期仅删自身）。
   removeGoalById: (goalId: string) => void;
-  // 达成目标（标 done + 给所属人生面加分）。
+  // 达成目标（标 done；仅长期且非 other 给所属人生面加分，由 domain 处理）。
   completeGoalById: (goalId: string) => void;
   markDueGoalsReviewed: () => void;
   addGoalTagById: (goalId: string, tag: string) => void;
   removeGoalTagById: (goalId: string, tag: string) => void;
-  // ── Subgoals ──
-  addSubgoal: (goalId: string, title: string) => string | null;
-  removeSubgoal: (subgoalId: string) => void;
-  // ── Tasks / Habits（建在目标级 subgoalId=null，或某子目标下）──
-  addTask: (goalId: string, subgoalId: string | null, text: string) => string | null;
-  addHabit: (goalId: string, subgoalId: string | null, text: string, repeat: "daily" | "weekly", weekday?: number) => string | null;
-  removeItemById: (itemId: string) => void; // 删一条 task 或 habit（任意层），清 activity
-  // ── Metrics（owner = 目标或子目标，按 id）──
-  setMetric: (ownerId: string, metric: Metric) => void;
+  // ── Tasks / Habits（直挂在某目标上：长期或短期皆可，无 subgoalId）──
+  addTask: (goalId: string, text: string) => string | null;
+  addHabit: (goalId: string, text: string, repeat: "daily" | "weekly", weekday?: number) => string | null;
+  removeItemById: (itemId: string) => void; // 删一条 task 或 habit（任意目标），清 activity
+  // ── Metrics（owner = 一个目标 id）──
+  setMetric: (goalId: string, metric: Metric) => void;
   bumpMetric: (metricId: string, delta: number) => void;
-  removeMetric: (ownerId: string, metricId: string) => void;
+  removeMetric: (goalId: string, metricId: string) => void;
   // ── AI 拆解目标：把一份（已勾选的）拆解结果一次性折进目标（仅新增，原子提交）──
   applyGoalDecomposition: (goalId: string, dec: GoalDecomposition) => void;
   openDashboard: () => void;
@@ -550,17 +551,17 @@ export function AppProvider({
         void regenerateAndCommit(pathId, note);
       },
       openPlan: () => dispatch({ type: "openPlan" }),
-      // 建目标（不长分支）。返回新 id（无 tree / 空标题 → null）。
-      addGoal: ({ area, title, why, startDate, endDate, pathId, tags }) => {
+      // 建长期目标（不长分支）。返回新 id（无 tree / 空标题 → null）。
+      addLongGoal: ({ area, title, why, startDate, endDate, pathId, tags }) => {
         const baseTree = treeRef.current;
         if (!baseTree || !title.trim()) return null;
         const input: AddGoalInput = { area, title, why, startDate, endDate, pathId, tags };
-        const { tree, id } = addGoalToTree(baseTree, input, new Date().toISOString());
+        const { tree, id } = addLongGoalToTree(baseTree, input, new Date().toISOString());
         dispatch({ type: "patchTree", tree });
         return id;
       },
-      // 建目标 + 长出一条人生树分支（长目标），AI 推演后整体落树。
-      addGoalWithBranch: ({ area, title, why, startDate, endDate }) => {
+      // 建长期目标 + 长出一条人生树分支，AI 推演后整体落树（仅长期目标上树）。
+      addLongGoalWithBranch: ({ area, title, why, startDate, endDate }) => {
         if (predictingRef.current) return;
         const baseTree = treeRef.current;
         if (!baseTree || !title.trim()) return;
@@ -569,14 +570,25 @@ export function AppProvider({
         const working = addPath(baseTree, title, generator, ts);
         if (working === baseTree) return;
         const newPath = working.paths[working.paths.length - 1];
-        // 2) 建目标并关联这条分支（同一棵 working 树上加，避免并发回填竞态）
-        const { tree: withGoal } = addGoalToTree(
+        // 2) 建长期目标并关联这条分支（同一棵 working 树上加，避免并发回填竞态）
+        const { tree: withGoal } = addLongGoalToTree(
           working,
           { area, title, why, startDate, endDate, pathId: newPath.id },
           ts,
         );
         // 3) 推演这条分支（播动画、落到树上）。withGoal 含 goals，predictAndCommit 会保留。
         void predictAndCommit(withGoal, [newPath], "branch");
+      },
+      // 在某长期目标下建一个短期目标（area 默认继承父长期目标）。返回新 id（无 tree / 空标题 / 找不到父目标 → null）。
+      addShortGoal: (parentLongId, { title, why, startDate, endDate, area }) => {
+        const baseTree = treeRef.current;
+        if (!baseTree || !title.trim()) return null;
+        const parent = goalByIdInTree(baseTree, parentLongId);
+        if (!parent) return null;
+        const input: AddGoalInput = { area: area ?? parent.area, title, why, startDate, endDate };
+        const { tree, id } = addShortGoalToTree(baseTree, parentLongId, input, new Date().toISOString());
+        dispatch({ type: "patchTree", tree });
+        return id;
       },
       updateGoal: (goalId, patch) => {
         const baseTree = treeRef.current;
@@ -665,9 +677,9 @@ export function AppProvider({
         if (!baseTree) return;
         dispatch({ type: "patchTree", tree: choices.reopenChoice(baseTree, choiceId) });
       },
-      // 拍板：在同一快照里 decideChoice + （可选）建目标，避免两次 dispatch 互相覆盖。
-      // 从同一份 baseTree 快照查 option/choice，建目标复用 addGoal 走的 goalTree.addGoal，
-      // 关联该选项已推演出的分支（option.pathId）。
+      // 拍板：在同一快照里 decideChoice + （可选）建长期目标，避免两次 dispatch 互相覆盖。
+      // 从同一份 baseTree 快照查 option/choice，建长期目标走 goalTree.addLongGoal，
+      // 关联该选项已推演出的分支（option.pathId）。仅长期目标上树，故拍板只造长期目标。
       decideChoice: (choiceId, optionId, opts) => {
         const baseTree = treeRef.current;
         if (!baseTree) return;
@@ -683,7 +695,7 @@ export function AppProvider({
               why: choice.question,
               pathId: option.pathId ?? null,
             };
-            ({ tree: t } = addGoalToTree(t, input, now));
+            ({ tree: t } = addLongGoalToTree(t, input, now));
           }
         }
         dispatch({ type: "patchTree", tree: t });
@@ -712,87 +724,55 @@ export function AppProvider({
         dispatch({ type: "patchTree", tree: linked });
         void predictAndCommit(linked, [newPath], "branch");
       },
-      // ── Subgoals ──
-      addSubgoal: (goalId, title) => {
-        const baseTree = treeRef.current;
-        if (!baseTree || !title.trim()) return null;
-        const { tree, id } = addSubgoalToTree(baseTree, goalId, title, new Date().toISOString());
-        dispatch({ type: "patchTree", tree });
-        return id;
-      },
-      // 删一个子目标：连带它名下的 task/habit，并清掉这些 id 在每日活动里的记录。
-      // goalTree 未提供 removeSubgoal，这里在 state 层做最小定位+过滤（保持 domain 不动）。
-      removeSubgoal: (subgoalId) => {
-        const baseTree = treeRef.current;
-        if (!baseTree) return;
-        const ids = new Set<string>();
-        for (const g of baseTree.goals ?? []) {
-          for (const s of g.subgoals ?? []) {
-            if (s.id !== subgoalId) continue;
-            for (const t of s.tasks ?? []) ids.add(t.id);
-            for (const h of s.habits ?? []) ids.add(h.id);
-          }
-        }
-        const next: LifeTree = {
-          ...baseTree,
-          goals: (baseTree.goals ?? []).map((g) => ({
-            ...g,
-            subgoals: (g.subgoals ?? []).filter((s) => s.id !== subgoalId),
-          })),
-          activity: (baseTree.activity ?? []).map((d) => ({
-            ...d,
-            plannedActionIds: d.plannedActionIds.filter((x) => !ids.has(x)),
-            completedActionIds: d.completedActionIds.filter((x) => !ids.has(x)),
-          })),
-        };
-        dispatch({ type: "patchTree", tree: next });
-      },
-      // ── Tasks / Habits ──
-      addTask: (goalId, subgoalId, text) => {
+      // ── Tasks / Habits（直挂在某目标上：长期或短期皆可） ──
+      addTask: (goalId, text) => {
         const baseTree = treeRef.current;
         if (!baseTree || !text.trim()) return null;
-        const { tree, id } = addTaskToTree(baseTree, goalId, subgoalId, text, new Date().toISOString());
+        const { tree, id } = addTaskToTree(baseTree, goalId, text, new Date().toISOString());
         dispatch({ type: "patchTree", tree });
         return id;
       },
-      addHabit: (goalId, subgoalId, text, repeat, weekday) => {
+      addHabit: (goalId, text, repeat, weekday) => {
         const baseTree = treeRef.current;
         if (!baseTree || !text.trim()) return null;
         // weekly 习惯未指定星期几时，锚定到今天的本地星期几（与 localDay/本地时间一致，应用为 UTC+8）。
         const wd = repeat === "weekly" ? (weekday ?? new Date().getDay()) : undefined;
-        const { tree, id } = addHabitToTree(baseTree, goalId, subgoalId, text, repeat, wd, new Date().toISOString());
+        const { tree, id } = addHabitToTree(baseTree, goalId, text, repeat, wd, new Date().toISOString());
         dispatch({ type: "patchTree", tree });
         return id;
       },
       removeItemById: (itemId) => {
         const baseTree = treeRef.current;
         if (!baseTree) return;
-        dispatch({ type: "patchTree", tree: removeActionEverywhere(baseTree, itemId) });
+        dispatch({ type: "patchTree", tree: removeItemFromTree(baseTree, itemId) });
       },
-      // ── Metrics ──
-      setMetric: (ownerId, metric) => {
+      // ── Metrics（owner = 一个目标 id） ──
+      setMetric: (goalId, metric) => {
         const baseTree = treeRef.current;
         if (!baseTree) return;
-        dispatch({ type: "patchTree", tree: setMetricInTree(baseTree, ownerId, metric) });
+        dispatch({ type: "patchTree", tree: setMetricInTree(baseTree, goalId, metric) });
       },
       bumpMetric: (metricId, delta) => {
         const baseTree = treeRef.current;
         if (!baseTree) return;
         dispatch({ type: "patchTree", tree: bumpMetricInTree(baseTree, metricId, delta) });
       },
-      removeMetric: (ownerId, metricId) => {
+      removeMetric: (goalId, metricId) => {
         const baseTree = treeRef.current;
         if (!baseTree) return;
-        dispatch({ type: "patchTree", tree: removeMetricFromTree(baseTree, ownerId, metricId) });
+        dispatch({ type: "patchTree", tree: removeMetricFromTree(baseTree, goalId, metricId) });
       },
-      // AI 拆解：把（已勾选的）指标/任务/习惯/子目标一次性折进一棵树，单次 patchTree。
+      // AI 拆解：把（已勾选的）指标/任务/习惯/短期子目标一次性折进一棵树，单次 patchTree。
+      // 两级模型下，拆解里的 subgoal → 在该（长期）目标下建一个 short goal，承接其 指标/任务/习惯。
       // 仅新增、永不删除；now/uuid 在 state 层生成（domain 保持纯）。读最新树避免并发覆盖。
       applyGoalDecomposition: (goalId, dec) => {
         const baseTree = treeRef.current;
         if (!baseTree) return;
         const now = new Date().toISOString();
+        const parent = goalByIdInTree(baseTree, goalId);
+        if (!parent) return;
         let t = baseTree;
-        // 目标级 指标 / 任务 / 习惯
+        // 目标级 指标 / 任务 / 习惯（直挂在该目标上）
         for (const m of dec.metrics ?? []) {
           t = setMetricInTree(t, goalId, {
             id: crypto.randomUUID(),
@@ -803,15 +783,15 @@ export function AppProvider({
           });
         }
         for (const task of dec.tasks ?? []) {
-          ({ tree: t } = addTaskToTree(t, goalId, null, task.text, now));
+          ({ tree: t } = addTaskToTree(t, goalId, task.text, now));
         }
         for (const h of dec.habits ?? []) {
-          ({ tree: t } = addHabitToTree(t, goalId, null, h.text, h.repeat, h.repeatWeekday, now));
+          ({ tree: t } = addHabitToTree(t, goalId, h.text, h.repeat, h.repeatWeekday, now));
         }
-        // 每个子目标：先建，再把它自己的 指标/任务/习惯 折到新子目标 id 上。
+        // 每个子目标 → 在该长期目标下建一个短期目标，再把它自己的 指标/任务/习惯 折到新短期目标 id 上。
         for (const sg of dec.subgoals ?? []) {
           let sgId: string;
-          ({ tree: t, id: sgId } = addSubgoalToTree(t, goalId, sg.title, now));
+          ({ tree: t, id: sgId } = addShortGoalToTree(t, goalId, { area: parent.area, title: sg.title }, now));
           for (const m of sg.metrics ?? []) {
             t = setMetricInTree(t, sgId, {
               id: crypto.randomUUID(),
@@ -822,10 +802,10 @@ export function AppProvider({
             });
           }
           for (const task of sg.tasks ?? []) {
-            ({ tree: t } = addTaskToTree(t, goalId, sgId, task.text, now));
+            ({ tree: t } = addTaskToTree(t, sgId, task.text, now));
           }
           for (const h of sg.habits ?? []) {
-            ({ tree: t } = addHabitToTree(t, goalId, sgId, h.text, h.repeat, h.repeatWeekday, now));
+            ({ tree: t } = addHabitToTree(t, sgId, h.text, h.repeat, h.repeatWeekday, now));
           }
         }
         dispatch({ type: "patchTree", tree: t });
