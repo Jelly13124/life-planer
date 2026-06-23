@@ -57,6 +57,7 @@ export interface Profile {
   hobbies: string; // 爱好（可空）
   relationship: RelationshipStatus; // 情感/婚姻状态
   location: string; // 现在生活在哪（国家/城市），用于现实约束（可空）
+  nationality?: string; // 国籍/出生国（可选，如 中国大陆 / 印度 / 美国），用于签证排期等现实校准
   status: string; // 现在的身份/阶段，如 H1B工作签 / 在读 / 工作3年（可空）
   snapshot: string; // 由结构化信息自动汇总的现状描述
   areas: Record<LifeArea, number>; // 各领域起点 0-100，由上面信息推导

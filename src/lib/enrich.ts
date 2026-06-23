@@ -8,6 +8,7 @@ import {
   EDUCATION_LABELS,
   RELATIONSHIP_LABELS,
   SALARY_LABELS,
+  backgroundFacts,
   financialFacts,
 } from "@/domain/profile";
 
@@ -112,6 +113,7 @@ function buildUserPrompt(input: EnrichInput): string {
 
   // 现状要点（既定事实，不可矛盾）
   const facts: string[] = [];
+  facts.push(...backgroundFacts(p)); // 国籍/出生国：用于签证排期等现实校准
   facts.push(`${EDUCATION_LABELS[p.education]}${p.major ? `（${p.major}）` : ""}`);
   if (p.occupation) facts.push(`职业：${p.occupation}`);
   facts.push(`月薪${SALARY_LABELS[p.salary]}`);
@@ -167,19 +169,19 @@ function buildUserPrompt(input: EnrichInput): string {
   lines.push("");
   lines.push("【真实与细致的硬要求】");
   lines.push(
-    "- 现实锚点：用具体、真实、可核对的细节，禁止空话（如“进了大厂/走上巅峰/逆袭”）。涉及签证就写真实里程碑（H1B 6 年上限/抽签/PERM/I-140/绿卡排期/入籍）；涉及薪资写真实档位与数字；写真实的职业层级、城市、行业现实。",
+    "- 现实锚点：用具体、真实、可核对的细节，禁止空话（如“进了大厂/走上巅峰/逆袭”）。按主角的领域、所在国、出生国来落地——只有当这条路真的涉及移民/签证时才写签证里程碑；涉及薪资写当地真实档位与数字；写真实的职业层级、城市、行业现实。",
   );
   lines.push(
-    "- 现实锚点（整条至少全部满足）：(a) 若涉及签证/移民，至少 2 个真实身份里程碑并写出大致年份；(b) 至少 2 处具体收入数字（职级+金额+币种，如 L5 总包约 $360k）；(c) 至少 1 个真实公司/机构名或同量级的具体描述；(d) 至少 2 个具体城市/地点。缺任一项即不合格。",
+    "- 现实锚点（整条至少满足）：(a) 仅当涉及签证/移民时，至少 2 个真实身份里程碑并写出大致年份（按出生国排期，如有）；(b) 至少 2 处具体收入数字（职级/阶段 + 金额 + 当地币种，按主角所在国与领域的真实口径——如中国大厂 P7 总包约 ¥80–120 万、美国 SWE L5 总包约 $360k、体制内某职级月薪 + 公积金、个体/创业写月营收或年流水）；(c) 至少 1 个真实公司/机构/平台名或同量级的具体描述；(d) 至少 2 个具体城市/地点。",
   );
   lines.push(
-    "- 每个涉及晋升/跳槽的时刻必须写出真实职级名称（科技 IC：SWE→Senior→Staff→Senior Staff；管理：EM→Senior EM→Director；金融：Analyst→Associate→VP；学术：博后→AP→tenure），并写出对应收入变化，禁止只写升职了/薪资翻倍。",
+    "- 每个涉及晋升/进阶的时刻必须写出该领域、该国家的真实层级名称 + 对应收入变化，禁止只写“升职了/翻倍”。按主角实际领域选阶梯，例如：中国互联网 P5/P6/P7 或 T 序列；体制内 科员→副科→正科 或 职称评定；创业 天使/Pre-A/A 轮、月营收 0→X、团队 1→N 人、盈亏平衡；教师/医生 规培→主治→副高 或 二级→一级教师；学术 博后→AP→tenure；美国科技 SWE→Senior→Staff；金融 Analyst→Associate→VP。",
   );
   lines.push(
     `- 每段 story 要 3-5 句，含至少：一个具体的人或机构、一个具体数字、一处内心或细节；并标注 dimensions（从 career/finance/relationships/health/housing/identity/growth 选 1-2 个该时刻主要触及的维度）。`,
   );
   lines.push(
-    "- 多维度：整条至少覆盖 4 个不同维度；finance（财务）必须出现；若他在国外/有签证，identity（身份/签证）也必须出现。",
+    "- 多维度：整条至少覆盖 4 个不同维度；finance（财务）必须出现；若他在国外/有签证，identity（身份/签证）也必须出现。若不涉及移民/签证，identity 可不出现，改用其所在国的真实约束（如中国的户口/编制/学区房/行业周期/家庭期待）作为现实摩擦与锚点。",
   );
   lines.push(
     "- 真实摩擦（每条至少 2 处，乐观路也不例外）：从签证没中要再等、晋升被卡或被 PIP、裁员/组被裁、排期倒退、房租房价压力、异地恋/分手、健康透支中至少选 2 个写成有后果的事件，而非一笔带过。",
@@ -188,7 +190,7 @@ function buildUserPrompt(input: EnrichInput): string {
     "- 因果承接：从第 2 个时刻起，每段开头点明它是前一时刻的直接结果（如：因为上一年 PERM 卡在审计，这一年……），不要互不相干的片段。",
   );
   lines.push(
-    "- 金额一律用当地货币（在美国用美元年总包），不要套用表单里的人民币月薪区间。",
+    "- 金额用主角所在国/文化的真实货币与口径（中国用人民币、美国用美元年总包、欧洲欧元……）；表单里的月薪区间只是现状参考，推演里要写当地真实的具体数字，别照抄区间、也别默认套美元。",
   );
   lines.push("- 克制可信、扎根现实，有真实的摩擦（如抽签没中、晋升卡壳），不要爽文。");
   lines.push("");

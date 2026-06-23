@@ -22,6 +22,10 @@ export const EN: Record<string, string> = {
   现在生活在哪: "Where you live now",
   "国家/城市，用来让预测符合现实，比如 美国纽约 / 中国上海":
     "Country/city, to keep predictions realistic, e.g. New York, USA / Shanghai, China",
+  "国籍 / 出生国": "Nationality / country of birth",
+  "可选，用来校准签证排期等现实约束，比如 中国大陆 / 美国 / 印度":
+    "Optional — calibrates visa timelines and other real-world constraints, e.g. Mainland China / USA / India",
+  "如 中国大陆 / 美国 / 印度": "e.g. Mainland China / USA / India",
   "下一步 →": "Next →",
   "比如 阿明": "e.g. Alex",
   学的是什么专业: "What did you study",

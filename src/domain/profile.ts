@@ -79,6 +79,14 @@ export const DEBT_LABELS = makeLabels(DEBT_OPTIONS);
 export const FAMILY_LABELS = makeLabels(FAMILY_OPTIONS);
 export const RISK_LABELS = makeLabels(RISK_OPTIONS);
 
+// 背景事实行（有值才出）：国籍/出生国等用于现实校准（签证排期按出生国分等）。
+// 供 enrich/chat 提示词共用，口径与 buildSnapshot 一致。
+export function backgroundFacts(p: Pick<Profile, "nationality">): string[] {
+  const out: string[] = [];
+  if (p.nationality?.trim()) out.push(`国籍/出生国：${p.nationality.trim()}`);
+  return out;
+}
+
 // 财务/技能/家庭/风险这几项的"事实行"（有值才出）。供 buildSnapshot 与 enrich/chat
 // 提示词共用，避免同一段在三处各写一遍、且口径（用 label 而非原始码）保持一致。
 export function financialFacts(
@@ -155,6 +163,7 @@ export function buildSnapshot(p: ProfileInputs): string {
   const parts: string[] = [];
   parts.push(`${p.age} 岁`);
   if (p.location.trim()) parts.push(p.location.trim());
+  if (p.nationality?.trim()) parts.push(`国籍/出生国：${p.nationality.trim()}`);
   parts.push(EDUCATION_LABELS[p.education]);
   if (p.major.trim()) parts.push(`${p.major.trim()}专业`);
   if (p.occupation.trim()) parts.push(`现在是${p.occupation.trim()}`);

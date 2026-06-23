@@ -3,7 +3,7 @@
 // 把用户的现状作为既定事实喂进去（不能矛盾），其余对话沿用前端传来的消息。
 // 没有 DEEPSEEK_API_KEY 或调用失败时返回 { reply: null }，前端给出友好提示。
 import type { Profile } from "@/domain/types";
-import { financialFacts } from "@/domain/profile";
+import { backgroundFacts, financialFacts } from "@/domain/profile";
 import { allowRequest } from "@/lib/rateLimit";
 
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
@@ -70,6 +70,7 @@ function buildSystem(body: ChatRequestBody): string {
   const facts: string[] = [];
   facts.push(`现在 ${p.age} 岁`);
   if (p.location) facts.push(`生活在${p.location}`);
+  facts.push(...backgroundFacts(p)); // 国籍/出生国：与预测口径一致
   if (p.status) facts.push(`身份/阶段：${p.status}`);
   if (p.occupation) facts.push(`职业：${p.occupation}`);
   if (p.education) facts.push(`学历代码：${p.education}`);

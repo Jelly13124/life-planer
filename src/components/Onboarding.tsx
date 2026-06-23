@@ -47,6 +47,7 @@ export function Onboarding() {
   const [education, setEducation] = useState<EducationLevel>("bachelor");
   const [major, setMajor] = useState("");
   const [location, setLocation] = useState("");
+  const [nationality, setNationality] = useState("");
 
   const [occupation, setOccupation] = useState("");
   const [salary, setSalary] = useState<SalaryBand>("5to10");
@@ -75,6 +76,7 @@ export function Onboarding() {
       education,
       major: major.trim(),
       location: location.trim(),
+      nationality: nationality.trim() || undefined,
       occupation: occupation.trim(),
       salary,
       hasSideHustle,
@@ -167,6 +169,15 @@ export function Onboarding() {
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder={t("所在国家 / 城市")}
+                className="px-4 py-3 text-base"
+              />
+            </Field>
+            <Field label={t("国籍 / 出生国")} hint={t("可选，用来校准签证排期等现实约束，比如 中国大陆 / 美国 / 印度")}>
+              <input
+                type="text"
+                value={nationality}
+                onChange={(e) => setNationality(e.target.value)}
+                placeholder={t("如 中国大陆 / 美国 / 印度")}
                 className="px-4 py-3 text-base"
               />
             </Field>
