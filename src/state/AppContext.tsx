@@ -61,6 +61,8 @@ import {
 } from "@/domain/goalTree";
 import type { GoalDecomposition } from "@/lib/goalClient";
 import { completeAction, findAction, isActionDoneToday, planToday, removeActionEverywhere, uncompleteAction, unplanToday, localDay } from "@/domain/daily";
+import { findItem } from "@/domain/goalTree";
+import { effectiveFeasibility } from "@/domain/feasibility";
 import { actionsOnDay, setActionScheduledDate } from "@/domain/calendar";
 import { arrangeDay, setActionTime, setDayWindow, dayWindow } from "@/domain/schedule";
 import { parseQuickInput } from "@/domain/quickParse";
@@ -105,6 +107,9 @@ interface State {
   selectedTag: string | null; // 当前「标签」视图选中的标签
   focusGoalId: string | null; // 跳到「计划」视图时要聚焦/展开的目标
   cloudNotice: boolean; // 云端加载失败、已回退本地时的小提示（P5；flag 关时永远 false）
+  // 即时反馈（Part 1）：完成某行动把"挂在某条路上"的目标推动、可行度整 5 上涨时弹的短暂 toast。
+  // 仅由未完成→完成且 after>before 才置；自动 ~4s 消失或用户点掉。
+  feasibilityToast: { pathLabel: string; before: number; after: number } | null;
 }
 
 type Action =
@@ -133,7 +138,9 @@ type Action =
   | { type: "reset" }
   | { type: "safetyHold"; profile: Profile }
   | { type: "clearSafety" }
-  | { type: "setCloudNotice"; on: boolean };
+  | { type: "setCloudNotice"; on: boolean }
+  | { type: "showFeasibilityToast"; toast: { pathLabel: string; before: number; after: number } }
+  | { type: "dismissFeasibilityToast" };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -204,6 +211,10 @@ function reducer(state: State, action: Action): State {
       return { ...state, safetyHold: null };
     case "setCloudNotice":
       return { ...state, cloudNotice: action.on };
+    case "showFeasibilityToast":
+      return { ...state, feasibilityToast: action.toast };
+    case "dismissFeasibilityToast":
+      return { ...state, feasibilityToast: null };
     default:
       return state;
   }
@@ -337,6 +348,9 @@ interface AppApi {
   // ── P5 云同步（flag 关时：cloudNotice 恒 false，无任何 UI）──
   cloudNotice: boolean; // true = 云端加载失败、已回退本地，UI 可显示一条小提示
   dismissCloudNotice: () => void;
+  // ── 即时反馈 toast（Part 1）：完成行动把某条路的可行度整 5 推上去时弹一下 ──
+  feasibilityToast: { pathLabel: string; before: number; after: number } | null;
+  dismissFeasibilityToast: () => void;
 }
 
 const AppContext = createContext<AppApi | null>(null);
@@ -344,6 +358,39 @@ const AppContext = createContext<AppApi | null>(null);
 // "正在推演"动画至少播这么久——即便没接 AI / 本地秒出，也让过场有质感。
 const MIN_PREDICT_MS = 1600;
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// 取整到最近的 5（与可行度 UI 同口径）。
+const round5 = (n: number) => Math.round(n / 5) * 5;
+
+// 即时反馈（Part 1）：某行动由「未完成→完成」后，若它属于一个挂在某条路上的目标
+// （goal.pathId 非空），且该路的有效可行度（取整到 5）真的涨了，返回要弹的 toast 内容。
+// 只在真涨时返回（不在取消完成、习惯无进度效果、无 pathId、整 5 没变时弹）；否则 null。
+// 纯函数：before/after 各取一棵树快照算一次，不读 Date/随机。
+function feasibilityGain(
+  before: LifeTree,
+  after: LifeTree,
+  actionId: string,
+  wasDone: boolean,
+): { pathLabel: string; before: number; after: number } | null {
+  if (wasDone) return null; // 取消完成（done→undone）不弹
+  const loc = findItem(before, actionId);
+  const pathId = loc?.goal?.pathId;
+  if (!pathId) return null; // 散项 / 无目标 / 目标没挂在路上
+  const beforePath = before.paths.find((p) => p.id === pathId);
+  const afterPath = after.paths.find((p) => p.id === pathId);
+  if (!beforePath || !afterPath) return null;
+  const beforeEff = effectiveFeasibility(before, beforePath);
+  const afterEff = effectiveFeasibility(after, afterPath);
+  if (!beforeEff || !afterEff) return null; // path.feasibility 未定义
+  const beforeRounded = round5(beforeEff.value);
+  const afterRounded = round5(afterEff.value);
+  if (afterRounded <= beforeRounded) return null; // 没把整 5 推动 → 不弹（诚实）
+  return {
+    pathLabel: afterPath.choiceLabel || loc.goal?.title || "",
+    before: beforeRounded,
+    after: afterRounded,
+  };
+}
 
 export function AppProvider({
   children,
@@ -365,6 +412,7 @@ export function AppProvider({
     selectedTag: null,
     focusGoalId: null,
     cloudNotice: false,
+    feasibilityToast: null,
   });
 
   const repoRef = useRef<TreeRepository | null>(repository ?? null);
@@ -1054,6 +1102,9 @@ export function AppProvider({
           ? uncompleteAction(baseTree, actionId, today)
           : completeAction(baseTree, actionId, today);
         dispatch({ type: "patchTree", tree: next });
+        // 即时反馈：仅当这是一次「未完成→完成」、且把某条路的可行度整 5 推上去了，弹个 toast。
+        const gain = feasibilityGain(baseTree, next, actionId, doneNow);
+        if (gain) dispatch({ type: "showFeasibilityToast", toast: gain });
       },
       // 删除一条行动（task/habit，任意层）；removeItemById 的别名，保留旧调用点。
       removeActionById: (actionId) => {
@@ -1094,6 +1145,9 @@ export function AppProvider({
           ? uncompleteAction(baseTree, actionId, date)
           : completeAction(baseTree, actionId, date);
         dispatch({ type: "patchTree", tree: next });
+        // 即时反馈：仅当这是一次「未完成→完成」、且把某条路的可行度整 5 推上去了，弹个 toast。
+        const gain = feasibilityGain(baseTree, next, actionId, done);
+        if (gain) dispatch({ type: "showFeasibilityToast", toast: gain });
       },
       setActionTimeById: (actionId, startTime, durationMin) => {
         const baseTree = treeRef.current;
@@ -1222,6 +1276,9 @@ export function AppProvider({
       // ── P5 云同步小提示（flag 关时恒 false）──
       cloudNotice: state.cloudNotice,
       dismissCloudNotice: () => dispatch({ type: "setCloudNotice", on: false }),
+      // ── 即时反馈 toast（Part 1）──
+      feasibilityToast: state.feasibilityToast,
+      dismissFeasibilityToast: () => dispatch({ type: "dismissFeasibilityToast" }),
     }),
     [
       state.view,
@@ -1234,6 +1291,7 @@ export function AppProvider({
       state.selectedTag,
       state.focusGoalId,
       state.cloudNotice,
+      state.feasibilityToast,
       generator,
       repo,
       cloudRepo,

@@ -21,6 +21,7 @@ import { PredictionOverlay } from "@/components/PredictionOverlay";
 import { SafetyCare } from "@/components/SafetyCare";
 import { ReminderScheduler } from "@/components/ReminderScheduler";
 import { CloudNotice } from "@/components/CloudNotice";
+import { FeasibilityToast } from "@/components/FeasibilityToast";
 
 function Screen() {
   const { view, tree, activePathId, hydrated, backToTree, predicting, aiEnabled, safetyHold, continueAfterSafety } = useApp();
@@ -118,6 +119,8 @@ export default function Home() {
       <ReminderScheduler />
       {/* P5：云端加载失败回退本地时的小提示（flag 关时渲染 null） */}
       <CloudNotice />
+      {/* Part 1：完成行动把某条路的可行度整 5 推上去时的即时反馈 toast（无 toast 时渲染 null） */}
+      <FeasibilityToast />
     </AppProvider>
   );
 }

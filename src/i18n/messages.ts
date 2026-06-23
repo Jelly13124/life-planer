@@ -843,4 +843,9 @@ export const EN: Record<string, string> = {
   "把一个目标挂到这条路、完成它，可行度会涨":
     "Link a goal to this path and complete it — feasibility will rise",
   "这条路可行度 {value}%": "This path’s feasibility {value}%",
+
+  // ── 即时反馈 toast（Part 1）：完成行动把某条路的可行度整 5 推上去时弹一下 ──
+  "「{label}」这条路更近了": "“{label}” just got closer",
+  "{before}% → {after}%": "{before}% → {after}%",
+  "可行度上涨": "Feasibility rose",
 };
