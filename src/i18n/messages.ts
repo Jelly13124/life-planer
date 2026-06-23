@@ -629,6 +629,11 @@ export const EN: Record<string, string> = {
   // ── 两级目标 PlanScreen（领域 → 长期目标 ⊃ 短期目标 → 指标/任务/习惯） ──
   "把人生分成领域，每个长期目标拆成短期目标，再落到指标、任务和习惯，一步步靠近它。":
     "Split life into areas; break each long-term goal into short-term goals, then into metrics, tasks, and habits, and inch toward it step by step.",
+  // 统一「建立目标」表单（长期/短期类型切换）
+  建立目标: "Create a goal",
+  类型: "Type",
+  长期目标标题: "Long-term goal title",
+  "短期目标标题（如 这周运动 10 小时）": "Short-term goal title (e.g. exercise 10 hours this week)",
   "＋ 新长期目标": "＋ New long-term goal",
   创建长期目标: "Create long-term goal",
   "长期目标标题（如 成为产品负责人）": "Long-term goal title (e.g. become a product lead)",

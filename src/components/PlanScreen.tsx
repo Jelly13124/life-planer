@@ -12,6 +12,7 @@ import {
   GOAL_AREAS,
   type Goal,
   type GoalArea,
+  type GoalKind,
   type Habit,
   type Metric,
   type Task,
@@ -648,6 +649,189 @@ function GoalForm({
           className="rounded-full border border-[var(--accent)]/60 bg-[var(--accent)]/10 px-3 py-1.5 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/20"
         >
           {submitLabel}
+        </button>
+      </div>
+    </Card>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// 统一「建立目标」表单：顶部 长期/短期 类型切换 + 共用字段（标题/why/领域）。
+//   长期目标：无起始日期；保留「成长为人生树分支」选项（仅长期上树）。
+//   短期目标：起止日期，startDate 默认今天（today 由上层注入，render 内不取 new Date）。
+// 提交时按当前类型回调；不复用 GoalForm（编辑路径保持原样）。
+// ───────────────────────────────────────────────────────────────────────────
+function CreateGoalForm({
+  t,
+  today,
+  onCancel,
+  onSubmitLong,
+  onSubmitShort,
+}: {
+  t: TFn;
+  today: string;
+  onCancel: () => void;
+  onSubmitLong: (
+    draft: { area: GoalArea; title: string; why: string; endDate: string },
+    withBranch: boolean,
+  ) => void;
+  onSubmitShort: (draft: {
+    area: GoalArea;
+    title: string;
+    why: string;
+    startDate: string;
+    endDate: string;
+  }) => void;
+}) {
+  const [kind, setKind] = useState<GoalKind>("long");
+  const [area, setArea] = useState<GoalArea>("career");
+  const [title, setTitle] = useState("");
+  const [why, setWhy] = useState("");
+  const [startDate, setStartDate] = useState(today); // 短期目标默认今天
+  const [endDate, setEndDate] = useState("");
+  const [withBranch, setWithBranch] = useState(false);
+
+  const inputCls =
+    "w-full rounded-lg border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2 text-sm text-[var(--fg)] outline-none transition focus:border-[var(--accent)] placeholder:text-[var(--fg-faint)]";
+
+  function submit() {
+    if (!title.trim()) return;
+    if (kind === "long") {
+      onSubmitLong({ area, title: title.trim(), why: why.trim(), endDate }, withBranch);
+    } else {
+      onSubmitShort({ area, title: title.trim(), why: why.trim(), startDate, endDate });
+    }
+  }
+
+  return (
+    <Card pad="md" className="space-y-3 border-[var(--accent)]/40">
+      {/* 类型切换（segmented control）：长期目标 / 短期目标 */}
+      <div>
+        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--fg-faint)]">
+          {t("类型")}
+        </div>
+        <div role="radiogroup" aria-label={t("类型")} className="inline-flex rounded-full border border-[var(--line)] p-0.5">
+          {(["long", "short"] as const).map((k) => {
+            const active = kind === k;
+            return (
+              <button
+                key={k}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setKind(k)}
+                className={`rounded-full px-4 py-1 text-xs transition ${
+                  active
+                    ? "bg-[var(--accent)]/15 text-[var(--accent)]"
+                    : "text-[var(--fg-dim)] hover:text-[var(--fg)]"
+                }`}
+              >
+                {k === "long" ? t("长期目标") : t("短期目标")}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 领域（6 桶：5 个人生面 + 其他） */}
+      <div className="flex flex-wrap gap-1.5">
+        {GOAL_AREAS.map((a) => {
+          const active = area === a;
+          const color = AREA_COLORS[a];
+          return (
+            <button
+              key={a}
+              type="button"
+              onClick={() => setArea(a)}
+              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition"
+              style={
+                active
+                  ? { borderColor: color, color, background: `color-mix(in srgb, ${color} 15%, transparent)` }
+                  : { borderColor: "var(--line)", color: "var(--fg-dim)" }
+              }
+            >
+              <AreaIcon area={a} className="h-3.5 w-3.5" color={active ? color : "currentColor"} />
+              {t(GOAL_AREA_LABELS[a])}
+            </button>
+          );
+        })}
+      </div>
+
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.nativeEvent.isComposing) submit();
+        }}
+        placeholder={
+          kind === "long"
+            ? t("长期目标标题（如 成为产品负责人）")
+            : t("短期目标标题（如 这周运动 10 小时）")
+        }
+        aria-label={kind === "long" ? t("长期目标标题") : t("短期目标标题")}
+        className={inputCls}
+        autoFocus
+      />
+      <textarea
+        value={why}
+        onChange={(e) => setWhy(e.target.value)}
+        placeholder={t("为什么想做到它？（可选）")}
+        rows={2}
+        className={`${inputCls} resize-none`}
+      />
+
+      {/* 长期目标无起始日期；短期目标显示起止日期（起始默认今天） */}
+      {kind === "short" && (
+        <div className="flex flex-wrap items-center gap-3 text-xs">
+          <label className="flex items-center gap-1.5 text-[var(--fg-faint)]">
+            {t("开始")}
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-2 py-1 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:light]"
+            />
+          </label>
+          <label className="flex items-center gap-1.5 text-[var(--fg-faint)]">
+            {t("结束")}
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="rounded border border-[var(--line)] bg-[var(--bg-2)] px-2 py-1 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)] [color-scheme:light]"
+            />
+          </label>
+        </div>
+      )}
+
+      {/* 成长为分支：仅长期目标 */}
+      {kind === "long" && (
+        <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--fg-dim)]">
+          <input
+            type="checkbox"
+            checked={withBranch}
+            onChange={(e) => setWithBranch(e.target.checked)}
+            className="h-3.5 w-3.5 accent-[var(--accent)]"
+          />
+          <IconTree className="h-3.5 w-3.5 flex-shrink-0" />
+          {t("成长为人生树的一条分支（AI 推演这条路的未来）")}
+        </label>
+      )}
+
+      <div className="flex justify-end gap-2 pt-0.5">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-full px-3 py-1.5 text-xs text-[var(--fg-faint)] transition hover:text-[var(--fg)]"
+        >
+          {t("取消")}
+        </button>
+        <button
+          type="button"
+          onClick={submit}
+          className="rounded-full border border-[var(--accent)]/60 bg-[var(--accent)]/10 px-3 py-1.5 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/20"
+        >
+          {t("建立目标")}
         </button>
       </div>
     </Card>
@@ -1469,8 +1653,8 @@ export function PlanScreen() {
   const [suggesting, setSuggesting] = useState(false);
   const [added, setAdded] = useState<string[]>([]);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
-  // 顶部创建器：null=收起；"long"=新长期目标（GoalForm）；"standalone"=独立短期目标（StandaloneShortForm）。
-  const [creating, setCreating] = useState<null | "long" | "standalone">(null);
+  // 顶部创建器：单一「建立目标」表单，内部切换长期/短期类型。
+  const [creating, setCreating] = useState(false);
 
   // 只迭代长期目标（短期目标嵌在各自长期目标卡内）。
   const longs = useMemo(() => (tree ? longGoals(tree) : []), [tree]);
@@ -1517,14 +1701,9 @@ export function PlanScreen() {
         title={t("我的规划")}
         subtitle={t("把人生分成领域，每个长期目标拆成短期目标，再落到指标、任务和习惯，一步步靠近它。")}
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="primary" onClick={() => setCreating((v) => (v === "long" ? null : "long"))}>
-              {t("＋ 新长期目标")}
-            </Button>
-            <Button variant="subtle" onClick={() => setCreating((v) => (v === "standalone" ? null : "standalone"))}>
-              {t("＋ 独立短期目标")}
-            </Button>
-          </div>
+          <Button variant="primary" onClick={() => setCreating((v) => !v)}>
+            {t("建立目标")}
+          </Button>
         }
       />
 
@@ -1542,39 +1721,25 @@ export function PlanScreen() {
         </div>
       )}
 
-      {/* 新长期目标表单 */}
-      {creating === "long" && (
+      {/* 统一「建立目标」表单：内部切换长期/短期类型 */}
+      {creating && (
         <div className="mb-6">
-          <GoalForm
+          <CreateGoalForm
             t={t}
-            submitLabel={t("创建长期目标")}
-            showBranchOption
-            onCancel={() => setCreating(null)}
-            onSubmit={(d, withBranch) => {
+            today={todayStr}
+            onCancel={() => setCreating(false)}
+            onSubmitLong={(d, withBranch) => {
               const payload = {
                 area: d.area,
                 title: d.title,
                 why: d.why,
-                startDate: d.startDate || undefined,
                 endDate: d.endDate || undefined,
               };
               if (withBranch) addLongGoalWithBranch(payload);
               else addLongGoal(payload);
-              setCreating(null);
+              setCreating(false);
             }}
-          />
-        </div>
-      )}
-
-      {/* 独立短期目标表单（无长期父）：复用 GoalForm，但不提供「成长为分支」（短期不上树）。 */}
-      {creating === "standalone" && (
-        <div className="mb-6">
-          <GoalForm
-            initial={{ area: "growth" }}
-            t={t}
-            submitLabel={t("创建独立短期目标")}
-            onCancel={() => setCreating(null)}
-            onSubmit={(d) => {
+            onSubmitShort={(d) => {
               addStandaloneShortGoal({
                 area: d.area,
                 title: d.title,
@@ -1582,7 +1747,7 @@ export function PlanScreen() {
                 startDate: d.startDate || undefined,
                 endDate: d.endDate || undefined,
               });
-              setCreating(null);
+              setCreating(false);
             }}
           />
         </div>
@@ -1704,8 +1869,8 @@ export function PlanScreen() {
             accent="var(--accent)"
             description={t("还没有目标。建一个长期目标，或让 AI 帮你想几个，看着它们在你的人生树上长出来。")}
             action={
-              <Button variant="primary" onClick={() => setCreating("long")}>
-                {t("＋ 新长期目标")}
+              <Button variant="primary" onClick={() => setCreating(true)}>
+                {t("建立目标")}
               </Button>
             }
           />
