@@ -182,8 +182,11 @@ export interface Decision {
   review: Review | null;
 }
 
-// ───────── 规划主线：嵌套目标 Goal(时间范围) ⊃ Subgoal ⊃ { Metric, Task, Habit } ─────────
+// ───────── 规划主线：两级目标 —— 长期目标 ⊃ 短期目标（均直挂 { Metric, Task, Habit }） ─────────
 export type GoalStatus = "active" | "done";
+
+// 目标层级：long = 长期/身份级（上树、改预测）；short = 时间盒阶段（挂长期下、不上树）。
+export type GoalKind = "long" | "short";
 
 // 成功指标：数字/百分比/单位（如 存款 0→100000 元、体脂 25→18 %）
 export interface Metric {
@@ -214,18 +217,13 @@ export interface Habit {
   durationMin?: number;   // 时长（分钟），未设时默认 60
 }
 
-// 子目标：目标下的一层，自带指标/任务/习惯
-export interface Subgoal {
-  id: string;
-  title: string;
-  metrics: Metric[];
-  tasks: Task[];
-  habits: Habit[];
-}
-
-// 目标 Plan：带起止时间，嵌套子目标与目标级指标/任务/习惯
+// 目标 Plan：扁平两级 —— 靠 kind/parentGoalId 区分长期/短期，直挂指标/任务/习惯。
+//   long：kind:"long"，parentGoalId:null，可有 pathId（分支），通常无硬截止。
+//   short：kind:"short"，parentGoalId:<longId>，带 startDate/endDate，无 pathId（不上树）。
 export interface Goal {
   id: string;
+  kind: GoalKind; // long = 长期（上树）；short = 短期（挂长期下、不上树）
+  parentGoalId?: string | null; // short → 其 long 父目标；long → null
   area: GoalArea; // 事业/财富/关系/健康/成长/其他（other 不参与预测）
   title: string;
   why: string;
@@ -233,11 +231,10 @@ export interface Goal {
   createdAt: string;
   startDate?: string; // 起（本地日 YYYY-MM-DD）
   endDate?: string;   // 止（本地日 YYYY-MM-DD，替代旧 deadline）
-  pathId?: string | null; // 目标 → 人生树分支 id
+  pathId?: string | null; // 目标 → 人生树分支 id（仅 long 使用）
   tags?: string[];    // 用户自定义标签（过滤/归组用，可选）
   favorite?: boolean; // 收藏（进侧边栏「收藏」组，可选，无需迁移）
   metrics: Metric[];  // 目标级指标
-  subgoals: Subgoal[];
   tasks: Task[];      // 目标级一次性任务
   habits: Habit[];    // 目标级习惯
   completedAt?: string;
@@ -267,6 +264,37 @@ export interface Choice {
 }
 
 // ───────── 迁移用旧类型（仅供 normalize → migrateGoals 读取，不在新代码中使用） ─────────
+
+// 旧嵌套形态的子目标（goal.subgoals[] 里的一项）。两级化后并入 short Goal。
+export interface NestedSubgoal {
+  id: string;
+  title: string;
+  metrics?: Metric[];
+  tasks?: Task[];
+  habits?: Habit[];
+}
+
+// 旧嵌套形态的目标（带 subgoals[]，无 kind）。两级化后 → 一个 long Goal + N 个 short Goal。
+export interface NestedGoal {
+  id: string;
+  area: GoalArea;
+  title: string;
+  why: string;
+  status: GoalStatus;
+  createdAt: string;
+  startDate?: string;
+  endDate?: string;
+  pathId?: string | null;
+  tags?: string[];
+  favorite?: boolean;
+  completedAt?: string;
+  lastReviewedAt?: string;
+  metrics?: Metric[];
+  tasks?: Task[];
+  habits?: Habit[];
+  subgoals: NestedSubgoal[];
+}
+
 export interface LegacyGoalAction {
   id: string;
   text: string;
