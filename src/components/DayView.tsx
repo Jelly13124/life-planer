@@ -6,7 +6,7 @@ import { GOAL_AREA_LABELS } from "@/domain/types";
 import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { actionsOnDay, weekdayOf } from "@/domain/calendar";
-import { findItem } from "@/domain/goalTree";
+import { findItem, goalById } from "@/domain/goalTree";
 import { dayWindow, toMinutes, toHHMM, DEFAULT_DURATION_MIN } from "@/domain/schedule";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
@@ -378,7 +378,10 @@ function TaskDetail({
   onClose: () => void;
 }) {
   const { t } = useT();
-  const { goal, subgoal, item } = loc;
+  const { goal, item } = loc;
+  // 两级模型：任务挂在长期或短期目标上。若挂在短期目标，展示其所属长期目标为「上级目标」。
+  const parentLong =
+    goal.kind === "short" && goal.parentGoalId ? goalById(tree, goal.parentGoalId) : null;
   const dur = item.durationMin ?? DEFAULT_DURATION_MIN;
   const startTime = item.startTime ?? null;
 
@@ -413,9 +416,9 @@ function TaskDetail({
           <span className="ml-1.5 text-[10px] text-[var(--fg-faint)]">{t(GOAL_AREA_LABELS[goal.area])}</span>
         </dd>
 
-        {/* 子目标 */}
-        <dt className="text-[var(--fg-faint)]">{t("所属子目标")}</dt>
-        <dd className="min-w-0 truncate text-[var(--fg-dim)]">{subgoal ? subgoal.title : "—"}</dd>
+        {/* 上级长期目标（仅当任务挂在短期目标时） */}
+        <dt className="text-[var(--fg-faint)]">{t("上级目标")}</dt>
+        <dd className="min-w-0 truncate text-[var(--fg-dim)]">{parentLong ? parentLong.title : "—"}</dd>
 
         {/* 排期 */}
         <dt className="text-[var(--fg-faint)]">{t("排期")}</dt>

@@ -14,10 +14,10 @@ import {
   type GoalArea,
   type Habit,
   type Metric,
-  type Subgoal,
   type Task,
 } from "@/domain/types";
 import { allTags, dueGoalReviews, goalProgress } from "@/domain/goals";
+import { longGoals, shortGoalsOf } from "@/domain/goalTree";
 import { localTodayStr } from "@/lib/dailyClient";
 import {
   fetchGoalDecomposition,
@@ -97,7 +97,7 @@ function ProgressBar({ value, color }: { value: number; color?: string }) {
 
 // ───────────────────────────────────────────────────────────────────────────
 // 指标 Metric：标签 · current/target unit · 进度条 · −/＋ 微调 · 编辑 · 删除。
-// ownerId = 目标 id 或子目标 id。
+// ownerId = 目标 id（长期或短期皆可）。
 // ───────────────────────────────────────────────────────────────────────────
 function MetricRow({
   metric,
@@ -319,9 +319,7 @@ function HabitComposer({
   const [weekday, setWeekday] = useState(1);
 
   if (!open) {
-    return (
-      <AddChip label={t("＋ 习惯")} onClick={() => setOpen(true)} />
-    );
+    return <AddChip label={t("＋ 习惯")} onClick={() => setOpen(true)} />;
   }
 
   function submit() {
@@ -392,7 +390,7 @@ function HabitComposer({
   );
 }
 
-// 行内"＋ 子目标 / ＋ 任务 / ＋ 习惯 / ＋ 指标"按钮。
+// 行内"＋ 任务 / ＋ 习惯 / ＋ 指标 / ＋ 短期目标"按钮。
 function AddChip({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
@@ -405,7 +403,7 @@ function AddChip({ label, onClick }: { label: string; onClick: () => void }) {
   );
 }
 
-// 行内单行文本输入（用于＋任务 /＋子目标）：回车提交，Esc 取消。
+// 行内单行文本输入（用于＋任务 /＋短期目标）：回车提交，Esc 取消。
 function InlineTextAdd({
   placeholder,
   onAdd,
@@ -439,23 +437,22 @@ function InlineTextAdd({
   );
 }
 
-// 一组"指标 / 任务 / 习惯"列表 + 各自的添加入口。goal/subgoal 两层共用。
+// 一组"指标 / 任务 / 习惯"列表 + 各自的添加入口。长期/短期目标共用（ownerId = goal.id）。
+// habitHint：短期目标下提示习惯会被自动限制在目标时间内重复。
 function ItemGroups({
-  ownerId,
   goalId,
-  subgoalId,
   metrics,
   tasks,
   habits,
   t,
+  habitHint,
 }: {
-  ownerId: string; // metric owner（goal 或 subgoal id）
   goalId: string;
-  subgoalId: string | null;
   metrics: Metric[];
   tasks: Task[];
   habits: Habit[];
   t: TFn;
+  habitHint?: boolean;
 }) {
   const { addTask, addHabit, setMetric } = useApp();
   const [adding, setAdding] = useState<null | "task" | "metric">(null);
@@ -466,7 +463,7 @@ function ItemGroups({
       {metrics.length > 0 && (
         <div className="space-y-1.5">
           {metrics.map((m) => (
-            <MetricRow key={m.id} metric={m} ownerId={ownerId} t={t} />
+            <MetricRow key={m.id} metric={m} ownerId={goalId} t={t} />
           ))}
         </div>
       )}
@@ -495,7 +492,7 @@ function ItemGroups({
           t={t}
           onCancel={() => setAdding(null)}
           onSave={(m) => {
-            setMetric(ownerId, m);
+            setMetric(goalId, m);
             setAdding(null);
           }}
         />
@@ -503,7 +500,7 @@ function ItemGroups({
       {adding === "task" && (
         <InlineTextAdd
           placeholder={t("任务（如 投 5 份简历）")}
-          onAdd={(text) => addTask(goalId, subgoalId, text)}
+          onAdd={(text) => addTask(goalId, text)}
           onCancel={() => setAdding(null)}
         />
       )}
@@ -513,55 +510,13 @@ function ItemGroups({
         <AddChip label={t("＋ 任务")} onClick={() => setAdding("task")} />
         <HabitComposer
           t={t}
-          onAdd={(text, repeat, weekday) => addHabit(goalId, subgoalId, text, repeat, weekday)}
+          onAdd={(text, repeat, weekday) => addHabit(goalId, text, repeat, weekday)}
         />
         <AddChip label={t("＋ 指标")} onClick={() => setAdding("metric")} />
       </div>
-    </div>
-  );
-}
-
-// ───────────────────────────────────────────────────────────────────────────
-// 子目标 Subgoal：标题 + 删除；内嵌指标/任务/习惯组。
-// ───────────────────────────────────────────────────────────────────────────
-function SubgoalBlock({
-  goalId,
-  subgoal,
-  t,
-}: {
-  goalId: string;
-  subgoal: Subgoal;
-  t: TFn;
-}) {
-  const { removeSubgoal } = useApp();
-  return (
-    <div className="rounded-xl border border-[var(--line)] bg-black/[0.02] p-3">
-      <div className="mb-2 flex items-center gap-2">
-        <span aria-hidden="true" className="text-xs text-[var(--fg-dim)]">↳</span>
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--fg)]">
-          {subgoal.title}
-        </span>
-        <IconButton
-          label={t("删除子目标")}
-          danger
-          onClick={() => {
-            if (confirm(t("删除这个子目标？它名下的任务、习惯、指标都会一起删除。"))) {
-              removeSubgoal(subgoal.id);
-            }
-          }}
-        >
-          ✕
-        </IconButton>
-      </div>
-      <ItemGroups
-        ownerId={subgoal.id}
-        goalId={goalId}
-        subgoalId={subgoal.id}
-        metrics={subgoal.metrics ?? []}
-        tasks={subgoal.tasks ?? []}
-        habits={subgoal.habits ?? []}
-        t={t}
-      />
+      {habitHint && habits.length > 0 && (
+        <p className="text-[10px] text-[var(--fg-faint)]">{t("习惯会在本目标时间内重复")}</p>
+      )}
     </div>
   );
 }
@@ -631,7 +586,7 @@ function GoalForm({
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder={t("目标标题（如 半年内转岗到产品）")}
+        placeholder={t("长期目标标题（如 成为产品负责人）")}
         className={inputCls}
         autoFocus
       />
@@ -789,7 +744,7 @@ function DateRange({ goal, t }: { goal: Goal; t: TFn }) {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// AI 拆解目标 预览面板：把 fetchGoalDecomposition 的结果按 指标/任务/习惯/子目标
+// AI 拆成短期目标 预览面板：把 fetchGoalDecomposition 的结果按 指标/任务/习惯/短期目标
 // 分组展示，每条带勾选框（默认勾选）。「全部添加」只把勾选的折进目标（applyGoalDecomposition，
 // 纯新增、可删除）；「忽略」丢弃面板。不勾选的不会进规划。
 // ───────────────────────────────────────────────────────────────────────────
@@ -864,7 +819,7 @@ function DecomposePanel({
   const metricLabel = (m: GoalDecomposition["metrics"][number]) =>
     `${m.label} · ${m.target}${m.unit}`;
 
-  // 收集勾选项 → 过滤后的 GoalDecomposition（子目标本体未勾则整组跳过）。
+  // 收集勾选项 → 过滤后的 GoalDecomposition（短期目标本体未勾则整组跳过）。
   function applyChecked() {
     const filtered: GoalDecomposition = {
       metrics: dec.metrics.filter((_, i) => on(`m${i}`)),
@@ -938,10 +893,10 @@ function DecomposePanel({
         </div>
       )}
 
-      {/* 子目标（含嵌套建议） */}
+      {/* 短期目标（含其指标/任务/习惯） */}
       {dec.subgoals.length > 0 && (
         <div className="space-y-2">
-          <GroupHeader icon="↳" label={t("子目标")} />
+          <GroupHeader icon="↳" label={t("短期目标")} />
           {dec.subgoals.map((sg, i) => (
             <div
               key={`sg${i}`}
@@ -1018,34 +973,191 @@ function DecomposePanel({
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// 目标卡 GoalCard：可折叠。头部 = 标题/why/进度/时间范围/领域/标签/状态。
-// 展开体 = 目标级指标/任务/习惯 + 子目标。
+// 短期目标卡 ShortGoalCard：标题（行内可改）+ 自己的进度条 + 起止时间 +
+// 自己的三组（指标/任务/习惯）+ 删除。嵌在长期目标卡内。短期目标不上树，无「成长为分支」。
 // ───────────────────────────────────────────────────────────────────────────
-function GoalCard({
-  goal,
+function ShortGoalCard({
+  short,
+  progress,
   t,
   focused,
   onFocused,
 }: {
-  goal: Goal;
+  short: Goal;
+  progress: number;
   t: TFn;
   focused?: boolean;
   onFocused?: () => void;
 }) {
-  const { tree, openPath, updateGoal, removeGoalById, completeGoalById, addSubgoal, toggleGoalFavorite } = useApp();
-  // 聚焦跳转时强制展开（默认也是展开）；用 prop 直接驱动初值，避免在 effect 里同步 setState。
-  const [expanded, setExpanded] = useState(true);
+  const { updateGoal, removeGoalById, completeGoalById } = useApp();
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(short.title);
   const cardRef = useRef<HTMLDivElement>(null);
+  const color = AREA_COLORS[short.area];
+  const done = short.status === "done";
 
-  // 从「收藏」「全部任务」等处跳来聚焦本卡：居中滚入，然后清掉聚焦标记。展开由 expanded 默认 true 保证。
+  // 从「收藏」「全部任务」等处跳来聚焦本短期目标：居中滚入，然后清掉聚焦标记。
   useEffect(() => {
     if (!focused) return;
     cardRef.current?.scrollIntoView({ block: "center" });
     onFocused?.();
   }, [focused, onFocused]);
+
+  function commitTitle() {
+    const v = titleDraft.trim();
+    if (v && v !== short.title) updateGoal(short.id, { title: v });
+    else setTitleDraft(short.title);
+    setEditingTitle(false);
+  }
+
+  return (
+    <div
+      ref={cardRef}
+      className={`rounded-xl border border-[var(--line)] bg-black/[0.02] p-3 ${
+        done ? "opacity-70" : ""
+      } ${focused ? "ring-1 ring-[var(--accent)]/60" : ""}`}
+    >
+      {/* 标题行 */}
+      <div className="mb-2 flex items-center gap-2">
+        <span aria-hidden="true" className="text-xs text-[var(--fg-dim)]">↳</span>
+        {editingTitle ? (
+          <input
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) commitTitle();
+              else if (e.key === "Escape") {
+                setTitleDraft(short.title);
+                setEditingTitle(false);
+              }
+            }}
+            onBlur={commitTitle}
+            aria-label={t("短期目标标题")}
+            className="min-w-0 flex-1 rounded-lg border border-[var(--accent)]/50 bg-[var(--bg-2)] px-2 py-1 text-sm text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+            autoFocus
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setTitleDraft(short.title);
+              setEditingTitle(true);
+            }}
+            aria-label={t("编辑短期目标标题")}
+            title={t("编辑")}
+            className={`min-w-0 flex-1 truncate text-left text-sm font-medium transition hover:text-[var(--accent)] ${
+              done ? "text-[var(--fg-dim)] line-through" : "text-[var(--fg)]"
+            }`}
+          >
+            {short.title}
+          </button>
+        )}
+        {done && (
+          <span className="flex-shrink-0 rounded-full border border-[var(--c-emerald)]/40 bg-[var(--c-emerald)]/10 px-2 py-0.5 text-[10px] text-[var(--c-emerald)]">
+            {t("已达成")}
+          </span>
+        )}
+        <IconButton label={t("编辑短期目标标题")} onClick={() => { setTitleDraft(short.title); setEditingTitle(true); }}>
+          <IconPencil className="h-3.5 w-3.5" />
+        </IconButton>
+        <IconButton
+          label={t("删除短期目标")}
+          danger
+          onClick={() => {
+            if (confirm(t("删除这个短期目标？它名下的任务、习惯、指标都会一起删除。"))) {
+              removeGoalById(short.id);
+            }
+          }}
+        >
+          ✕
+        </IconButton>
+      </div>
+
+      {/* 短期目标自己的进度条 */}
+      <div className="mb-2 flex items-center gap-2">
+        <ProgressBar value={progress} color={color} />
+        <span className="flex-shrink-0 text-[11px] tabular-nums text-[var(--fg-faint)]">
+          {t("进度 {pct}%", { pct: Math.round(progress * 100) })}
+        </span>
+      </div>
+
+      {/* 起止时间（短期目标时间盒） */}
+      <div className="mb-3">
+        <DateRange goal={short} t={t} />
+      </div>
+
+      {/* 短期目标自己的 指标/任务/习惯 */}
+      <ItemGroups
+        goalId={short.id}
+        metrics={short.metrics ?? []}
+        tasks={short.tasks ?? []}
+        habits={short.habits ?? []}
+        t={t}
+        habitHint
+      />
+
+      {/* 标记达成 */}
+      {!done && (
+        <div className="mt-3 border-t border-[var(--line)] pt-2.5">
+          <button
+            type="button"
+            onClick={() => completeGoalById(short.id)}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--c-emerald)]/50 px-3 py-1 text-[11px] text-[var(--c-emerald)] transition hover:bg-[var(--c-emerald)]/10"
+          >
+            <IconCheckCircle className="h-3.5 w-3.5" />
+            {t("标记达成")}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// 长期目标卡 LongGoalCard：可折叠。头部 = 标题/why/进度（旗下综合）/时间范围/领域/⭐/标签/状态。
+// 展开体 = 目标级指标 + 「AI 拆成短期目标」+ 短期目标列表 + ＋短期目标。
+// 仅长期目标显示「成长为分支」。
+// ───────────────────────────────────────────────────────────────────────────
+function LongGoalCard({
+  goal,
+  shorts,
+  t,
+  focusGoalId,
+  onFocused,
+}: {
+  goal: Goal;
+  shorts: Goal[];
+  t: TFn;
+  focusGoalId: string | null;
+  onFocused: () => void;
+}) {
+  const {
+    tree,
+    openPath,
+    updateGoal,
+    removeGoalById,
+    completeGoalById,
+    addShortGoal,
+    addLongGoalWithBranch,
+    toggleGoalFavorite,
+  } = useApp();
+  // 聚焦跳转时强制展开（默认也是展开）；用 prop 直接驱动初值，避免在 effect 里同步 setState。
+  const [expanded, setExpanded] = useState(true);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const focusedSelf = focusGoalId === goal.id;
+  // 聚焦本卡或旗下任一短期目标 → 展开 + 滚入。
+  const focusedChild = !!focusGoalId && shorts.some((s) => s.id === focusGoalId);
+
+  useEffect(() => {
+    if (!focusedSelf) return;
+    cardRef.current?.scrollIntoView({ block: "center" });
+    onFocused();
+  }, [focusedSelf, onFocused]);
+
   const [editing, setEditing] = useState(false);
-  const [addingSub, setAddingSub] = useState(false);
-  // AI 拆解目标：loading / 结果 / 出错（即便有兜底也兜不住时）。
+  const [addingShort, setAddingShort] = useState(false);
+  // AI 拆成短期目标：loading / 结果 / 出错（即便有兜底也兜不住时）。
   const [decomposing, setDecomposing] = useState(false);
   const [decomposition, setDecomposition] = useState<GoalDecomposition | null>(null);
   const [decomposeError, setDecomposeError] = useState(false);
@@ -1065,7 +1177,7 @@ function GoalCard({
   }
 
   const color = AREA_COLORS[goal.area];
-  // goalProgress 只读 goal 本身（tree 形参未用）；tree 不可能为空（PlanScreen 已守卫）。
+  // 长期目标进度 = 旗下综合（goalProgress 对 long 做 roll-up）。tree 不会为空（PlanScreen 已守卫）。
   const progress = useMemo(() => (tree ? goalProgress(tree, goal) : 0), [tree, goal]);
   const done = goal.status === "done";
 
@@ -1100,7 +1212,7 @@ function GoalCard({
     <Card
       ref={cardRef}
       pad="md"
-      className={`${done ? "opacity-70" : ""} ${focused ? "ring-1 ring-[var(--accent)]/60" : ""}`}
+      className={`${done ? "opacity-70" : ""} ${focusedSelf ? "ring-1 ring-[var(--accent)]/60" : ""}`}
     >
       {/* 头部 */}
       <div className="flex items-start gap-2">
@@ -1125,6 +1237,9 @@ function GoalCard({
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
+            <span className="flex-shrink-0 rounded-full border border-[var(--line)] px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-[var(--fg-faint)]">
+              {t("长期目标")}
+            </span>
             <span
               className={`min-w-0 text-base font-bold ${done ? "text-[var(--fg-dim)] line-through" : "text-[var(--fg)]"}`}
             >
@@ -1162,7 +1277,7 @@ function GoalCard({
         </span>
       </div>
 
-      {/* 进度条 */}
+      {/* 进度条（旗下综合） */}
       <div className="mt-3 flex items-center gap-2">
         <ProgressBar value={progress} color={color} />
         <span className="flex-shrink-0 text-xs tabular-nums text-[var(--fg-faint)]">
@@ -1178,7 +1293,7 @@ function GoalCard({
         <GoalTagRow goal={goal} t={t} />
       </div>
 
-      {/* 在树上看 / 和未来的你聊聊 */}
+      {/* 在树上看（仅有分支的长期目标） */}
       {goal.pathId && (
         <div className="mt-2 flex flex-wrap gap-2">
           <button
@@ -1195,18 +1310,15 @@ function GoalCard({
       {/* 展开体 */}
       {expanded && (
         <div className="mt-3 space-y-3 border-t border-[var(--line)] pt-3">
-          {/* 目标级 指标/任务/习惯 */}
-          <ItemGroups
-            ownerId={goal.id}
-            goalId={goal.id}
-            subgoalId={null}
-            metrics={goal.metrics ?? []}
-            tasks={goal.tasks ?? []}
-            habits={goal.habits ?? []}
-            t={t}
-          />
+          {/* 目标级 指标（长期目标可有自己的直挂指标） */}
+          <div>
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--fg-faint)]">
+              {t("目标级指标")}
+            </div>
+            <GoalLevelMetrics goal={goal} t={t} />
+          </div>
 
-          {/* AI 拆解目标：按钮 → 预览面板（勾选后才落地） */}
+          {/* AI 拆成短期目标：按钮 → 预览面板（勾选后才落地为短期目标） */}
           {!decomposition && (
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -1216,7 +1328,7 @@ function GoalCard({
                 className="inline-flex items-center gap-1.5 rounded-full border border-[var(--accent)]/50 bg-[var(--accent)]/10 px-3 py-1 text-[11px] text-[var(--accent)] transition hover:bg-[var(--accent)]/20 disabled:opacity-60"
               >
                 {!decomposing && <IconSparkle className="h-3.5 w-3.5" />}
-                {decomposing ? t("AI 正在拆解…") : t("AI 拆解目标")}
+                {decomposing ? t("AI 正在拆解…") : t("AI 拆成短期目标")}
               </button>
               {decomposeError && (
                 <span className="text-[11px] text-[var(--c-rose)]">{t("稍后再试")}</span>
@@ -1233,29 +1345,39 @@ function GoalCard({
             />
           )}
 
-          {/* 子目标 */}
-          {(goal.subgoals ?? []).length > 0 && (
+          {/* 短期目标列表 */}
+          {(shorts.length > 0 || focusedChild) && (
             <div className="space-y-2">
-              {(goal.subgoals ?? []).map((s) => (
-                <SubgoalBlock key={s.id} goalId={goal.id} subgoal={s} t={t} />
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--fg-faint)]">
+                {t("短期目标")}
+              </div>
+              {shorts.map((s) => (
+                <ShortGoalCard
+                  key={s.id}
+                  short={s}
+                  progress={tree ? goalProgress(tree, s) : 0}
+                  t={t}
+                  focused={focusGoalId === s.id}
+                  onFocused={onFocused}
+                />
               ))}
             </div>
           )}
 
-          {/* ＋子目标 */}
-          {addingSub ? (
+          {/* ＋短期目标 */}
+          {addingShort ? (
             <InlineTextAdd
-              placeholder={t("子目标（如 通过产品经理面试）")}
-              onAdd={(title) => addSubgoal(goal.id, title)}
-              onCancel={() => setAddingSub(false)}
+              placeholder={t("短期目标（如 三个月内通过产品面试）")}
+              onAdd={(title) => addShortGoal(goal.id, { title })}
+              onCancel={() => setAddingShort(false)}
             />
           ) : (
-            <AddChip label={t("＋ 子目标")} onClick={() => setAddingSub(true)} />
+            <AddChip label={t("＋ 短期目标")} onClick={() => setAddingShort(true)} />
           )}
         </div>
       )}
 
-      {/* 底部操作（编辑已移到卡片头部最左角） */}
+      {/* 底部操作 */}
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--line)] pt-3 text-xs">
         {!done && (
           <button
@@ -1267,10 +1389,29 @@ function GoalCard({
             {t("标记达成")}
           </button>
         )}
+        {/* 仅长期目标可成长为人生树分支 */}
+        {!goal.pathId && (
+          <button
+            type="button"
+            onClick={() =>
+              addLongGoalWithBranch({
+                area: goal.area,
+                title: goal.title,
+                why: goal.why,
+                startDate: goal.startDate,
+                endDate: goal.endDate,
+              })
+            }
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--accent)]/50 px-3 py-1 text-[var(--accent)] transition hover:bg-[var(--accent)]/15"
+          >
+            <IconTree className="h-3.5 w-3.5" />
+            {t("成长为分支")}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => {
-            if (confirm(t("确定移除这个目标？它的子目标、任务、习惯、指标都会一起删除；关联的人生树分支也会被剪掉。"))) {
+            if (confirm(t("确定移除这个长期目标？它的短期目标、任务、习惯、指标都会一起删除；关联的人生树分支也会被剪掉。"))) {
               removeGoalById(goal.id);
             }
           }}
@@ -1283,11 +1424,37 @@ function GoalCard({
   );
 }
 
+// 目标级指标小区块：列出长期目标自己的指标 + ＋指标。
+function GoalLevelMetrics({ goal, t }: { goal: Goal; t: TFn }) {
+  const { setMetric } = useApp();
+  const [adding, setAdding] = useState(false);
+  const metrics = goal.metrics ?? [];
+  return (
+    <div className="space-y-1.5">
+      {metrics.map((m) => (
+        <MetricRow key={m.id} metric={m} ownerId={goal.id} t={t} />
+      ))}
+      {adding ? (
+        <MetricEditor
+          t={t}
+          onCancel={() => setAdding(false)}
+          onSave={(m) => {
+            setMetric(goal.id, m);
+            setAdding(false);
+          }}
+        />
+      ) : (
+        <AddChip label={t("＋ 指标")} onClick={() => setAdding(true)} />
+      )}
+    </div>
+  );
+}
+
 // ───────────────────────────────────────────────────────────────────────────
-// PlanScreen：领域分组 → 目标卡（嵌套子目标/指标/任务/习惯），全层级 CRUD。
+// PlanScreen：领域分组 → 长期目标卡（旗下短期目标 → 指标/任务/习惯），全层级 CRUD。
 // ───────────────────────────────────────────────────────────────────────────
 export function PlanScreen() {
-  const { tree, addGoal, addGoalWithBranch, markDueGoalsReviewed, focusGoalId, clearFocusGoal } = useApp();
+  const { tree, addLongGoal, addLongGoalWithBranch, markDueGoalsReviewed, focusGoalId, clearFocusGoal } = useApp();
   const { t } = useT();
 
   const [todayStr, setTodayStr] = useState(_bootToday);
@@ -1304,37 +1471,39 @@ export function PlanScreen() {
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const goals = useMemo(() => tree?.goals ?? [], [tree]);
+  // 只迭代长期目标（短期目标嵌在各自长期目标卡内）。
+  const longs = useMemo(() => (tree ? longGoals(tree) : []), [tree]);
   const treeTags = useMemo(() => (tree ? allTags(tree) : []), [tree]);
   const due = useMemo(() => (tree ? dueGoalReviews(tree, todayStr) : []), [tree, todayStr]);
 
   // 当筛选标签随目标删除而消失时，回落到全部
   const effectiveFilter = tagFilter && treeTags.includes(tagFilter) ? tagFilter : null;
 
-  // 按领域分组（6 桶：5 个人生面 + 其他）。仅展示有目标的领域，所以「其他」组有目标才出现。
+  // 按领域分组（6 桶：5 个人生面 + 其他）。仅展示有长期目标的领域。
   const grouped = useMemo(() => {
-    const visible = goals.filter(
+    const visible = longs.filter(
       (g) => effectiveFilter === null || (g.tags ?? []).includes(effectiveFilter),
     );
     return GOAL_AREAS.map((area) => ({
       area,
       goals: visible.filter((g) => g.area === area),
     })).filter((grp) => grp.goals.length > 0);
-  }, [goals, effectiveFilter]);
+  }, [longs, effectiveFilter]);
 
   if (!tree) return null;
+  const workingTree = tree;
 
   async function suggest() {
-    if (suggesting || !tree) return;
+    if (suggesting) return;
     setSuggesting(true);
-    const list = await fetchGoalSuggestions(tree);
+    const list = await fetchGoalSuggestions(workingTree);
     setSuggesting(false);
     setSuggestions(list);
   }
 
   function addSuggestion(s: GoalSuggestion) {
     if (added.includes(s.title)) return;
-    addGoal({ area: s.area, title: s.title, why: s.why });
+    addLongGoal({ area: s.area, title: s.title, why: s.why });
     setAdded((a) => [...a, s.title]);
   }
 
@@ -1343,10 +1512,10 @@ export function PlanScreen() {
       <SectionHeader
         eyebrow="Planning"
         title={t("我的规划")}
-        subtitle={t("把人生分成五个领域，每个目标拆成子目标、指标、任务和习惯，一步步靠近它。")}
+        subtitle={t("把人生分成领域，每个长期目标拆成短期目标，再落到指标、任务和习惯，一步步靠近它。")}
         actions={
           <Button variant="primary" onClick={() => setCreating((v) => !v)}>
-            {t("＋ 新目标")}
+            {t("＋ 新长期目标")}
           </Button>
         }
       />
@@ -1365,12 +1534,12 @@ export function PlanScreen() {
         </div>
       )}
 
-      {/* 新目标表单 */}
+      {/* 新长期目标表单 */}
       {creating && (
         <div className="mb-6">
           <GoalForm
             t={t}
-            submitLabel={t("创建目标")}
+            submitLabel={t("创建长期目标")}
             showBranchOption
             onCancel={() => setCreating(false)}
             onSubmit={(d, withBranch) => {
@@ -1381,8 +1550,8 @@ export function PlanScreen() {
                 startDate: d.startDate || undefined,
                 endDate: d.endDate || undefined,
               };
-              if (withBranch) addGoalWithBranch(payload);
-              else addGoal(payload);
+              if (withBranch) addLongGoalWithBranch(payload);
+              else addLongGoal(payload);
               setCreating(false);
             }}
           />
@@ -1483,11 +1652,12 @@ export function PlanScreen() {
                 </h2>
                 <div className="space-y-3">
                   {areaGoals.map((g) => (
-                    <GoalCard
+                    <LongGoalCard
                       key={g.id}
                       goal={g}
+                      shorts={shortGoalsOf(workingTree, g.id)}
                       t={t}
-                      focused={focusGoalId === g.id}
+                      focusGoalId={focusGoalId}
                       onFocused={clearFocusGoal}
                     />
                   ))}
@@ -1497,15 +1667,15 @@ export function PlanScreen() {
           })}
         </div>
       ) : (
-        goals.length === 0 && (
+        longs.length === 0 && (
           <EmptyState
             className="mt-4"
             icon={<IconSprout className="h-7 w-7" />}
             accent="var(--accent)"
-            description={t("还没有目标。建一个目标，或让 AI 帮你想几个，看着它们在你的人生树上长出来。")}
+            description={t("还没有目标。建一个长期目标，或让 AI 帮你想几个，看着它们在你的人生树上长出来。")}
             action={
               <Button variant="primary" onClick={() => setCreating(true)}>
-                {t("＋ 新目标")}
+                {t("＋ 新长期目标")}
               </Button>
             }
           />
@@ -1513,7 +1683,7 @@ export function PlanScreen() {
       )}
 
       {/* 有目标但被筛选清空 */}
-      {goals.length > 0 && grouped.length === 0 && (
+      {longs.length > 0 && grouped.length === 0 && (
         <p className="mt-4 text-center text-sm text-[var(--fg-faint)]">
           {t("没有匹配这个标签的目标。")}
         </p>

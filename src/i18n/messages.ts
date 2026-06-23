@@ -611,6 +611,32 @@ export const EN: Record<string, string> = {
   全部添加: "Add all",
   忽略: "Dismiss",
 
+  // ── 两级目标 PlanScreen（领域 → 长期目标 ⊃ 短期目标 → 指标/任务/习惯） ──
+  "把人生分成领域，每个长期目标拆成短期目标，再落到指标、任务和习惯，一步步靠近它。":
+    "Split life into areas; break each long-term goal into short-term goals, then into metrics, tasks, and habits, and inch toward it step by step.",
+  "＋ 新长期目标": "＋ New long-term goal",
+  创建长期目标: "Create long-term goal",
+  "长期目标标题（如 成为产品负责人）": "Long-term goal title (e.g. become a product lead)",
+  "还没有目标。建一个长期目标，或让 AI 帮你想几个，看着它们在你的人生树上长出来。":
+    "No goals yet. Create a long-term goal, or let AI suggest a few — and watch them grow on your life tree.",
+  目标级指标: "Goal-level metrics",
+  "确定移除这个长期目标？它的短期目标、任务、习惯、指标都会一起删除；关联的人生树分支也会被剪掉。":
+    "Remove this long-term goal? Its short-term goals, tasks, habits, and metrics are all deleted; any linked life-tree branch is pruned too.",
+  // 短期目标卡
+  "＋ 短期目标": "＋ Short-term goal",
+  "短期目标（如 三个月内通过产品面试）":
+    "Short-term goal (e.g. pass a product interview in 3 months)",
+  短期目标标题: "Short-term goal title",
+  编辑短期目标标题: "Edit short-term goal title",
+  删除短期目标: "Delete short-term goal",
+  "删除这个短期目标？它名下的任务、习惯、指标都会一起删除。":
+    "Delete this short-term goal? Its tasks, habits, and metrics are all deleted.",
+  "习惯会在本目标时间内重复": "Habits repeat within this goal's date range",
+  // AI 拆成短期目标
+  "AI 拆成短期目标": "Break into short-term goals with AI",
+  // 上级长期目标（DayView 任务详情）
+  上级目标: "Parent goal",
+
   // ── Phase 3a：分组侧边栏 + 待办/全部任务/已完成/标签视图 ──
   // 导航分组标题（今天/日历/习惯/全部/收藏/事业…等键已在上方定义，复用）
   我的人生树: "My life tree",
