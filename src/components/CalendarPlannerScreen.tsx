@@ -18,12 +18,16 @@ import { unscheduledActions } from "@/domain/calendar";
 import { goalProgress } from "@/domain/goals";
 import { longGoals, shortGoalsOf } from "@/domain/goalTree";
 import { localTodayStr } from "@/lib/dailyClient";
-import { IconFlame, IconCalendar, IconTrophy, IconTarget, IconTree } from "./ui/icons";
+import { parseQuickInput } from "@/domain/quickParse";
+import { IconFlame, IconCalendar, IconTrophy, IconTarget, IconTree, IconPlus } from "./ui/icons";
 
 const _bootToday = localTodayStr();
 
+// 周几全称（0=周日…6=周六），用于「每周X」习惯的快速添加回显。
+const WEEKDAY_FULL = ["每周日", "每周一", "每周二", "每周三", "每周四", "每周五", "每周六"];
+
 export function CalendarPlannerScreen() {
-  const { tree, openTree, openPath, openPlan, scheduleAction, updateGoal, markDueGoalsReviewed, addBranch, addLooseTask } = useApp();
+  const { tree, openTree, openPath, openPlan, scheduleAction, updateGoal, markDueGoalsReviewed, addBranch, addLooseTask, quickAdd } = useApp();
   const { t } = useT();
 
   const [today, setToday] = useState(_bootToday);
@@ -44,6 +48,8 @@ export function CalendarPlannerScreen() {
   const [weeklyOpen, setWeeklyOpen] = useState(false);
   const [addingTask, setAddingTask] = useState(false);
   const [newTaskText, setNewTaskText] = useState("");
+  const [quickText, setQuickText] = useState("");
+  const [quickEcho, setQuickEcho] = useState<string | null>(null); // 刚添加内容的简短回显（短暂显示）
 
   // 目标列只列「长期目标」（方向/身份级、上树那一层）；短期目标归在其长期父目标下。
   const activeLongGoals = useMemo(
@@ -85,6 +91,21 @@ export function CalendarPlannerScreen() {
       setSelectedDay(date);
     }
   }
+  // 提交快速添加：先用同一口径解析出回显（标题 · 日期/重复 · 时间），再 quickAdd 落库。
+  function submitQuick() {
+    const raw = quickText.trim();
+    if (!raw) return;
+    const id = quickAdd(raw);
+    setQuickText("");
+    if (!id) return;
+    const p = parseQuickInput(raw, today);
+    const parts = [p.text];
+    if (p.repeat === "daily") parts.push(t("每天"));
+    else if (p.repeat === "weekly") parts.push(t(WEEKDAY_FULL[p.repeatWeekday ?? 1]));
+    else if (p.scheduledDate) parts.push(p.scheduledDate === today ? t("今天") : p.scheduledDate);
+    if (p.startTime) parts.push(p.startTime);
+    setQuickEcho(t("已添加：{summary}", { summary: parts.join(" · ") }));
+  }
 
   return (
     <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-10 sm:px-8">
@@ -99,6 +120,44 @@ export function CalendarPlannerScreen() {
         }
         actions={<Button variant="subtle" onClick={() => setWeeklyOpen(true)}><span className="inline-flex items-center gap-1.5"><IconCalendar className="h-4 w-4" />{t("本周回顾")}</span></Button>}
       />
+
+      {/* 快速添加：一行自然语言 → 散任务/散习惯（日期/时间/重复/标签自动解析）。回车提交，保持聚焦以便连记。 */}
+      <Card pad="sm" className="mb-6">
+        <label htmlFor="quick-add" className="mb-2 block text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">
+          {t("快速添加")}
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            id="quick-add"
+            value={quickText}
+            onChange={(e) => setQuickText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                submitQuick();
+              } else if (e.key === "Escape") {
+                setQuickText("");
+              }
+            }}
+            placeholder={t("跑步 明天 7点  /  喝水 每天  /  开会 周三 14:00")}
+            aria-label={t("快速添加")}
+            className="min-w-0 flex-1 rounded-xl border border-[var(--line)] bg-[var(--bg-2)] px-3 py-2 text-sm text-[var(--fg)] outline-none transition focus:border-[var(--accent)] placeholder:text-[var(--fg-faint)]"
+          />
+          <button
+            type="button"
+            onClick={submitQuick}
+            disabled={!quickText.trim()}
+            aria-label={t("添加")}
+            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3.5 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+          >
+            <IconPlus className="h-4 w-4" />
+            {t("添加")}
+          </button>
+        </div>
+        {quickEcho && (
+          <div className="mt-2 text-[11px] text-[var(--c-emerald)]">{quickEcho}</div>
+        )}
+      </Card>
 
       {!tree.guideDismissed && <GettingStarted tree={tree} />}
 

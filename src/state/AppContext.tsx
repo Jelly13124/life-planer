@@ -57,6 +57,7 @@ import type { GoalDecomposition } from "@/lib/goalClient";
 import { completeAction, findAction, isActionDoneToday, planToday, removeActionEverywhere, uncompleteAction, unplanToday, localDay } from "@/domain/daily";
 import { actionsOnDay, setActionScheduledDate } from "@/domain/calendar";
 import { arrangeDay, setActionTime, setDayWindow, dayWindow } from "@/domain/schedule";
+import { parseQuickInput } from "@/domain/quickParse";
 import { fetchArrangeDay } from "@/lib/scheduleClient";
 import { anyCrisisSignal } from "@/domain/safety";
 
@@ -246,6 +247,8 @@ interface AppApi {
   addLooseHabit: (text: string, repeat: "daily" | "weekly", weekday?: number) => string | null;
   // 建一个独立短期目标（kind:"short"，parentGoalId=null；area 默认 growth）。返回新 id（无 tree / 空标题 → null）。
   addStandaloneShortGoal: (input: { title: string; why?: string; startDate?: string; endDate?: string; area?: GoalArea }) => string | null;
+  // 快速捕捉：解析一行自然语言（日期/时间/重复/标签）→ 在「单棵树快照」里建散任务或散习惯并排期，返回新 id（空标题 → null）。
+  quickAdd: (text: string) => string | null;
   // ── Metrics（owner = 一个目标 id）──
   setMetric: (goalId: string, metric: Metric) => void;
   bumpMetric: (metricId: string, delta: number) => void;
@@ -781,6 +784,29 @@ export function AppProvider({
         const { tree, id } = addStandaloneShortGoalToTree(baseTree, input, new Date().toISOString());
         dispatch({ type: "patchTree", tree });
         return id;
+      },
+      // 快速捕捉：用 state 层 today 解析，再在「同一棵 working 树」上建散项 + 排期，单次 patchTree（不连环 dispatch，避免互相覆盖）。
+      //   有 repeat → 散习惯（+ startTime）；否则 → 散任务（+ scheduledDate + startTime）。
+      //   解析出的 tags 暂忽略（散项不挂目标，预留字段，不崩）。
+      quickAdd: (text) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return null;
+        const now = new Date().toISOString();
+        const p = parseQuickInput(text, localDay(new Date()));
+        if (!p.text) return null; // 解析后无标题
+        if (p.repeat) {
+          const made = addLooseHabitToTree(baseTree, p.text, p.repeat, p.repeatWeekday, now);
+          let t = made.tree;
+          if (p.startTime) t = setActionTime(t, made.id, p.startTime);
+          dispatch({ type: "patchTree", tree: t });
+          return made.id;
+        }
+        const made = addLooseTaskToTree(baseTree, p.text, now);
+        let t = made.tree;
+        if (p.scheduledDate) t = setActionScheduledDate(t, made.id, p.scheduledDate);
+        if (p.startTime) t = setActionTime(t, made.id, p.startTime);
+        dispatch({ type: "patchTree", tree: t });
+        return made.id;
       },
       // ── Metrics（owner = 一个目标 id） ──
       setMetric: (goalId, metric) => {

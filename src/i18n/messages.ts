@@ -308,6 +308,18 @@ export const EN: Record<string, string> = {
   拖到日历某天安排: "Drag onto a day to schedule",
   点日历某天放下它: "Tap a day on the calendar to drop it",
   "拖到日历 = 设为开始日": "Drag onto the calendar to set as start date",
+  // ── 快速添加（P1：自然语言捕捉）。「添加」按钮文案复用 InboxSection 已有的 添加→Add。 ──
+  快速添加: "Quick add",
+  "跑步 明天 7点  /  喝水 每天  /  开会 周三 14:00":
+    "Run tomorrow 7am  /  Water daily  /  Meeting Wed 14:00",
+  "已添加：{summary}": "Added: {summary}",
+  每周日: "Weekly (Sun)",
+  每周一: "Weekly (Mon)",
+  每周二: "Weekly (Tue)",
+  每周三: "Weekly (Wed)",
+  每周四: "Weekly (Thu)",
+  每周五: "Weekly (Fri)",
+  每周六: "Weekly (Sat)",
   "{d} 这天": "{d}",
   "这天还没有安排。把未排期的行动拖/点过来。": "Nothing on this day yet. Drag or tap an unscheduled action here.",
   移回未排期: "Move back to unscheduled",
