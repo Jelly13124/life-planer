@@ -11,6 +11,7 @@ import {
 } from "react";
 import type { LifeTree, Mood } from "@/domain/types";
 import { useT } from "@/prefs/PreferencesContext";
+import { effectiveFeasibility } from "@/domain/feasibility";
 import { cubicYAtX, layoutMap, type MapLayout, type MapNode, type PathLayout } from "./mapLayout";
 
 const MIN_K = 0.4;
@@ -72,6 +73,17 @@ export function LifeMap({
     () => layoutMap(tree.paths, tree.profile.age, tree.horizonYears, compact ? { height: 380 } : {}),
     [tree.paths, tree.profile.age, tree.horizonYears, compact],
   );
+
+  // 徽标显示「有效可行度」= 起步分 + 你完成这条路上目标的进度加成（随进度涨）。
+  // 在此算（mapLayout 只管几何，拿不到 goals）；按 path id 索引，PathCurve 据此显示。
+  const effFeasibilityById = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of tree.paths) {
+      const eff = effectiveFeasibility(tree, p);
+      if (eff) m.set(p.id, eff.value);
+    }
+    return m;
+  }, [tree]);
 
   // 祖先链：用于 hover/选中时高亮"这条路 + 它的来路"，其余淡化
   const parentOf = useMemo(() => {
@@ -301,6 +313,7 @@ export function LifeMap({
               p={p}
               index={i}
               reduced={reduced}
+              effFeasibility={effFeasibilityById.get(p.id)}
               achieved={Boolean(achievedIds?.has(p.id))}
               dim={Boolean(focusId) && !litChain.has(p.id)}
               active={focusId === p.id}
@@ -408,6 +421,7 @@ function PathCurve({
   p,
   index,
   reduced,
+  effFeasibility,
   achieved,
   dim,
   active,
@@ -421,6 +435,7 @@ function PathCurve({
   p: PathLayout;
   index: number;
   reduced: boolean;
+  effFeasibility?: number; // 有效可行度（起步分 + 进度加成）；徽标显示这个，反映进度
   achieved: boolean;
   dim: boolean;
   active: boolean;
@@ -622,8 +637,9 @@ function PathCurve({
         <text x={p.end.x + 14} y={p.end.y + 15} fontSize={12} fill="var(--fg-dim)">
           {truncate(p.summary, 20)}
         </text>
-        {/* 现实可行度徽标：仅 choice 路、有值时，聚焦（hover/选中）才显示，避免地图杂乱 */}
-        {!isSq && active && typeof p.feasibility === "number" && (
+        {/* 现实可行度徽标：仅 choice 路、有值时，聚焦（hover/选中）才显示，避免地图杂乱。
+            显示「有效可行度」= 起步分 + 你完成这条路上目标的进度加成（随进度涨）。 */}
+        {!isSq && active && typeof effFeasibility === "number" && (
           <text
             x={p.end.x + 14}
             y={p.end.y + 31}
@@ -631,7 +647,7 @@ function PathCurve({
             fill="var(--fg-faint)"
             style={{ paintOrder: "stroke", stroke: "var(--bg-0)", strokeWidth: 3 }}
           >
-            {t("约 {pct}%", { pct: roundFeasibility(p.feasibility) })}
+            {t("约 {pct}%", { pct: roundFeasibility(effFeasibility) })}
           </text>
         )}
       </g>

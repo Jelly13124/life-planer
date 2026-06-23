@@ -834,4 +834,13 @@ export const EN: Record<string, string> = {
   "约 {pct}%": "~{pct}%",
   "AI 粗估，非精确概率": "Rough AI estimate, not a precise probability",
   "粗估，接入 AI 后更准": "Rough estimate — more accurate once AI is connected",
+
+  // ── 动机闭环 × 动态可行度（你的进度抬高这条路的可行度） ──
+  // 拆成两段，便于把「你的行动 +{bump}%」染成正反馈色（强调是你推动的）。
+  "起步 {baseline}%": "Start {baseline}%",
+  "你的行动 +{bump}%": "your effort +{bump}%",
+  "+{bump}%": "+{bump}%",
+  "把一个目标挂到这条路、完成它，可行度会涨":
+    "Link a goal to this path and complete it — feasibility will rise",
+  "这条路可行度 {value}%": "This path’s feasibility {value}%",
 };

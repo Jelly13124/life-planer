@@ -19,6 +19,7 @@ import { IconSparkle, IconPencil } from "./ui/icons";
 import { DecisionSheet } from "./DecisionSheet";
 import { RegenerateSheet } from "./RegenerateSheet";
 import { activeDecisionFor, reviewedDecisionsFor, togglePlanItem } from "@/domain/decisions";
+import { effectiveFeasibility, linkedGoals } from "@/domain/feasibility";
 
 /** 导入时取一次当下作初值（render 内不可调用 new Date）；组件挂载后用 effect 刷新。 */
 const _bootNow = new Date().getTime();
@@ -94,6 +95,10 @@ export function PathDetail({
     );
   }
 
+  // 有效可行度（起步分 + 你的行动加成）；未定义 feasibility → null（不显示）。
+  const eff = effectiveFeasibility(tree, path);
+  const linked = linkedGoals(tree, path.id);
+
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
       <button
@@ -125,18 +130,35 @@ export function PathDetail({
         <p className="mt-2 text-xs text-[var(--fg-faint)]">
           {t("这是一种可能的人生，不是预测。数字代表综合状态感受，仅供想象与参考。")}
         </p>
-        {/* 现实可行度：仅 choice 路、且有值时显示（status-quo 是默认轨道，不评） */}
-        {path.kind === "choice" && typeof path.feasibility === "number" && (
+        {/* 现实可行度：仅 choice 路、且有值时显示（status-quo 是默认轨道，不评）。
+            有效可行度 = AI 起步分 + 你完成这条路上目标的进度加成，让"我的行动把未来推近了"可见。 */}
+        {path.kind === "choice" && eff && (
           <div className="mt-3">
             <div className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-2xl border border-[var(--line)] bg-black/[0.03] px-3 py-2 text-sm">
               <span className="text-[var(--fg-faint)]">{t("现实可行度")}</span>
               <span className="font-semibold text-[var(--fg)]">
-                {t("约 {pct}%", { pct: roundFeasibility(path.feasibility) })}
+                {t("约 {pct}%", { pct: roundFeasibility(eff.value) })}
               </span>
               {path.feasibilityNote && (
                 <span className="text-[var(--fg-dim)]">— {path.feasibilityNote}</span>
               )}
             </div>
+            {eff.bump > 0 && (
+              <p className="mt-1.5 text-xs text-[var(--fg-dim)]">
+                <span className="text-[var(--fg-faint)]">
+                  {t("起步 {baseline}%", { baseline: roundFeasibility(eff.baseline) })}
+                </span>
+                {" · "}
+                <span className="font-semibold text-[var(--c-emerald)]">
+                  {t("你的行动 +{bump}%", { bump: eff.bump })}
+                </span>
+              </p>
+            )}
+            {eff.bump === 0 && linked.length === 0 && (
+              <p className="mt-1.5 text-xs text-[var(--fg-faint)]">
+                {t("把一个目标挂到这条路、完成它，可行度会涨")}
+              </p>
+            )}
             <p className="mt-1.5 text-xs text-[var(--fg-faint)]">{t("AI 粗估，非精确概率")}</p>
           </div>
         )}

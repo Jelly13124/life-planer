@@ -18,12 +18,18 @@ import { CalendarImportCard } from "./CalendarImportCard";
 import { addDays, branchPositionAge, currentStreak, heatmap } from "@/domain/daily";
 import { unscheduledActions } from "@/domain/calendar";
 import { goalProgress } from "@/domain/goals";
+import { effectiveFeasibility } from "@/domain/feasibility";
 import { longGoals, shortGoalsOf } from "@/domain/goalTree";
 import { localTodayStr } from "@/lib/dailyClient";
 import { parseQuickInput } from "@/domain/quickParse";
 import { IconFlame, IconCalendar, IconTrophy, IconTarget, IconTree, IconPlus } from "./ui/icons";
 
 const _bootToday = localTodayStr();
+
+// 可行度显示：四舍五入到最近的 5，避免"精确概率"错觉（与 PathDetail / LifeMap 一致）。
+function roundFeasibility(x: number): number {
+  return Math.round(x / 5) * 5;
+}
 
 // 周几全称（0=周日…6=周六），用于「每周X」习惯的快速添加回显。
 const WEEKDAY_FULL = ["每周日", "每周一", "每周二", "每周三", "每周四", "每周五", "每周六"];
@@ -291,6 +297,9 @@ export function CalendarPlannerScreen() {
                   // 长期目标的进度 = 旗下短期目标 + 自身里程碑的综合 roll-up。
                   const pct = Math.round(goalProgress(tree, g) * 100);
                   const shortCount = shortGoalsOf(tree, g.id).length;
+                  // 挂了路的目标：显示这条路的有效可行度（你的进度把未来推近了）。
+                  const linkedPath = g.pathId ? tree.paths.find((p) => p.id === g.pathId) : undefined;
+                  const eff = linkedPath ? effectiveFeasibility(tree, linkedPath) : null;
                   return (
                     <button
                       key={g.id}
@@ -313,6 +322,14 @@ export function CalendarPlannerScreen() {
                       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/[0.08]"><div className="h-full rounded-full bg-[var(--accent)] transition-all" style={{ width: `${pct}%` }} /></div>
                       {shortCount > 0 && (
                         <div className="mt-1 pl-[18px] text-[10px] text-[var(--fg-faint)]">{t("{n} 个短期目标", { n: shortCount })}</div>
+                      )}
+                      {eff && (
+                        <div className="mt-1 flex items-center gap-1.5 pl-[18px] text-[10px] text-[var(--fg-faint)]">
+                          <span>{t("这条路可行度 {value}%", { value: roundFeasibility(eff.value) })}</span>
+                          {eff.bump > 0 && (
+                            <span className="font-semibold text-[var(--c-emerald)]">{t("+{bump}%", { bump: eff.bump })}</span>
+                          )}
+                        </div>
                       )}
                     </button>
                   );
