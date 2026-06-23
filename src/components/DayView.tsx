@@ -270,7 +270,7 @@ export function DayView({
                 const dur = item.durationMin ?? DEFAULT_DURATION_MIN;
                 const top = Math.max(0, (s - startMin) * PX_PER_MIN);
                 const height = Math.max(18, dur * PX_PER_MIN);
-                const accent = goal.pathId ? colorOfPath(tree, goal.pathId) : null;
+                const accent = goal?.pathId ? colorOfPath(tree, goal.pathId) : null;
                 const isOpen = expandedId === item.id;
                 return (
                   <div
@@ -310,7 +310,7 @@ export function DayView({
                         </span>
                         <span className="mt-0.5 flex w-full items-center gap-1.5 text-[10px] text-[var(--fg-faint)]">
                           <span className="tabular-nums">{toHHMM(s)}–{toHHMM(s + dur)}</span>
-                          <span className="truncate">{t(GOAL_AREA_LABELS[goal.area])}</span>
+                          <span className="truncate">{goal ? t(GOAL_AREA_LABELS[goal.area]) : t("无目标")}</span>
                         </span>
                       </button>
                     </div>
@@ -380,8 +380,9 @@ function TaskDetail({
   const { t } = useT();
   const { goal, item } = loc;
   // 两级模型：任务挂在长期或短期目标上。若挂在短期目标，展示其所属长期目标为「上级目标」。
+  // 散任务（goal=null）无所属/上级目标。
   const parentLong =
-    goal.kind === "short" && goal.parentGoalId ? goalById(tree, goal.parentGoalId) : null;
+    goal && goal.kind === "short" && goal.parentGoalId ? goalById(tree, goal.parentGoalId) : null;
   const dur = item.durationMin ?? DEFAULT_DURATION_MIN;
   const startTime = item.startTime ?? null;
 
@@ -403,17 +404,23 @@ function TaskDetail({
       </div>
 
       <dl className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 text-xs">
-        {/* 所属目标（可跳计划） */}
+        {/* 所属目标（可跳计划）；散任务 → 显示「无目标」，不可跳 */}
         <dt className="text-[var(--fg-faint)]">{t("所属目标")}</dt>
         <dd className="min-w-0">
-          <button
-            onClick={() => onGoToGoal(goal.id)}
-            className="max-w-full truncate text-left text-[var(--accent)] underline-offset-2 transition hover:underline"
-            title={t("去目标")}
-          >
-            {goal.title}
-          </button>
-          <span className="ml-1.5 text-[10px] text-[var(--fg-faint)]">{t(GOAL_AREA_LABELS[goal.area])}</span>
+          {goal ? (
+            <>
+              <button
+                onClick={() => onGoToGoal(goal.id)}
+                className="max-w-full truncate text-left text-[var(--accent)] underline-offset-2 transition hover:underline"
+                title={t("去目标")}
+              >
+                {goal.title}
+              </button>
+              <span className="ml-1.5 text-[10px] text-[var(--fg-faint)]">{t(GOAL_AREA_LABELS[goal.area])}</span>
+            </>
+          ) : (
+            <span className="text-[var(--fg-dim)]">{t("无目标")}</span>
+          )}
         </dd>
 
         {/* 上级长期目标（仅当任务挂在短期目标时） */}
@@ -463,7 +470,7 @@ function TaskDetail({
         </dd>
       </dl>
 
-      {goal.why ? <p className="text-[11px] leading-relaxed text-[var(--fg-faint)]">{goal.why}</p> : null}
+      {goal && goal.why ? <p className="text-[11px] leading-relaxed text-[var(--fg-faint)]">{goal.why}</p> : null}
 
       <div className="flex items-center justify-end">
         <button

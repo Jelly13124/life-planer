@@ -8,7 +8,7 @@ import { localTodayStr } from "@/lib/dailyClient";
 import { AreaIcon } from "./lib/areaMeta";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
-import { IconSun } from "./ui/icons";
+import { IconSun, IconList } from "./ui/icons";
 
 // 「今天」视图：列出今天该做的事 —— 手动挑的一次性任务 ∪ 今天到期的重复习惯。
 // 每行一个勾选按钮 → toggleTodayAction；展示所属目标 + 领域 emoji/色。
@@ -80,15 +80,22 @@ export function TodayView() {
                     </span>
                   )}
 
-                  {/* 所属目标（领域 emoji/色 + 标题，点击跳到该目标） */}
-                  <button
-                    onClick={() => openPlanFocused(goal.id)}
-                    className="hidden flex-shrink-0 items-center gap-1.5 text-[11px] text-[var(--fg-faint)] transition hover:text-[var(--fg)] sm:flex"
-                    title={goal.title}
-                  >
-                    <AreaIcon area={goal.area} className="h-3.5 w-3.5" />
-                    <span className="max-w-[10rem] truncate">{goal.title}</span>
-                  </button>
+                  {/* 所属目标（领域图标/色 + 标题，点击跳到该目标）；散项 → 中性「无目标」标签 */}
+                  {goal ? (
+                    <button
+                      onClick={() => openPlanFocused(goal.id)}
+                      className="hidden flex-shrink-0 items-center gap-1.5 text-[11px] text-[var(--fg-faint)] transition hover:text-[var(--fg)] sm:flex"
+                      title={goal.title}
+                    >
+                      <AreaIcon area={goal.area} className="h-3.5 w-3.5" />
+                      <span className="max-w-[10rem] truncate">{goal.title}</span>
+                    </button>
+                  ) : (
+                    <span className="hidden flex-shrink-0 items-center gap-1.5 text-[11px] text-[var(--fg-faint)] sm:flex">
+                      <IconList className="h-3.5 w-3.5" />
+                      <span className="max-w-[10rem] truncate">{t("无目标")}</span>
+                    </span>
+                  )}
                 </div>
               </li>
             );

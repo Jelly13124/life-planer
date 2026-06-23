@@ -82,9 +82,9 @@ export function HabitsSection() {
                     {repeatLabel}
                   </span>
 
-                  {/* Goal title */}
+                  {/* Goal title（散习惯/日常 goal=null → 显示「无目标」） */}
                   <span className="hidden flex-shrink-0 text-[11px] text-[var(--fg-faint)] sm:block">
-                    {goal.title}
+                    {goal ? goal.title : t("无目标")}
                   </span>
 
                   {/* Streak */}

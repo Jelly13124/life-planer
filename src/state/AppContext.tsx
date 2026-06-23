@@ -39,8 +39,11 @@ import {
 import {
   addLongGoal as addLongGoalToTree,
   addShortGoal as addShortGoalToTree,
+  addStandaloneShortGoal as addStandaloneShortGoalToTree,
   addHabit as addHabitToTree,
   addTask as addTaskToTree,
+  addLooseTask as addLooseTaskToTree,
+  addLooseHabit as addLooseHabitToTree,
   bumpMetric as bumpMetricInTree,
   goalById as goalByIdInTree,
   removeGoalById as removeGoalFromTree,
@@ -236,6 +239,13 @@ interface AppApi {
   addTask: (goalId: string, text: string) => string | null;
   addHabit: (goalId: string, text: string, repeat: "daily" | "weekly", weekday?: number) => string | null;
   removeItemById: (itemId: string) => void; // 删一条 task 或 habit（任意目标），清 activity
+  // ── Loose / standalone（无目标）：散任务、散习惯/日常、独立短期目标 ──
+  // 建一条散一次性任务（goal=null，挂在树根）。返回新 id（无 tree / 空文本 → null）。
+  addLooseTask: (text: string) => string | null;
+  // 建一条散习惯/日常（goal=null，无时间窗永远重复）。返回新 id（无 tree / 空文本 → null）。
+  addLooseHabit: (text: string, repeat: "daily" | "weekly", weekday?: number) => string | null;
+  // 建一个独立短期目标（kind:"short"，parentGoalId=null；area 默认 growth）。返回新 id（无 tree / 空标题 → null）。
+  addStandaloneShortGoal: (input: { title: string; why?: string; startDate?: string; endDate?: string; area?: GoalArea }) => string | null;
   // ── Metrics（owner = 一个目标 id）──
   setMetric: (goalId: string, metric: Metric) => void;
   bumpMetric: (metricId: string, delta: number) => void;
@@ -745,6 +755,32 @@ export function AppProvider({
         const baseTree = treeRef.current;
         if (!baseTree) return;
         dispatch({ type: "patchTree", tree: removeItemFromTree(baseTree, itemId) });
+      },
+      // ── Loose / standalone（无目标）：读最新树快照、单次 patchTree，镜像 addTask/addHabit/addShortGoal ──
+      addLooseTask: (text) => {
+        const baseTree = treeRef.current;
+        if (!baseTree || !text.trim()) return null;
+        const { tree, id } = addLooseTaskToTree(baseTree, text, new Date().toISOString());
+        dispatch({ type: "patchTree", tree });
+        return id;
+      },
+      addLooseHabit: (text, repeat, weekday) => {
+        const baseTree = treeRef.current;
+        if (!baseTree || !text.trim()) return null;
+        // weekly 习惯未指定星期几时，锚定到今天的本地星期几（与 addHabit 一致）。
+        const wd = repeat === "weekly" ? (weekday ?? new Date().getDay()) : undefined;
+        const { tree, id } = addLooseHabitToTree(baseTree, text, repeat, wd, new Date().toISOString());
+        dispatch({ type: "patchTree", tree });
+        return id;
+      },
+      // 建独立短期目标（无长期父）：area 默认 growth。
+      addStandaloneShortGoal: ({ title, why, startDate, endDate, area }) => {
+        const baseTree = treeRef.current;
+        if (!baseTree || !title.trim()) return null;
+        const input: AddGoalInput = { area: area ?? "growth", title, why, startDate, endDate };
+        const { tree, id } = addStandaloneShortGoalToTree(baseTree, input, new Date().toISOString());
+        dispatch({ type: "patchTree", tree });
+        return id;
       },
       // ── Metrics（owner = 一个目标 id） ──
       setMetric: (goalId, metric) => {

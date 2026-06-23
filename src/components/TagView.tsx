@@ -19,7 +19,8 @@ export function TagView() {
   const taggedGoalIds = new Set(
     (tree.goals ?? []).filter((g) => g.tags?.includes(tag)).map((g) => g.id),
   );
-  const locs = allTasks(tree).filter((l) => taggedGoalIds.has(l.goal.id));
+  // 散任务（goal=null）不带任何目标标签，故标签视图天然排除它们。
+  const locs = allTasks(tree).filter((l) => l.goal != null && taggedGoalIds.has(l.goal.id));
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-8">

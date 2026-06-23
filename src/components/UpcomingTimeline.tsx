@@ -10,7 +10,10 @@ import { localTodayStr } from "@/lib/dailyClient";
 import { AREA_COLOR, AreaIcon } from "./lib/areaMeta";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
-import { IconRepeat, IconPointer } from "./ui/icons";
+import { IconRepeat, IconPointer, IconList } from "./ui/icons";
+
+// 散项（goal=null）的中性条色：用 line 色，与领域配色区分。
+const NEUTRAL_COLOR = "var(--fg-faint)";
 
 // 「即将到来」视图：从今天起的多日横向规划带。
 // - 14 个日期列（横向滚动可见更多，渲染到 21 天）。今天列高亮。
@@ -30,8 +33,8 @@ const WEEKDAY_TOKEN = ["周日", "周一", "周二", "周三", "周四", "周五
 
 type DayCell = {
   date: string;
-  tasks: { goal: Goal; task: Task; done: boolean }[];
-  habits: { goal: Goal; habit: Habit }[];
+  tasks: { goal: Goal | null; task: Task; done: boolean }[];
+  habits: { goal: Goal | null; habit: Habit }[];
 };
 
 export function UpcomingTimeline() {
@@ -188,9 +191,15 @@ export function UpcomingTimeline() {
                       ? "border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--accent)]"
                       : "border-[var(--line)] text-[var(--fg-dim)] hover:border-[var(--accent)]/60 hover:text-[var(--fg)]"
                   }`}
-                  title={`${item.text} · ${goal.title}`}
+                  title={goal ? `${item.text} · ${goal.title}` : `${item.text} · ${t("无目标")}`}
                 >
-                  <AreaIcon area={goal.area} className="h-3.5 w-3.5" />
+                  {goal ? (
+                    <AreaIcon area={goal.area} className="h-3.5 w-3.5" />
+                  ) : (
+                    <span aria-hidden="true" className="inline-flex flex-shrink-0 text-[var(--fg-faint)]">
+                      <IconList className="h-3.5 w-3.5" />
+                    </span>
+                  )}
                   <span className="min-w-0 truncate">{item.text}</span>
                 </button>
               );
@@ -324,9 +333,9 @@ function DayColumn({
           </button>
         ) : (
           <>
-            {/* 任务条（领域配色、可拖、可点选、勾选完成） */}
+            {/* 任务条（领域配色、可拖、可点选、勾选完成）；散任务 → 中性色 + 清单图标 */}
             {cell.tasks.map(({ goal, task, done }) => {
-              const color = AREA_COLOR[goal.area];
+              const color = goal ? AREA_COLOR[goal.area] : NEUTRAL_COLOR;
               const sel = selectedId === task.id;
               return (
                 <div
@@ -360,9 +369,15 @@ function DayColumn({
                     aria-pressed={sel}
                     aria-label={t("选择任务 {text}", { text: task.text })}
                     className="flex min-w-0 flex-1 items-center gap-1 text-left"
-                    title={`${task.text} · ${goal.title}`}
+                    title={goal ? `${task.text} · ${goal.title}` : `${task.text} · ${t("无目标")}`}
                   >
-                    <AreaIcon area={goal.area} className="h-3 w-3 flex-shrink-0" />
+                    {goal ? (
+                      <AreaIcon area={goal.area} className="h-3 w-3 flex-shrink-0" />
+                    ) : (
+                      <span aria-hidden="true" className="inline-flex flex-shrink-0 text-[var(--fg-faint)]">
+                        <IconList className="h-3 w-3" />
+                      </span>
+                    )}
                     <span
                       className={`min-w-0 truncate text-[11px] leading-tight ${
                         done ? "text-[var(--fg-faint)] line-through" : sel ? "text-[var(--accent)]" : "text-[var(--fg)]"
@@ -375,15 +390,15 @@ function DayColumn({
               );
             })}
 
-            {/* 习惯：暗淡只读幽灵芯片（复发，不在此拖/勾） */}
+            {/* 习惯：暗淡只读幽灵芯片（复发，不在此拖/勾）；散习惯 → 中性色 */}
             {cell.habits.map(({ goal, habit }) => {
-              const color = AREA_COLOR[goal.area];
+              const color = goal ? AREA_COLOR[goal.area] : NEUTRAL_COLOR;
               return (
                 <div
                   key={habit.id}
                   aria-label={t("习惯（每日重复）：{text}", { text: habit.text })}
                   className="flex items-center gap-1 rounded-lg border border-dashed border-[var(--line)] px-1.5 py-1 opacity-70"
-                  title={`${habit.text} · ${goal.title}`}
+                  title={goal ? `${habit.text} · ${goal.title}` : `${habit.text} · ${t("无目标")}`}
                 >
                   <span aria-hidden="true" className="flex-shrink-0" style={{ color }}>
                     <IconRepeat className="h-3 w-3" />
