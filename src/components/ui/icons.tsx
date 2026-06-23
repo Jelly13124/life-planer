@@ -391,3 +391,22 @@ export function IconParty({ className }: IconProps) {
     </Svg>
   );
 }
+
+// 云：云同步入口图标。
+export function IconCloud({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M7 18a4 4 0 0 1-.5-7.97A5 5 0 0 1 16 9.5a3.5 3.5 0 0 1 .5 8.5z" />
+    </Svg>
+  );
+}
+
+// 云 + 对勾：已同步态。
+export function IconCloudCheck({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M7 17a4 4 0 0 1-.5-7.97A5 5 0 0 1 16 8.5a3.5 3.5 0 0 1 .9 6.86" />
+      <path d="M9 16.5l1.8 1.8L15 14" />
+    </Svg>
+  );
+}

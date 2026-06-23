@@ -805,4 +805,23 @@ export const EN: Record<string, string> = {
   "请用 https 开头的 .ics 链接": "Use an .ics link that starts with https",
   没从这个文件里读到日历事件: "No calendar events found in this file",
   读取文件失败: "Couldn't read the file",
+
+  // ── P5：云同步 + 登录（魔法链接；flag 关时整块不渲染） ──
+  云同步: "Cloud sync",
+  "登录后，你的人生树会安全同步到云端，多设备可用。":
+    "Sign in to securely sync your life tree to the cloud and use it across devices.",
+  邮箱: "Email",
+  "你的邮箱": "your@email.com",
+  发送登录链接: "Send sign-in link",
+  发送中: "Sending…",
+  "登录链接已发到你的邮箱，点开即可登录。":
+    "A sign-in link is on its way to your inbox — open it to sign in.",
+  "发送失败，请稍后再试。": "Couldn't send the link. Please try again later.",
+  "请输入有效的邮箱地址": "Please enter a valid email address",
+  已登录: "Signed in",
+  退出登录: "Sign out",
+  "已同步到云端": "Synced to the cloud",
+  "云端连接异常，已暂时改用本地存档（数据不会丢）。":
+    "Cloud connection issue — temporarily using local storage (your data is safe).",
+  已从本地迁移到云端: "Your local data was migrated to the cloud",
 };

@@ -20,6 +20,7 @@ import {
   IconStar,
   IconTag,
 } from "@/components/ui/icons";
+import { CloudAuth } from "@/components/CloudAuth";
 
 // 持久化左侧栏的应用外壳：左侧导航 + 右侧可独立滚动的内容区。
 // 桌面端常驻侧栏；窄屏折叠成顶部栏 + 抽屉，避免内容被挤压。
@@ -259,7 +260,7 @@ export function AppShell({ active, children }: { active: View; children: ReactNo
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 overflow-y-auto px-2 pb-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-2 pb-4">
         {/* 置顶：人生树 */}
         <nav aria-label={t("我的人生树")}>
           <NavButton item={pinned} onNavigate={onNavigate} />
@@ -276,6 +277,9 @@ export function AppShell({ active, children }: { active: View; children: ReactNo
           <NavSection label={t("标签")} items={tagItems} onNavigate={onNavigate} />
         )}
       </div>
+
+      {/* 侧栏底部：云同步入口（flag 关时 CloudAuth 渲染 null，此处无任何输出）。 */}
+      <CloudAuth />
     </div>
   );
 

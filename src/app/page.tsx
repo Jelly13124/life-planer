@@ -20,6 +20,7 @@ import { PlanningAssistant } from "@/components/PlanningAssistant";
 import { PredictionOverlay } from "@/components/PredictionOverlay";
 import { SafetyCare } from "@/components/SafetyCare";
 import { ReminderScheduler } from "@/components/ReminderScheduler";
+import { CloudNotice } from "@/components/CloudNotice";
 
 function Screen() {
   const { view, tree, activePathId, hydrated, backToTree, predicting, aiEnabled, safetyHold, continueAfterSafety } = useApp();
@@ -115,6 +116,8 @@ export default function Home() {
       <Screen />
       {/* 应用开着时的到点提醒调度器（权限+偏好开启才工作；渲染 null） */}
       <ReminderScheduler />
+      {/* P5：云端加载失败回退本地时的小提示（flag 关时渲染 null） */}
+      <CloudNotice />
     </AppProvider>
   );
 }

@@ -17,8 +17,12 @@ import { createDecision, upsertDecision, type DecisionInput } from "@/domain/dec
 import * as choices from "@/domain/choices";
 import type { PathGenerator } from "@/domain/generator/types";
 import { localGenerator } from "@/domain/generator/localGenerator";
-import type { TreeRepository } from "@/domain/repository/types";
+import type { AsyncTreeRepository, TreeRepository } from "@/domain/repository/types";
 import { LocalStorageRepository } from "@/domain/repository/localStorageRepo";
+import { SupabaseRepository } from "@/domain/repository/supabaseRepo";
+import { migrateLocalToCloud } from "@/domain/repository/migrate";
+import { getCloudStore } from "@/lib/supabaseClient";
+import { useCloudSession } from "@/lib/useCloudSession";
 import {
   addPath,
   addScenarioVariant,
@@ -100,6 +104,7 @@ interface State {
   safetyHold: Profile | null; // 非空 = 检测到危机信号，暂停推演，等用户确认
   selectedTag: string | null; // 当前「标签」视图选中的标签
   focusGoalId: string | null; // 跳到「计划」视图时要聚焦/展开的目标
+  cloudNotice: boolean; // 云端加载失败、已回退本地时的小提示（P5；flag 关时永远 false）
 }
 
 type Action =
@@ -127,7 +132,8 @@ type Action =
   | { type: "patchTree"; tree: LifeTree }
   | { type: "reset" }
   | { type: "safetyHold"; profile: Profile }
-  | { type: "clearSafety" };
+  | { type: "clearSafety" }
+  | { type: "setCloudNotice"; on: boolean };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -196,6 +202,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, safetyHold: action.profile };
     case "clearSafety":
       return { ...state, safetyHold: null };
+    case "setCloudNotice":
+      return { ...state, cloudNotice: action.on };
     default:
       return state;
   }
@@ -326,6 +334,9 @@ interface AppApi {
   eventsOnDay: (date: string) => IcsEvent[];
   safetyHold: Profile | null;
   continueAfterSafety: () => void;
+  // ── P5 云同步（flag 关时：cloudNotice 恒 false，无任何 UI）──
+  cloudNotice: boolean; // true = 云端加载失败、已回退本地，UI 可显示一条小提示
+  dismissCloudNotice: () => void;
 }
 
 const AppContext = createContext<AppApi | null>(null);
@@ -353,6 +364,7 @@ export function AppProvider({
     safetyHold: null,
     selectedTag: null,
     focusGoalId: null,
+    cloudNotice: false,
   });
 
   const repoRef = useRef<TreeRepository | null>(repository ?? null);
@@ -360,6 +372,25 @@ export function AppProvider({
     if (!repoRef.current) repoRef.current = new LocalStorageRepository();
     return repoRef.current;
   }, []);
+
+  // ── P5 云同步（全部在 flag 之后）──
+  // flag 关（默认，无 env）：cloud.enabled=false，下面所有云分支都早退，hydrate/persist 与今天逐字一致。
+  // flag 开 + 已登录：用 SupabaseRepository 取/存树（异步、防抖），首登做一次本地→云迁移。
+  const cloud = useCloudSession();
+  // 当前登录用户对应的云仓库（异步）。userId 变化（登录/登出）时重建；未登录 / flag 关 → null。
+  const cloudRepoRef = useRef<{ userId: string; repo: AsyncTreeRepository } | null>(null);
+  const cloudRepo = useCallback((): AsyncTreeRepository | null => {
+    const uid = cloud.userId;
+    if (!cloud.enabled || !uid) return null;
+    if (cloudRepoRef.current?.userId === uid) return cloudRepoRef.current.repo;
+    const store = getCloudStore();
+    if (!store) return null;
+    const r = new SupabaseRepository(store, uid);
+    cloudRepoRef.current = { userId: uid, repo: r };
+    return r;
+  }, [cloud.enabled, cloud.userId]);
+  // 已经为某 userId 做过迁移 + 初次云端 hydrate 的标记，避免重复。
+  const cloudHydratedForRef = useRef<string | null>(null);
 
   // 最新 tree 的引用，供异步推演读取
   const treeRef = useRef<LifeTree | null>(null);
@@ -381,11 +412,61 @@ export function AppProvider({
   // key = feed.id，便于增删时增量替换。
   const [feedEvents, setFeedEvents] = useState<Record<string, IcsEvent[]>>({});
 
-  // 挂载：读取本地数据 + 探测 AI 是否接入
+  // 挂载：探测 AI 是否接入（与存档无关，始终跑）。
   useEffect(() => {
-    dispatch({ type: "hydrate", tree: repo().load() });
     fetchEnrichEnabled().then((enabled) => dispatch({ type: "setAiEnabled", enabled }));
-  }, [repo]);
+  }, []);
+
+  // 挂载：读取存档并 hydrate。
+  //   flag 关（默认）：同步从 localStorage 读，行为与今天逐字一致（cloud.enabled=false 立即走这支）。
+  //   flag 开：等云会话 ready 后再决定——已登录则异步从云端读（首登先迁移），未登录则照旧本地读。
+  // cloud.enabled 在运行期不变（env 编译期注入），故这里要么永远走同步本地支，要么永远走云支。
+  useEffect(() => {
+    // —— flag 关：原同步本地路径，逐字保留（只 hydrate 一次）——
+    if (!cloud.enabled) {
+      if (state.hydrated) return; // 已 hydrate（含 reset 后重 hydrate 由各自 action 管），不重跑
+      dispatch({ type: "hydrate", tree: repo().load() });
+      return;
+    }
+    // —— flag 开：等会话状态确定 ——
+    if (!cloud.ready) return; // 还没确定登录态，先不 hydrate（page 显示"载入中…"）
+    const uid = cloud.userId;
+    // 未登录：与本地一致地 hydrate（一旦登录，下面 userId 变化会重跑本 effect 走云支）。
+    if (!uid) {
+      if (state.hydrated) return; // 已 hydrate 过就不重复（避免登出后清空树）
+      dispatch({ type: "hydrate", tree: repo().load() });
+      return;
+    }
+    // 已登录且本 userId 还没做过云 hydrate → 迁移（首登）+ 从云端读。
+    if (cloudHydratedForRef.current === uid) return;
+    const cr = cloudRepo();
+    if (!cr) {
+      // 理论上 enabled+登录时不会拿不到云仓库；兜底回退本地，不白屏。
+      dispatch({ type: "hydrate", tree: repo().load() });
+      return;
+    }
+    cloudHydratedForRef.current = uid;
+    let cancelled = false;
+    void (async () => {
+      try {
+        // 首登：本地有树 + 云端空 → 一次性把本地搬上云（幂等，不覆盖云端已有）。
+        await migrateLocalToCloud(repo(), cr);
+        const cloudTree = await cr.load();
+        if (cancelled) return;
+        // 云端读到就用云端；云端仍空（迁移也没搬，说明本地也空）→ 用本地兜底（多半也是 null → onboarding）。
+        dispatch({ type: "hydrate", tree: cloudTree ?? repo().load() });
+      } catch {
+        if (cancelled) return;
+        // 云端异常：回退本地存档 + 给一条小提示，绝不白屏。
+        dispatch({ type: "hydrate", tree: repo().load() });
+        dispatch({ type: "setCloudNotice", on: true });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // state.hydrated 仅在未登录支用到（判断是否已 hydrate）；故纳入依赖。
+  }, [cloud.enabled, cloud.ready, cloud.userId, cloudRepo, repo, state.hydrated]);
 
   // url 订阅源变化（增/删/改 url）→ 重新代取。以 id|url 串联成签名，签名不变则不重取。
   const urlFeeds = state.tree?.calendarFeeds?.filter((f) => f.url) ?? [];
@@ -421,10 +502,29 @@ export function AppProvider({
     return out;
   }, [state.tree?.calendarFeeds, feedEvents]);
 
-  // 持久化：tree 变化即写入本地（含 AI 润色后的合并结果）
+  // 持久化：tree 变化即写入。
+  //   flag 关（默认）：同步写 localStorage，逐字与今天一致。
+  //   flag 开 + 已登录：仍同步写本地（离线兜底 / 迁移源），并防抖写云端。
+  //   flag 开 + 未登录：只写本地，与今天一致。
+  // 防抖 timer：避免每次小改动都打云端；卸载/再次变更时清掉旧 timer。
+  const cloudSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (state.hydrated && state.tree) repo().save(state.tree);
-  }, [state.tree, state.hydrated, repo]);
+    if (!(state.hydrated && state.tree)) return;
+    const tree = state.tree;
+    // 本地写入始终发生（flag 关时这是唯一存档；flag 开时作为离线兜底，无害）。
+    repo().save(tree);
+    if (!cloud.enabled || !cloud.userId) return; // flag 关 / 未登录：到此为止，与今天一致
+    const cr = cloudRepo();
+    if (!cr) return;
+    if (cloudSaveTimer.current) clearTimeout(cloudSaveTimer.current);
+    cloudSaveTimer.current = setTimeout(() => {
+      // SupabaseRepository.save 自身吞错（不崩）；这里再兜一层。
+      void cr.save(tree).catch(() => {});
+    }, 800);
+    return () => {
+      if (cloudSaveTimer.current) clearTimeout(cloudSaveTimer.current);
+    };
+  }, [state.tree, state.hydrated, repo, cloud.enabled, cloud.userId, cloudRepo]);
 
   // 核心：先在内存里生成本地占位路径，等 AI 把这一批全部推演完，再一次性提交到
   // 树上（届时分支才画出来，并落在 AI 决定的分叉年龄）。AI 没接入/失败则用本地兜底，
@@ -597,6 +697,9 @@ export function AppProvider({
       backToTree: () => dispatch({ type: "backToTree" }),
       reset: () => {
         repo().clear();
+        // flag 开 + 已登录：同时清云端那一行（fire-and-forget，吞错）。flag 关时 cloudRepo() 恒为 null。
+        const cr = cloudRepo();
+        if (cr) void cr.clear().catch(() => {});
         dispatch({ type: "reset" });
       },
       makeDecision: (input) => createDecision(input, new Date().toISOString()),
@@ -1116,6 +1219,9 @@ export function AppProvider({
         const tree = createTree(p, generator, new Date().toISOString());
         void predictAndCommit(tree, tree.paths, "onboarding");
       },
+      // ── P5 云同步小提示（flag 关时恒 false）──
+      cloudNotice: state.cloudNotice,
+      dismissCloudNotice: () => dispatch({ type: "setCloudNotice", on: false }),
     }),
     [
       state.view,
@@ -1127,8 +1233,10 @@ export function AppProvider({
       state.safetyHold,
       state.selectedTag,
       state.focusGoalId,
+      state.cloudNotice,
       generator,
       repo,
+      cloudRepo,
       predictAndCommit,
       regenerateAndCommit,
       importedEvents,
