@@ -13,6 +13,7 @@ import { WeeklyReviewSheet } from "./WeeklyReviewSheet";
 import { MonthCalendar } from "./MonthCalendar";
 import { YearView } from "./YearView";
 import { DayView } from "./DayView";
+import { TodayReminders } from "./TodayReminders";
 import { addDays, branchPositionAge, currentStreak, heatmap } from "@/domain/daily";
 import { unscheduledActions } from "@/domain/calendar";
 import { goalProgress } from "@/domain/goals";
@@ -27,7 +28,7 @@ const _bootToday = localTodayStr();
 const WEEKDAY_FULL = ["每周日", "每周一", "每周二", "每周三", "每周四", "每周五", "每周六"];
 
 export function CalendarPlannerScreen() {
-  const { tree, openTree, openPath, openPlan, scheduleAction, updateGoal, markDueGoalsReviewed, addBranch, addLooseTask, quickAdd } = useApp();
+  const { tree, openTree, openPath, openPlan, openUpcoming, scheduleAction, updateGoal, markDueGoalsReviewed, addBranch, addLooseTask, quickAdd } = useApp();
   const { t } = useT();
 
   const [today, setToday] = useState(_bootToday);
@@ -158,6 +159,16 @@ export function CalendarPlannerScreen() {
           <div className="mt-2 text-[11px] text-[var(--c-emerald)]">{quickEcho}</div>
         )}
       </Card>
+
+      {/* 今日提醒：今天/逾期/即将开始 + 开启通知（无任何到期项时自动隐藏） */}
+      <TodayReminders
+        tree={tree}
+        onOpenDay={() => {
+          setSelectedDay(today);
+          setCalView("day");
+        }}
+        onOpenUpcoming={openUpcoming}
+      />
 
       {!tree.guideDismissed && <GettingStarted tree={tree} />}
 

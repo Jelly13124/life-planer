@@ -313,6 +313,15 @@ export const EN: Record<string, string> = {
   "跑步 明天 7点  /  喝水 每天  /  开会 周三 14:00":
     "Run tomorrow 7am  /  Water daily  /  Meeting Wed 14:00",
   "已添加：{summary}": "Added: {summary}",
+  // ── 今日提醒 / 通知（P3：提醒 + Notification API）──
+  今日提醒: "Today's reminders",
+  "今天 {n} 件": "{n} today",
+  "逾期 {n}": "{n} overdue",
+  "即将开始：{text}": "Starting soon: {text}",
+  "今天有 {n} 件待办": "{n} item(s) due today",
+  开启提醒: "Turn on reminders",
+  提醒已开启: "Reminders on",
+  通知权限被拒绝: "Notifications blocked",
   每周日: "Weekly (Sun)",
   每周一: "Weekly (Mon)",
   每周二: "Weekly (Tue)",

@@ -295,6 +295,16 @@ export function IconClock({ className }: IconProps) {
   );
 }
 
+// 提醒 / 通知（铃铛）。
+export function IconBell({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M18 8.5a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16s-2-1.5-2-6.5Z" />
+      <path d="M10.5 19a1.8 1.8 0 0 0 3 0" />
+    </Svg>
+  );
+}
+
 // 关闭 / 删除（✕）。
 export function IconX({ className }: IconProps) {
   return (
