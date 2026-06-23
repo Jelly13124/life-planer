@@ -494,6 +494,17 @@ export const EN: Record<string, string> = {
 
   // ── 无目标（散）任务/习惯：在各视图里作为中性分组/标签 ──
   无目标: "No goal",
+  // 创建散任务/日常 + 独立短期目标（goal-less creation UI）
+  "＋ 日常": "＋ Routine",
+  "＋ 独立短期目标": "＋ Standalone short-term goal",
+  独立短期目标: "Standalone short-term goals",
+  新任务: "New task",
+  "新日常（每天重复）": "New routine (repeats daily)",
+  任务名称: "Task name",
+  "日常名称（如 上班）": "Routine name (e.g. go to work)",
+  "独立短期目标标题（如 这周运动 10 小时）":
+    "Standalone short-term goal title (e.g. exercise 10 hours this week)",
+  创建独立短期目标: "Create standalone short-term goal",
 
   // ── 习惯 HabitsSection ──
   "坚持重复，构成你真正的生活方式。": "Repeat consistently — that's what shapes your real lifestyle.",

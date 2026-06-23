@@ -10,7 +10,7 @@ import { findItem, goalById } from "@/domain/goalTree";
 import { dayWindow, toMinutes, toHHMM, DEFAULT_DURATION_MIN } from "@/domain/schedule";
 import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
-import { IconSparkle } from "./ui/icons";
+import { IconSparkle, IconPlus, IconRepeat } from "./ui/icons";
 
 // 日视图：把某天的行动摊在一条竖直时间轴上。纯渲染（date 由 props 注入，绝不在渲染里 new Date）。
 // 时间块按 startTime 绝对定位、按 durationMin 定高；像素/分钟比固定，便于眼睛对齐刻度。
@@ -45,6 +45,9 @@ export function DayView({
     toggleActionOn,
     removeActionById,
     scheduleActionAt,
+    scheduleAction,
+    addLooseTask,
+    addLooseHabit,
     updateGoal,
     openPlanFocused,
   } = useApp();
@@ -52,7 +55,19 @@ export function DayView({
   const [arranging, setArranging] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [dropOver, setDropOver] = useState(false);
+  // 行内快速创建：null=都收起；"task"=新任务（落到这天）；"routine"=新日常（每天重复）。
+  const [composing, setComposing] = useState<null | "task" | "routine">(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
+
+  // 在日历上建一条散任务并排到当天（未排时间，可拖到时间轴定时）。
+  function createTaskOnDay(text: string) {
+    const id = addLooseTask(text);
+    if (id) scheduleAction(id, date);
+  }
+  // 在日历上建一条散日常（每天重复的习惯，如「上班」；无目标 → 无时间窗，永远重复）。
+  function createRoutine(text: string) {
+    addLooseHabit(text, "daily");
+  }
 
   const win = dayWindow(tree);
   const items = actionsOnDay(tree, date);
@@ -184,6 +199,46 @@ export function DayView({
             )}
           </Button>
         </div>
+      </Card>
+
+      {/* 2b) 快速创建：＋ 任务（落到这天，可拖到时间轴定时）/ ＋ 日常（每天重复，不必服务某目标） */}
+      <Card pad="sm">
+        {composing === "task" ? (
+          <QuickAddInput
+            placeholder={t("任务名称")}
+            ariaLabel={t("新任务")}
+            onAdd={(text) => createTaskOnDay(text)}
+            onClose={() => setComposing(null)}
+          />
+        ) : composing === "routine" ? (
+          <QuickAddInput
+            placeholder={t("日常名称（如 上班）")}
+            ariaLabel={t("新日常（每天重复）")}
+            onAdd={(text) => createRoutine(text)}
+            onClose={() => setComposing(null)}
+          />
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setComposing("task")}
+              aria-label={t("新任务")}
+              className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-[var(--line)] px-3 py-1.5 text-xs text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--accent)]"
+            >
+              <IconPlus className="h-3.5 w-3.5" />
+              {t("＋ 任务")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setComposing("routine")}
+              aria-label={t("新日常（每天重复）")}
+              className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-[var(--line)] px-3 py-1.5 text-xs text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--accent)]"
+            >
+              <IconRepeat className="h-3.5 w-3.5" />
+              {t("＋ 日常")}
+            </button>
+          </div>
+        )}
       </Card>
 
       {/* 3) 时间轴（顶部一条「未定时」chip 带：未排时间但已排到当天的任务，可拖到网格定时） */}
@@ -487,4 +542,41 @@ function TaskDetail({
 // 取这条路在树上的颜色（找不到则 null → 用强调色兜底）。
 function colorOfPath(tree: LifeTree, pathId: string): string | null {
   return tree.paths.find((p) => p.id === pathId)?.color ?? null;
+}
+
+// 行内单行快速创建输入：回车提交（提交后清空、保持开启，便于连建）；Esc / 失焦收起。
+function QuickAddInput({
+  placeholder,
+  ariaLabel,
+  onAdd,
+  onClose,
+}: {
+  placeholder: string;
+  ariaLabel: string;
+  onAdd: (text: string) => void;
+  onClose: () => void;
+}) {
+  const [text, setText] = useState("");
+  return (
+    <input
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && !e.nativeEvent.isComposing && text.trim()) {
+          onAdd(text.trim());
+          setText("");
+        } else if (e.key === "Escape") {
+          onClose();
+        }
+      }}
+      onBlur={() => {
+        if (text.trim()) onAdd(text.trim());
+        onClose();
+      }}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+      className="w-full rounded-lg border border-[var(--line)] bg-[var(--bg-2)] px-2.5 py-1.5 text-xs text-[var(--fg)] outline-none transition focus:border-[var(--accent)] placeholder:text-[var(--fg-faint)]"
+      autoFocus
+    />
+  );
 }

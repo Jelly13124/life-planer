@@ -23,7 +23,7 @@ import { IconFlame, IconCalendar, IconTrophy, IconTarget, IconTree } from "./ui/
 const _bootToday = localTodayStr();
 
 export function CalendarPlannerScreen() {
-  const { tree, openTree, openPath, openPlan, scheduleAction, updateGoal, markDueGoalsReviewed, addBranch } = useApp();
+  const { tree, openTree, openPath, openPlan, scheduleAction, updateGoal, markDueGoalsReviewed, addBranch, addLooseTask } = useApp();
   const { t } = useT();
 
   const [today, setToday] = useState(_bootToday);
@@ -42,6 +42,8 @@ export function CalendarPlannerScreen() {
   const [calView, setCalView] = useState<"year" | "month" | "day">("month");
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const [weeklyOpen, setWeeklyOpen] = useState(false);
+  const [addingTask, setAddingTask] = useState(false);
+  const [newTaskText, setNewTaskText] = useState("");
 
   // 目标列只列「长期目标」（方向/身份级、上树那一层）；短期目标归在其长期父目标下。
   const activeLongGoals = useMemo(
@@ -268,7 +270,41 @@ export function CalendarPlannerScreen() {
 
           {/* 待安排 backlog — drag source, persistent across year/month/day */}
           <Card pad="md">
-            <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("待安排")}</div>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("待安排")}</span>
+              <button
+                type="button"
+                onClick={() => setAddingTask((v) => !v)}
+                aria-label={t("新任务")}
+                className="inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--line)] px-2.5 py-1 text-[11px] text-[var(--fg-faint)] transition hover:border-[var(--accent)]/60 hover:text-[var(--accent)]"
+              >
+                {t("＋ 任务")}
+              </button>
+            </div>
+            {addingTask && (
+              <input
+                value={newTaskText}
+                onChange={(e) => setNewTaskText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing && newTaskText.trim()) {
+                    addLooseTask(newTaskText.trim());
+                    setNewTaskText("");
+                  } else if (e.key === "Escape") {
+                    setNewTaskText("");
+                    setAddingTask(false);
+                  }
+                }}
+                onBlur={() => {
+                  if (newTaskText.trim()) addLooseTask(newTaskText.trim());
+                  setNewTaskText("");
+                  setAddingTask(false);
+                }}
+                placeholder={t("任务名称")}
+                aria-label={t("新任务")}
+                className="mb-2 w-full rounded-lg border border-[var(--line)] bg-[var(--bg-2)] px-2.5 py-1.5 text-xs text-[var(--fg)] outline-none transition focus:border-[var(--accent)] placeholder:text-[var(--fg-faint)]"
+                autoFocus
+              />
+            )}
             <div className="mb-2 text-[11px] text-[var(--fg-dim)]">{t("未排期任务")}</div>
             <div className="flex flex-col gap-1.5">
               {unsched.length === 0 && <span className="text-xs text-[var(--fg-faint)]">{t("没有未排期的任务")}</span>}

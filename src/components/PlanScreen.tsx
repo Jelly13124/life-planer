@@ -17,7 +17,7 @@ import {
   type Task,
 } from "@/domain/types";
 import { allTags, dueGoalReviews, goalProgress } from "@/domain/goals";
-import { longGoals, shortGoalsOf } from "@/domain/goalTree";
+import { longGoals, shortGoalsOf, standaloneShortGoals } from "@/domain/goalTree";
 import { localTodayStr } from "@/lib/dailyClient";
 import {
   fetchGoalDecomposition,
@@ -1454,7 +1454,7 @@ function GoalLevelMetrics({ goal, t }: { goal: Goal; t: TFn }) {
 // PlanScreen：领域分组 → 长期目标卡（旗下短期目标 → 指标/任务/习惯），全层级 CRUD。
 // ───────────────────────────────────────────────────────────────────────────
 export function PlanScreen() {
-  const { tree, addLongGoal, addLongGoalWithBranch, markDueGoalsReviewed, focusGoalId, clearFocusGoal } = useApp();
+  const { tree, addLongGoal, addLongGoalWithBranch, addStandaloneShortGoal, markDueGoalsReviewed, focusGoalId, clearFocusGoal } = useApp();
   const { t } = useT();
 
   const [todayStr, setTodayStr] = useState(_bootToday);
@@ -1469,10 +1469,13 @@ export function PlanScreen() {
   const [suggesting, setSuggesting] = useState(false);
   const [added, setAdded] = useState<string[]>([]);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  // 顶部创建器：null=收起；"long"=新长期目标（GoalForm）；"standalone"=独立短期目标（StandaloneShortForm）。
+  const [creating, setCreating] = useState<null | "long" | "standalone">(null);
 
   // 只迭代长期目标（短期目标嵌在各自长期目标卡内）。
   const longs = useMemo(() => (tree ? longGoals(tree) : []), [tree]);
+  // 独立短期目标（无长期父）：单独一节渲染。
+  const standalones = useMemo(() => (tree ? standaloneShortGoals(tree) : []), [tree]);
   const treeTags = useMemo(() => (tree ? allTags(tree) : []), [tree]);
   const due = useMemo(() => (tree ? dueGoalReviews(tree, todayStr) : []), [tree, todayStr]);
 
@@ -1514,9 +1517,14 @@ export function PlanScreen() {
         title={t("我的规划")}
         subtitle={t("把人生分成领域，每个长期目标拆成短期目标，再落到指标、任务和习惯，一步步靠近它。")}
         actions={
-          <Button variant="primary" onClick={() => setCreating((v) => !v)}>
-            {t("＋ 新长期目标")}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="primary" onClick={() => setCreating((v) => (v === "long" ? null : "long"))}>
+              {t("＋ 新长期目标")}
+            </Button>
+            <Button variant="subtle" onClick={() => setCreating((v) => (v === "standalone" ? null : "standalone"))}>
+              {t("＋ 独立短期目标")}
+            </Button>
+          </div>
         }
       />
 
@@ -1535,13 +1543,13 @@ export function PlanScreen() {
       )}
 
       {/* 新长期目标表单 */}
-      {creating && (
+      {creating === "long" && (
         <div className="mb-6">
           <GoalForm
             t={t}
             submitLabel={t("创建长期目标")}
             showBranchOption
-            onCancel={() => setCreating(false)}
+            onCancel={() => setCreating(null)}
             onSubmit={(d, withBranch) => {
               const payload = {
                 area: d.area,
@@ -1552,7 +1560,29 @@ export function PlanScreen() {
               };
               if (withBranch) addLongGoalWithBranch(payload);
               else addLongGoal(payload);
-              setCreating(false);
+              setCreating(null);
+            }}
+          />
+        </div>
+      )}
+
+      {/* 独立短期目标表单（无长期父）：复用 GoalForm，但不提供「成长为分支」（短期不上树）。 */}
+      {creating === "standalone" && (
+        <div className="mb-6">
+          <GoalForm
+            initial={{ area: "growth" }}
+            t={t}
+            submitLabel={t("创建独立短期目标")}
+            onCancel={() => setCreating(null)}
+            onSubmit={(d) => {
+              addStandaloneShortGoal({
+                area: d.area,
+                title: d.title,
+                why: d.why,
+                startDate: d.startDate || undefined,
+                endDate: d.endDate || undefined,
+              });
+              setCreating(null);
             }}
           />
         </div>
@@ -1674,12 +1704,35 @@ export function PlanScreen() {
             accent="var(--accent)"
             description={t("还没有目标。建一个长期目标，或让 AI 帮你想几个，看着它们在你的人生树上长出来。")}
             action={
-              <Button variant="primary" onClick={() => setCreating(true)}>
+              <Button variant="primary" onClick={() => setCreating("long")}>
                 {t("＋ 新长期目标")}
               </Button>
             }
           />
         )
+      )}
+
+      {/* 独立短期目标（无长期父）：单独一节，用 ShortGoalCard 渲染（卡本身不假设有父）。 */}
+      {standalones.length > 0 && (
+        <section className={grouped.length > 0 ? "mt-7" : "mt-4"}>
+          <h2 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--fg-dim)]">
+            <IconSprout className="h-3.5 w-3.5" />
+            {t("独立短期目标")}
+            <span className="text-[var(--fg-faint)]">· {standalones.length}</span>
+          </h2>
+          <div className="space-y-2">
+            {standalones.map((s) => (
+              <ShortGoalCard
+                key={s.id}
+                short={s}
+                progress={goalProgress(workingTree, s)}
+                t={t}
+                focused={focusGoalId === s.id}
+                onFocused={clearFocusGoal}
+              />
+            ))}
+          </div>
+        </section>
       )}
 
       {/* 有目标但被筛选清空 */}
