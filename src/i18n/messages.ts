@@ -848,4 +848,25 @@ export const EN: Record<string, string> = {
   "「{label}」这条路更近了": "“{label}” just got closer",
   "{before}% → {after}%": "{before}% → {after}%",
   "可行度上涨": "Feasibility rose",
+
+  // ── 2a. AI 帮我分析各选项利弊（accept-to-apply，建议永不自动覆盖用户内容） ──
+  // 字段标签 利/弊/成本/可逆性/直觉、忽略 复用既有键，不在此重复。
+  "✨ AI 帮我分析": "✨ Analyze with AI",
+  "正在分析…": "Analyzing…",
+  "AI 建议": "AI suggestion",
+  "AI 建议，你来定": "AI suggests — you decide",
+  采纳: "Use it",
+  全部采纳: "Use all",
+  "你已填了内容，采纳会替换它": "You already wrote something — using this will replace it",
+  "你当前的内容：": "What you have now:",
+  "AI 分析失败了，请稍后再试": "AI analysis failed — please try again later",
+
+  // ── 2b. 两个未来并排对比（只读，门控在 ≥2 个已推演选项） ──
+  并排对比: "Compare side by side",
+  "并排看两个未来": "Compare two futures side by side",
+  "选两个推演过的选项来并排对比": "Pick two predicted options to compare side by side",
+  "先给两个选项各点『推演这个选项』": "First tap “Predict this option” on at least two options",
+  最终走向: "Where it ends up",
+  关键里程碑: "Key milestones",
+  返回: "Back",
 };

@@ -70,6 +70,8 @@ import { updateHabit as updateHabitInTree } from "@/domain/goalTree";
 import { fetchArrangeDay } from "@/lib/scheduleClient";
 import { fetchPlanShort } from "@/lib/planShortClient";
 import type { PlanShortResult } from "@/domain/planShort";
+import { fetchChoiceAnalysis } from "@/lib/choiceClient";
+import type { ChoiceAnalysis } from "@/lib/choiceAnalysis";
 import { anyCrisisSignal } from "@/domain/safety";
 
 export type View =
@@ -315,6 +317,9 @@ interface AppApi {
   ) => void;
   // 为某选项在人生树上长出一条分支并回填 pathId，然后像目标分支一样 AI 推演。
   predictOptionBranch: (choiceId: string, optionId: string) => void;
+  // AI 分析某选择的各选项利弊：收集 choice + 选项 + profile + lang，调 fetchChoiceAnalysis，
+  // 返回建议供预览（不自动写回——由用户在 UI 主动「采纳」）。找不到 choice / 无选项 → null。离线走本地兜底。
+  analyzeChoice: (choiceId: string) => Promise<ChoiceAnalysis | null>;
   planActionToday: (actionId: string) => void;
   unplanActionToday: (actionId: string) => void;
   toggleTodayAction: (actionId: string) => void;
@@ -944,6 +949,22 @@ export function AppProvider({
         // 3) 先 patch（分支 + 链接），再推演这条分支（保留 choices/链接）
         dispatch({ type: "patchTree", tree: linked });
         void predictAndCommit(linked, [newPath], "branch");
+      },
+      // AI 分析各选项利弊：读最新树，定位 choice + 其选项，连同 profile/lang 调 fetchChoiceAnalysis，
+      // 返回建议供 UI 预览。不写回任何字段——采纳由用户在 ChoicePanel 主动触发（updateChoiceOption）。
+      // 离线/失败由 client 走本地兜底，始终 resolve 出每个选项 id 都有效的建议。
+      analyzeChoice: async (choiceId) => {
+        const baseTree = treeRef.current;
+        if (!baseTree) return null;
+        const choice = (baseTree.choices ?? []).find((c) => c.id === choiceId);
+        if (!choice) return null;
+        const options = (choice.options ?? []).map((o) => ({ id: o.id, label: o.label }));
+        if (!options.length) return null;
+        return fetchChoiceAnalysis({
+          question: choice.question,
+          options,
+          profile: baseTree.profile,
+        });
       },
       // ── Tasks / Habits（直挂在某目标上：长期或短期皆可） ──
       addTask: (goalId, text) => {
