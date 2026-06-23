@@ -1,0 +1,15 @@
+# Keep heavy/generated files out of model context (search/attachments).
+node_modules/
+.next/
+out/
+mobile/node_modules/
+mobile/.expo/
+mobile/.shared/
+mobile/dist/
+mobile/android/
+mobile/ios/
+package-lock.json
+mobile/package-lock.json
+tsconfig.tsbuildinfo
+.git/
+public/*.png
