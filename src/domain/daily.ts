@@ -108,6 +108,16 @@ export function uncompleteAction(tree: LifeTree, actionId: string, today: string
   return putDay(t, { ...e, completedActionIds: e.completedActionIds.filter((x) => x !== actionId) });
 }
 
+// 习惯窗口：习惯只在其所属目标的时间盒内"到期"。
+//   date 落在 [goal.startDate, goal.endDate]（任一端未设则该端不限）时返回 true。
+//   日期一律本地日 "YYYY-MM-DD"，字符串比较即可（同长度同格式按字典序 = 时间序）。
+// 短期目标常带 endDate，故其习惯过了结束日就不再出现；长期目标通常无 endDate → 永远在窗内。
+export function habitInWindow(goal: Goal, date: string): boolean {
+  if (goal.startDate && date < goal.startDate) return false;
+  if (goal.endDate && date > goal.endDate) return false;
+  return true;
+}
+
 // 某行动今天是否算"已完成"：一次性 Task = done；
 // daily Habit = 今天记过；weekly Habit = 最近 7 天内记过。
 export function isActionDoneToday(tree: LifeTree, item: Task | Habit, today: string): boolean {
@@ -121,7 +131,7 @@ export function isActionDoneToday(tree: LifeTree, item: Task | Habit, today: str
 }
 
 // 今天该出现的重复 Habit：daily 永远在；weekly 仅在"本周未完成"时出现（完成后隐藏一周）。
-// 仅 active 目标。
+// 仅 active 目标，且 today 须落在所属目标的时间窗内（过了 goal.endDate 的习惯不再出现）。
 export function recurringDueToday(
   tree: LifeTree,
   today: string,
@@ -129,6 +139,7 @@ export function recurringDueToday(
   const out: { goal: Goal; item: Habit }[] = [];
   for (const { goal, habit } of allHabits(tree)) {
     if (goal.status !== "active") continue;
+    if (!habitInWindow(goal, today)) continue;
     if (habit.repeat === "weekly" && isActionDoneToday(tree, habit, today)) continue;
     out.push({ goal, item: habit });
   }

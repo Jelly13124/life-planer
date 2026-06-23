@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { insightsSummary } from "@/domain/insights";
 import { completeAction } from "@/domain/daily";
 import { createTree } from "@/domain/tree";
-import { addGoal, addTask } from "@/domain/goalTree";
+import { addLongGoal, addTask } from "@/domain/goalTree";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
 import type { Profile } from "@/domain/types";
 
@@ -18,13 +18,13 @@ const TODAY = "2026-06-20";
 
 function baseTree() {
   let t = createTree(profile, gen, NOW);
-  const g = addGoal(t, { area: "growth", title: "健身", why: "" }, NOW);
+  const g = addLongGoal(t, { area: "growth", title: "健身", why: "" }, NOW);
   t = g.tree;
-  const r0 = addTask(t, g.id, null, "俯卧撑", `${NOW}-0`);
+  const r0 = addTask(t, g.id, "俯卧撑", `${NOW}-0`);
   t = r0.tree;
-  const r1 = addTask(t, g.id, null, "跑步", `${NOW}-1`);
+  const r1 = addTask(t, g.id, "跑步", `${NOW}-1`);
   t = r1.tree;
-  const r2 = addTask(t, g.id, null, "拉伸", `${NOW}-2`);
+  const r2 = addTask(t, g.id, "拉伸", `${NOW}-2`);
   t = r2.tree;
   return { tree: t, a0: r0.id, a1: r1.id, a2: r2.id };
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { firstRunSteps } from "@/domain/guide";
 import { createTree } from "@/domain/tree";
-import { addGoal, addTask } from "@/domain/goalTree";
+import { addLongGoal, addTask } from "@/domain/goalTree";
 import { setActionScheduledDate } from "@/domain/calendar";
 import { completeAction } from "@/domain/daily";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
@@ -20,9 +20,9 @@ const DAY = "2026-06-20";
 // 加一个目标（带一个一次性任务），返回树 + 任务 id
 function withGoal(): { tree: LifeTree; taskId: string } {
   let tree = createTree(profile, gen, NOW);
-  const g = addGoal(tree, { area: "career", title: "成为独立设计师", why: "" }, NOW);
+  const g = addLongGoal(tree, { area: "career", title: "成为独立设计师", why: "" }, NOW);
   tree = g.tree;
-  const r = addTask(tree, g.id, null, "攒作品集", `${NOW}-task`);
+  const r = addTask(tree, g.id, "攒作品集", `${NOW}-task`);
   tree = r.tree;
   return { tree, taskId: r.id };
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { favoriteGoals, favoriteTimeLabel, sidebarTags } from "@/domain/sidebar";
-import { addGoal, updateGoalById } from "@/domain/goalTree";
+import { addLongGoal, updateGoalById } from "@/domain/goalTree";
 import { completeGoal, addGoalTag } from "@/domain/goals";
 import { createTree } from "@/domain/tree";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
@@ -27,14 +27,14 @@ const gen = new LocalPathGenerator();
 const NOW = "2026-06-18T00:00:00.000Z";
 const base = (): LifeTree => createTree(profile, gen, NOW);
 
-// 收藏目标用的小工具：addGoal 后 updateGoalById 设 favorite。
+// 收藏目标用的小工具：addLongGoal 后 updateGoalById 设 favorite。
 function addFav(
   t: LifeTree,
-  input: Parameters<typeof addGoal>[1],
+  input: Parameters<typeof addLongGoal>[1],
   favorite: boolean,
   now: string,
 ): { tree: LifeTree; id: string } {
-  const r = addGoal(t, input, now);
+  const r = addLongGoal(t, input, now);
   const tree = updateGoalById(r.tree, r.id, { favorite });
   return { tree, id: r.id };
 }
@@ -44,7 +44,7 @@ describe("sidebar.favoriteGoals", () => {
     let t = base();
     const a = addFav(t, { area: "career", title: "A" }, true, NOW);
     t = a.tree;
-    const b = addGoal(t, { area: "health", title: "B" }, NOW); // not favorite
+    const b = addLongGoal(t, { area: "health", title: "B" }, NOW); // not favorite
     t = b.tree;
     const ids = favoriteGoals(t).map((g) => g.id);
     expect(ids).toEqual([a.id]);
@@ -67,7 +67,7 @@ describe("sidebar.favoriteGoals", () => {
 
   it("returns empty array when no favorites", () => {
     let t = base();
-    t = addGoal(t, { area: "career", title: "X" }, NOW).tree;
+    t = addLongGoal(t, { area: "career", title: "X" }, NOW).tree;
     expect(favoriteGoals(t)).toEqual([]);
   });
 });
@@ -75,13 +75,14 @@ describe("sidebar.favoriteGoals", () => {
 describe("sidebar.favoriteTimeLabel", () => {
   const goalWith = (over: Partial<Goal>): Goal => ({
     id: "g",
+    kind: "long",
+    parentGoalId: null,
     area: "career",
     title: "G",
     why: "",
     status: "active",
     createdAt: NOW,
     metrics: [],
-    subgoals: [],
     tasks: [],
     habits: [],
     ...over,
@@ -116,9 +117,9 @@ describe("sidebar.favoriteTimeLabel", () => {
 describe("sidebar.sidebarTags", () => {
   it("dedups and sorts tags across goals", () => {
     let t = base();
-    const g1 = addGoal(t, { area: "career", title: "A" }, NOW);
+    const g1 = addLongGoal(t, { area: "career", title: "A" }, NOW);
     t = g1.tree;
-    const g2 = addGoal(t, { area: "health", title: "B" }, NOW);
+    const g2 = addLongGoal(t, { area: "health", title: "B" }, NOW);
     t = g2.tree;
     t = addGoalTag(t, g1.id, "重要");
     t = addGoalTag(t, g1.id, "工作");

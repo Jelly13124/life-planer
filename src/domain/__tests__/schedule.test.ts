@@ -11,7 +11,7 @@ import {
   setDayWindow,
 } from "@/domain/schedule";
 import { createTree } from "@/domain/tree";
-import { addGoal, addHabit, addTask, findHabit, findTask } from "@/domain/goalTree";
+import { addLongGoal, addHabit, addTask, findHabit, findTask } from "@/domain/goalTree";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
 import type { LifeTree, Profile } from "@/domain/types";
 
@@ -27,11 +27,11 @@ const NOW = "2026-06-19T00:00:00.000Z";
 // 一棵带一个目标 + 三个一次性 Task 的树
 function withActions(): { tree: LifeTree; goalId: string; a: string[] } {
   let t = createTree(profile, gen, NOW);
-  const g = addGoal(t, { area: "growth", title: "找工作" }, NOW);
+  const g = addLongGoal(t, { area: "growth", title: "找工作" }, NOW);
   t = g.tree;
   const a: string[] = [];
   for (const text of ["改简历", "投简历", "背单词"]) {
-    const r = addTask(t, g.id, null, text, `${NOW}-${text}`);
+    const r = addTask(t, g.id, text, `${NOW}-${text}`);
     t = r.tree;
     a.push(r.id);
   }
@@ -119,7 +119,7 @@ describe("schedule domain", () => {
 
   it("setActionTime works on a Habit too (located by id)", () => {
     const w = withActions();
-    const h = addHabit(w.tree, w.goalId, null, "晨跑", "daily", undefined, `${NOW}-h`);
+    const h = addHabit(w.tree, w.goalId, "晨跑", "daily", undefined, `${NOW}-h`);
     const tree = setActionTime(h.tree, h.id, "06:30", 30);
     const habit = findHabit(tree, h.id)!.habit;
     expect(habit.startTime).toBe("06:30");

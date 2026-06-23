@@ -7,7 +7,7 @@ import {
 } from "@/domain/daily";
 import { createTree, addPath } from "@/domain/tree";
 import {
-  addGoal, addHabit, addTask, findHabit, findTask,
+  addLongGoal, addShortGoal, addHabit, addTask, findHabit, findTask,
 } from "@/domain/goalTree";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
 import type { LifeTree, Profile } from "@/domain/types";
@@ -25,11 +25,11 @@ const T = "2026-06-18";
 // 一棵带一个目标 + 两个一次性 Task（a0,a1）的树。
 function withGoal(): { tree: LifeTree; goalId: string; a0: string; a1: string } {
   let t = createTree(profile, gen, NOW);
-  const g = addGoal(t, { area: "growth", title: "学英语" }, NOW);
+  const g = addLongGoal(t, { area: "growth", title: "学英语" }, NOW);
   t = g.tree;
-  const t0 = addTask(t, g.id, null, "写完简历", NOW);
+  const t0 = addTask(t, g.id, "写完简历", NOW);
   t = t0.tree;
-  const t1 = addTask(t, g.id, null, "看一集美剧", `${NOW}-1`);
+  const t1 = addTask(t, g.id, "看一集美剧", `${NOW}-1`);
   t = t1.tree;
   return { tree: t, goalId: g.id, a0: t0.id, a1: t1.id };
 }
@@ -38,7 +38,7 @@ function withGoal(): { tree: LifeTree; goalId: string; a0: string; a1: string } 
 function addHabitTo(
   tree: LifeTree, goalId: string, text: string, repeat: "daily" | "weekly", seed: string,
 ): { tree: LifeTree; id: string } {
-  return addHabit(tree, goalId, null, text, repeat, undefined, seed);
+  return addHabit(tree, goalId, text, repeat, undefined, seed);
 }
 
 describe("daily domain", () => {
@@ -91,7 +91,7 @@ describe("daily domain", () => {
   it("recurringDueToday: daily always shows; weekly hides once done this week", () => {
     const { tree, goalId } = withGoal();
     const d = addHabitTo(tree, goalId, "每天背单词", "daily", NOW);
-    const w = addHabit(d.tree, goalId, null, "每周复盘", "weekly", undefined, `${NOW}-w`);
+    const w = addHabit(d.tree, goalId, "每周复盘", "weekly", undefined, `${NOW}-w`);
     const base = w.tree;
     const daily = d.id;
     const weekly = w.id;
@@ -104,6 +104,26 @@ describe("daily domain", () => {
     expect(recurringDueToday(at6, T).map((x) => x.item.id)).not.toContain(weekly);
     const at7 = completeAction(base, weekly, addDays(T, -7));
     expect(recurringDueToday(at7, T).map((x) => x.item.id)).toContain(weekly);
+  });
+
+  it("recurringDueToday: a habit is hidden after its owning goal's endDate (habit window)", () => {
+    // 短期目标带时间窗 2026-06-10..2026-06-18，其下一个 daily 习惯。
+    let t = createTree(profile, gen, NOW);
+    const long = addLongGoal(t, { area: "health", title: "健康" }, NOW);
+    t = long.tree;
+    const short = addShortGoal(
+      t, long.id, { area: "health", title: "减肥冲刺", startDate: "2026-06-10", endDate: "2026-06-18" }, NOW,
+    );
+    t = short.tree;
+    const h = addHabit(t, short.id, "每天快走", "daily", undefined, `${NOW}-hw`);
+    t = h.tree;
+    // 窗口内（含 endDate 当天）→ 到期出现
+    expect(recurringDueToday(t, "2026-06-18").map((x) => x.item.id)).toContain(h.id);
+    expect(recurringDueToday(t, "2026-06-12").map((x) => x.item.id)).toContain(h.id);
+    // 起始日之前 → 不出现
+    expect(recurringDueToday(t, "2026-06-09").map((x) => x.item.id)).not.toContain(h.id);
+    // 结束日之后 → 不再出现
+    expect(recurringDueToday(t, "2026-06-19").map((x) => x.item.id)).not.toContain(h.id);
   });
 
   it("todayItems = manual one-shot ∪ recurring-due, each with kind + doneToday", () => {
@@ -175,12 +195,12 @@ describe("daily domain", () => {
   it("branchPositionAge walks the branch by progress; null for no-path goal", () => {
     let t = addPath(createTree(profile, gen, NOW), "去读研", gen, NOW);
     const branch = t.paths.find((p) => p.kind === "choice")!;
-    const g = addGoal(t, { area: "career", title: "读研", pathId: branch.id }, NOW);
+    const g = addLongGoal(t, { area: "career", title: "读研", pathId: branch.id }, NOW);
     t = g.tree;
     // four goal-level tasks → four milestone units
     const ids: string[] = [];
     for (const text of ["a", "b", "c", "d"]) {
-      const r = addTask(t, g.id, null, text, `${NOW}-${text}`);
+      const r = addTask(t, g.id, text, `${NOW}-${text}`);
       t = r.tree;
       ids.push(r.id);
     }
@@ -191,7 +211,7 @@ describe("daily domain", () => {
     const g1 = t2.goals.find((x) => x.id === g.id)!;
     expect(branchPositionAge(t2, g1)).toBeCloseTo(branch.forkAge + 0.5 * (endAge - branch.forkAge), 5);
     // a goal with no pathId → null
-    const noPath = addGoal(t, { area: "health", title: "S" }, NOW);
+    const noPath = addLongGoal(t, { area: "health", title: "S" }, NOW);
     expect(branchPositionAge(noPath.tree, noPath.tree.goals.find((x) => x.id === noPath.id)!)).toBeNull();
   });
 });

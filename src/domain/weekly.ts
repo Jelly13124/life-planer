@@ -16,7 +16,7 @@ export interface WeeklyRecap {
   streak: number;
   dueDecisions: Decision[];
   dueGoals: Goal[];
-  milestonesThisWeek: Goal[]; // goals with status "done" and completedAt within the last 7 days
+  milestonesThisWeek: Goal[]; // LONG goals done with completedAt within the last 7 days
 }
 
 export function weeklyRecap(tree: LifeTree, today: string): WeeklyRecap {
@@ -29,8 +29,10 @@ export function weeklyRecap(tree: LifeTree, today: string): WeeklyRecap {
   const activeDays = hm.filter((d) => d.count > 0).length;
   const streak = currentStreak(tree, today);
 
+  // 里程碑只看 **长期** 目标完成 —— 它才是改变方向/身份、值得作为本周里程碑庆祝的那一层。
   const milestonesThisWeek = (tree.goals ?? []).filter(
     (g) =>
+      g.kind === "long" &&
       g.status === "done" &&
       g.completedAt != null &&
       // completedAt is an ISO timestamp; compare by date string (YYYY-MM-DD prefix)

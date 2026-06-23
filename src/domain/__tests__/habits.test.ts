@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { recurringActions, habitStreak } from "@/domain/habits";
 import { completeAction } from "@/domain/daily";
-import { addGoal, addHabit, addTask } from "@/domain/goalTree";
+import { addLongGoal, addHabit, addTask } from "@/domain/goalTree";
 import { createTree } from "@/domain/tree";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
 import type { LifeTree, Profile } from "@/domain/types";
@@ -20,13 +20,13 @@ const TODAY = "2026-06-20";
 // h0 = daily habit, h1 = weekly habit, a2 = one-shot task.
 function buildTree(): { tree: LifeTree; h0: string; h1: string; a2: string } {
   let t = createTree(profile, gen, NOW);
-  const g = addGoal(t, { area: "health", title: "健康习惯", why: "" }, NOW);
+  const g = addLongGoal(t, { area: "health", title: "健康习惯", why: "" }, NOW);
   t = g.tree;
-  const r0 = addHabit(t, g.id, null, "每天冥想", "daily", undefined, `${NOW}-h0`);
+  const r0 = addHabit(t, g.id, "每天冥想", "daily", undefined, `${NOW}-h0`);
   t = r0.tree;
-  const r1 = addHabit(t, g.id, null, "每周跑步", "weekly", undefined, `${NOW}-h1`);
+  const r1 = addHabit(t, g.id, "每周跑步", "weekly", undefined, `${NOW}-h1`);
   t = r1.tree;
-  const r2 = addTask(t, g.id, null, "一次性任务", `${NOW}-a2`);
+  const r2 = addTask(t, g.id, "一次性任务", `${NOW}-a2`);
   t = r2.tree;
   return { tree: t, h0: r0.id, h1: r1.id, a2: r2.id };
 }
@@ -54,12 +54,12 @@ describe("habits domain", () => {
 
     it("includes habits from multiple active goals", () => {
       let t = createTree(profile, gen, NOW);
-      const g1 = addGoal(t, { area: "health", title: "目标A", why: "" }, NOW);
+      const g1 = addLongGoal(t, { area: "health", title: "目标A", why: "" }, NOW);
       t = g1.tree;
-      t = addHabit(t, g1.id, null, "跑步", "daily", undefined, `${NOW}-g1h`).tree;
-      const g2 = addGoal(t, { area: "growth", title: "目标B", why: "" }, `${NOW}-g2`);
+      t = addHabit(t, g1.id, "跑步", "daily", undefined, `${NOW}-g1h`).tree;
+      const g2 = addLongGoal(t, { area: "growth", title: "目标B", why: "" }, `${NOW}-g2`);
       t = g2.tree;
-      t = addHabit(t, g2.id, null, "读书", "weekly", undefined, `${NOW}-g2h`).tree;
+      t = addHabit(t, g2.id, "读书", "weekly", undefined, `${NOW}-g2h`).tree;
       const habits = recurringActions(t);
       expect(habits).toHaveLength(2);
     });

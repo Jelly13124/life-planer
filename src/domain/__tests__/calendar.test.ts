@@ -3,7 +3,7 @@ import {
   weekdayOf, monthGrid, actionsOnDay, unscheduledActions, setActionScheduledDate,
 } from "@/domain/calendar";
 import { createTree } from "@/domain/tree";
-import { addGoal, addHabit, addTask } from "@/domain/goalTree";
+import { addLongGoal, addShortGoal, addHabit, addTask } from "@/domain/goalTree";
 import { completeAction } from "@/domain/daily";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
 import type { LifeTree, Profile } from "@/domain/types";
@@ -20,11 +20,11 @@ const NOW = "2026-06-19T00:00:00.000Z";
 // 一棵带一个目标 + 三个一次性 Task 的树。
 function withTasks(): { tree: LifeTree; goalId: string; a: string[] } {
   let t = createTree(profile, gen, NOW);
-  const g = addGoal(t, { area: "growth", title: "找工作" }, NOW);
+  const g = addLongGoal(t, { area: "growth", title: "找工作" }, NOW);
   t = g.tree;
   const a: string[] = [];
   for (const text of ["改简历", "投简历", "背单词"]) {
-    const r = addTask(t, g.id, null, text, `${NOW}-${text}`);
+    const r = addTask(t, g.id, text, `${NOW}-${text}`);
     t = r.tree;
     a.push(r.id);
   }
@@ -60,8 +60,8 @@ describe("calendar domain", () => {
   it("actionsOnDay: daily every day; weekly only on its anchor weekday", () => {
     const w = withTasks();
     // daily habit + weekly habit anchored to Monday (1)
-    const d = addHabit(w.tree, w.goalId, null, "每天背单词", "daily", undefined, `${NOW}-d`);
-    const wk = addHabit(d.tree, w.goalId, null, "每周复盘", "weekly", 1, `${NOW}-w`);
+    const d = addHabit(w.tree, w.goalId, "每天背单词", "daily", undefined, `${NOW}-d`);
+    const wk = addHabit(d.tree, w.goalId, "每周复盘", "weekly", 1, `${NOW}-w`);
     const tree = wk.tree;
     expect(actionsOnDay(tree, "2026-06-22").map((x) => x.item.id)).toEqual(
       expect.arrayContaining([d.id, wk.id]),
@@ -69,6 +69,41 @@ describe("calendar domain", () => {
     const tue = actionsOnDay(tree, "2026-06-23").map((x) => x.item.id);
     expect(tue).toContain(d.id);      // daily still
     expect(tue).not.toContain(wk.id); // weekly anchored to Monday
+  });
+
+  it("actionsOnDay: a habit disappears after its owning goal's endDate (habit window)", () => {
+    // 短期目标时间窗 ..2026-06-30；其下一个 daily 习惯只在窗内出现。
+    let t = createTree(profile, gen, NOW);
+    const long = addLongGoal(t, { area: "health", title: "健康" }, NOW);
+    t = long.tree;
+    const short = addShortGoal(
+      t, long.id, { area: "health", title: "本月计划", startDate: "2026-06-01", endDate: "2026-06-30" }, NOW,
+    );
+    t = short.tree;
+    const h = addHabit(t, short.id, "每天快走", "daily", undefined, `${NOW}-cw`);
+    t = h.tree;
+    // 结束日当天仍在
+    expect(actionsOnDay(t, "2026-06-30").map((x) => x.item.id)).toContain(h.id);
+    // 结束日之后不再出现
+    expect(actionsOnDay(t, "2026-07-01").map((x) => x.item.id)).not.toContain(h.id);
+    // 起始日之前不出现
+    expect(actionsOnDay(t, "2026-05-31").map((x) => x.item.id)).not.toContain(h.id);
+  });
+
+  it("actionsOnDay: a scheduled task is NOT affected by goal window (only habits are)", () => {
+    // 一次性任务有自己的 scheduledDate，不受所属目标时间窗影响。
+    let t = createTree(profile, gen, NOW);
+    const long = addLongGoal(t, { area: "health", title: "健康" }, NOW);
+    t = long.tree;
+    const short = addShortGoal(
+      t, long.id, { area: "health", title: "本月计划", endDate: "2026-06-30" }, NOW,
+    );
+    t = short.tree;
+    const task = addTask(t, short.id, "月底复盘", `${NOW}-late`);
+    t = task.tree;
+    // 排到 endDate 之后的某天，仍然出现（任务不看习惯窗口）。
+    t = setActionScheduledDate(t, task.id, "2026-07-05");
+    expect(actionsOnDay(t, "2026-07-05").map((x) => x.item.id)).toContain(task.id);
   });
 
   it("actionsOnDay: done flag reflects completion on that day", () => {

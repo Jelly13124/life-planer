@@ -138,6 +138,8 @@ describe("tree operations", () => {
     const choice = t.paths.find((p) => p.kind === "choice")!;
     const goal: Goal = {
       id: "goal-x",
+      kind: "long",
+      parentGoalId: null,
       area: "career",
       title: "读完研换赛道",
       why: "",
@@ -145,7 +147,6 @@ describe("tree operations", () => {
       createdAt: NOW,
       pathId: choice.id,
       metrics: [],
-      subgoals: [],
       tasks: [],
       habits: [],
     };

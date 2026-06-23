@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { areaSummaries } from "@/domain/areas";
 import { LIFE_AREAS } from "@/domain/types";
-import { addGoal, addHabit, updateGoalById } from "@/domain/goalTree";
+import { addLongGoal, addHabit, updateGoalById } from "@/domain/goalTree";
 import { createTree } from "@/domain/tree";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
 import type { LifeTree, Profile } from "@/domain/types";
@@ -20,20 +20,20 @@ function buildTree(): { tree: LifeTree; gCareer: string; gCareerShort: string; g
   let t = createTree(profile, gen, NOW);
 
   // career: one active goal with a daily-repeat habit
-  const gCareer = addGoal(t, { area: "career", title: "升到高级工程师", why: "涨薪" }, `${NOW}-c1`);
+  const gCareer = addLongGoal(t, { area: "career", title: "升到高级工程师", why: "涨薪" }, `${NOW}-c1`);
   t = gCareer.tree;
-  t = addHabit(t, gCareer.id, null, "每天刷题", "daily", undefined, `${NOW}-c1h`).tree;
+  t = addHabit(t, gCareer.id, "每天刷题", "daily", undefined, `${NOW}-c1h`).tree;
 
   // career: a second active goal (no habits)
-  const gCareerShort = addGoal(t, { area: "career", title: "完成项目A", why: "年终奖" }, `${NOW}-c2`);
+  const gCareerShort = addLongGoal(t, { area: "career", title: "完成项目A", why: "年终奖" }, `${NOW}-c2`);
   t = gCareerShort.tree;
 
   // health: one active goal, no habits
-  const gHealth = addGoal(t, { area: "health", title: "减脂5斤", why: "精力好" }, `${NOW}-h1`);
+  const gHealth = addLongGoal(t, { area: "health", title: "减脂5斤", why: "精力好" }, `${NOW}-h1`);
   t = gHealth.tree;
 
   // growth: done goal — must NOT appear in active list
-  const gGrowthDone = addGoal(t, { area: "growth", title: "读完《思考快与慢》", why: "" }, `${NOW}-g1`);
+  const gGrowthDone = addLongGoal(t, { area: "growth", title: "读完《思考快与慢》", why: "" }, `${NOW}-g1`);
   t = gGrowthDone.tree;
   t = updateGoalById(t, gGrowthDone.id, { status: "done" });
 

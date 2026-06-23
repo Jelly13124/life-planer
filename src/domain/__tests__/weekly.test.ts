@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { weeklyRecap } from "@/domain/weekly";
 import { createTree, addPath } from "@/domain/tree";
-import { addGoal, addTask, updateGoalById } from "@/domain/goalTree";
+import { addLongGoal, addTask, updateGoalById } from "@/domain/goalTree";
 import { completeGoal } from "@/domain/goals";
 import { createDecision } from "@/domain/decisions";
 import { completeAction } from "@/domain/daily";
@@ -27,11 +27,11 @@ function withGoalTasks(
   tree: LifeTree, area: LifeArea,
   title: string, tasks: string[], seed: string, pathId?: string | null,
 ): { tree: LifeTree; goalId: string; taskIds: string[] } {
-  const g = addGoal(tree, { area, title, why: "", pathId }, `${NOW}-${seed}`);
+  const g = addLongGoal(tree, { area, title, why: "", pathId }, `${NOW}-${seed}`);
   let t = g.tree;
   const taskIds: string[] = [];
   tasks.forEach((text, i) => {
-    const r = addTask(t, g.id, null, text, `${NOW}-${seed}-${i}`);
+    const r = addTask(t, g.id, text, `${NOW}-${seed}-${i}`);
     t = r.tree;
     taskIds.push(r.id);
   });

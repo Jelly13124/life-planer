@@ -1,11 +1,12 @@
 import type { Goal, Habit, LifeTree, Task } from "./types";
-import { addDays, isActionDoneToday } from "./daily";
+import { addDays, habitInWindow, isActionDoneToday } from "./daily";
 import { allHabits, allTasks, updateTask } from "./goalTree";
 
 // ───────────────────────────────────────────────────────────────────────────
 // calendar —— 月历排程的纯函数。日期一律 "YYYY-MM-DD"，用 UTC 解析避免时区漂移
 // （与 daily.ts 一致）。不用 Date.now/Math.random：年月/日期由 state/组件注入。
-// 模型：嵌套目标 —— 排期落在一次性 Task.scheduledDate；重复 Habit 按 repeat 显示。
+// 模型：两级目标 —— 排期落在一次性 Task.scheduledDate；重复 Habit 按 repeat 显示，
+//   且只在所属目标的时间窗（startDate..endDate）内出现。
 // ───────────────────────────────────────────────────────────────────────────
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -50,6 +51,7 @@ export function actionsOnDay(
   }
   for (const { goal, habit } of allHabits(tree)) {
     if (goal.status !== "active") continue;
+    if (!habitInWindow(goal, date)) continue; // 习惯只在所属目标时间窗内出现（过 endDate 不再显示）
     let kind: DayActionKind | null = null;
     if (habit.repeat === "daily") kind = "daily";
     else if (habit.repeat === "weekly") kind = (habit.repeatWeekday ?? 1) === wd ? "weekly" : null;
