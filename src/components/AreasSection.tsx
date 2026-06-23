@@ -5,6 +5,7 @@ import { useT } from "@/prefs/PreferencesContext";
 import { GOAL_AREA_LABELS } from "@/domain/types";
 import { areaSummaries, type AreaSummary } from "@/domain/areas";
 import { goalProgress } from "@/domain/goals";
+import { shortGoalsOf } from "@/domain/goalTree";
 import type { Goal, LifeTree } from "@/domain/types";
 import { Card } from "./ui/Card";
 import { SectionHeader } from "./ui/SectionHeader";
@@ -50,7 +51,9 @@ function GoalProgressRow({
   onOpen: () => void;
 }) {
   const { t } = useT();
+  // goal 是长期目标：进度为旗下短期目标 + 自身里程碑的综合 roll-up。
   const pct = Math.round(goalProgress(tree, goal) * 100);
+  const shortCount = goal.kind === "long" ? shortGoalsOf(tree, goal.id).length : 0;
   return (
     <button
       onClick={goal.pathId ? onOpen : undefined}
@@ -68,6 +71,11 @@ function GoalProgressRow({
           style={{ width: `${pct}%`, background: color }}
         />
       </div>
+      {shortCount > 0 && (
+        <div className="mt-1 text-[10px] text-[var(--fg-faint)]">
+          {t("{n} 个短期目标", { n: shortCount })}
+        </div>
+      )}
     </button>
   );
 }
@@ -148,8 +156,9 @@ export function AreasSection() {
   // 「其他」是中性桶，没有分数 —— 不进 areaSummaries / ScoreBar。这里单独捞它的进行中目标，
   // 放在页面底部一个无分数的分组里（有目标才渲染）。
   const otherColor = AREA_COLORS.other;
+  // 「其他」组也只列长期目标（与上面五个领域卡一致）；短期目标归在其长期父目标下。
   const otherGoals = (tree.goals ?? []).filter(
-    (g) => g.status === "active" && g.area === "other",
+    (g) => g.status === "active" && g.area === "other" && g.kind === "long",
   );
 
   return (

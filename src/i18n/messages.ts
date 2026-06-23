@@ -444,6 +444,7 @@ export const EN: Record<string, string> = {
   还没有目标: "No goals yet",
   去规划: "Plan now",
   "{n} 个习惯": "{n} habit(s)",
+  "{n} 个短期目标": "{n} short-term goal(s)",
   "各个维度还没有目标，去规划一个吧。": "No goals in any area yet — go set one.",
   不计入分数: "Not scored",
 

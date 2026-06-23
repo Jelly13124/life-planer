@@ -16,6 +16,7 @@ import { DayView } from "./DayView";
 import { addDays, branchPositionAge, currentStreak, heatmap } from "@/domain/daily";
 import { unscheduledActions } from "@/domain/calendar";
 import { goalProgress } from "@/domain/goals";
+import { longGoals, shortGoalsOf } from "@/domain/goalTree";
 import { localTodayStr } from "@/lib/dailyClient";
 import { IconFlame, IconCalendar, IconTrophy, IconTarget, IconTree } from "./ui/icons";
 
@@ -42,8 +43,11 @@ export function CalendarPlannerScreen() {
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const [weeklyOpen, setWeeklyOpen] = useState(false);
 
-  const goals = tree?.goals ?? [];
-  const activeGoals = useMemo(() => goals.filter((g) => g.status === "active"), [goals]);
+  // 目标列只列「长期目标」（方向/身份级、上树那一层）；短期目标归在其长期父目标下。
+  const activeLongGoals = useMemo(
+    () => (tree ? longGoals(tree).filter((g) => g.status === "active") : []),
+    [tree],
+  );
   const streak = useMemo(() => (tree ? currentStreak(tree, today) : 0), [tree, today]);
   const hm = useMemo(() => (tree ? heatmap(tree, 30, today) : []), [tree, today]);
   const doneGoals = useMemo(() => (tree ? tree.goals.filter((g) => g.status === "done") : []), [tree]);
@@ -192,7 +196,7 @@ export function CalendarPlannerScreen() {
         <div className="flex flex-col gap-4 lg:w-[40%]">
           <Card pad="md">
             <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("目标")}</div>
-            {activeGoals.length === 0 ? (
+            {activeLongGoals.length === 0 ? (
               <EmptyState
                 size="inline"
                 icon={<IconTarget className="h-6 w-6" />}
@@ -205,8 +209,10 @@ export function CalendarPlannerScreen() {
               />
             ) : (
               <div className="space-y-3.5">
-                {activeGoals.map((g) => {
+                {activeLongGoals.map((g) => {
+                  // 长期目标的进度 = 旗下短期目标 + 自身里程碑的综合 roll-up。
                   const pct = Math.round(goalProgress(tree, g) * 100);
+                  const shortCount = shortGoalsOf(tree, g.id).length;
                   return (
                     <button
                       key={g.id}
@@ -227,6 +233,9 @@ export function CalendarPlannerScreen() {
                         <span className="ml-2 flex-shrink-0 text-[11px] tabular-nums text-[var(--fg-faint)]">{t("进度 {pct}%", { pct })}</span>
                       </div>
                       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/[0.08]"><div className="h-full rounded-full bg-[var(--accent)] transition-all" style={{ width: `${pct}%` }} /></div>
+                      {shortCount > 0 && (
+                        <div className="mt-1 pl-[18px] text-[10px] text-[var(--fg-faint)]">{t("{n} 个短期目标", { n: shortCount })}</div>
+                      )}
                     </button>
                   );
                 })}
