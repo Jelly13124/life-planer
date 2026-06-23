@@ -86,26 +86,50 @@ function legacyToGoal(g: LegacyGoal, kind: "long" | "short", parentGoalId: strin
   };
 }
 
-// 把一组 legacy 目标迁成两级：long（horizon==="long" 或无有效父）+ short（保留有效父，孤儿提为 long）。
-function migrateLegacyGroup(legacy: LegacyGoal[]): Goal[] {
+// 把一组 legacy 目标迁成两级：long（horizon==="long" 或无最近 long 祖先）+ short（父=最近 long 祖先）。
+//   nonLegacyLongIds：本批之外、在同一输入里已确定为 long 的 id（nested 顶层 / two-tier long），
+//   用于混排输入：legacy short 指向这些 id 时，应保留为真实 short（父=该 long），而非误判孤儿提为 long。
+function migrateLegacyGroup(
+  legacy: LegacyGoal[],
+  nonLegacyLongIds: ReadonlySet<string>,
+): Goal[] {
   const byId = new Map<string, LegacyGoal>();
   for (const g of legacy) byId.set(g.id, g);
 
-  // 有效父：自指 → null；指向不存在/非 legacy 的父 → null（孤儿）。
-  const effectiveParent = (g: LegacyGoal): string | null => {
-    const p = g.parentGoalId;
-    if (p == null) return null;
-    if (p === g.id) return null; // 自指
-    if (!byId.has(p)) return null; // 缺失父 → 孤儿
-    return p;
-  };
+  // 某 legacy 目标自身是否会成为 long：horizon==="long"，或它没有任何「会成为 long 的祖先」。
+  // （此处只判 batch 内 legacy；指向 nonLegacyLong 的另算，见 nearestLongParent。）
+  const resolvesToLong = (g: LegacyGoal): boolean =>
+    g.horizon === "long" || nearestLongParent(g) == null;
 
-  // long = horizon==="long" 或无有效父；其余为 short（保留有效父）。
+  // 沿父链向上走，找到「最近的 long 祖先」的 id：
+  //   - 命中 nonLegacyLongIds（nested/two-tier long）→ 该 id；
+  //   - 命中一个 horizon==="long" 的 legacy → 该 id；
+  //   - 链断（父缺失/自指/越出）→ null（该节点自己提为 long）；
+  //   - 成环 → null（cycle-safe，visited 集）。
+  // 这样每个 short 最终都挂到一个真正的 long，绝不会出现 short→short（UI 不可达）。
+  function nearestLongParent(g: LegacyGoal): string | null {
+    const visited = new Set<string>([g.id]);
+    let p = g.parentGoalId;
+    while (p != null) {
+      if (visited.has(p)) return null; // 成环
+      visited.add(p);
+      if (nonLegacyLongIds.has(p)) return p; // 跨输入：nested/two-tier long
+      const parent = byId.get(p);
+      if (!parent) return null; // 父缺失（且非 nonLegacyLong）→ 孤儿
+      if (parent.horizon === "long") return p; // 命中 legacy long 祖先
+      p = parent.parentGoalId; // 父是 legacy short → 继续向上
+    }
+    return null; // 父链终止于无父
+  }
+
+  // long = horizon==="long" 或无最近 long 祖先；其余为 short（父=最近 long 祖先）。
   const out: Goal[] = [];
   for (const g of legacy) {
-    const parent = effectiveParent(g);
-    const isLong = g.horizon === "long" || parent == null;
-    out.push(legacyToGoal(g, isLong ? "long" : "short", parent));
+    if (resolvesToLong(g)) {
+      out.push(legacyToGoal(g, "long", null));
+    } else {
+      out.push(legacyToGoal(g, "short", nearestLongParent(g)));
+    }
   }
   return out;
 }
@@ -171,23 +195,32 @@ export function migrateGoals(input: ReadonlyArray<MigratableGoal>): Goal[] {
   const out: Goal[] = [];
   const legacyBatch: LegacyGoal[] = [];
 
+  // 跨输入的「已确定 long」id 集：nested 顶层 + two-tier long + 形态不明的兜底 long。
+  // legacy short 指向这些 id 时应保留为真实 short（父=该 long），不可误判孤儿提为 long。
+  // （legacy 自身的 long 由 migrateLegacyGroup 在批内判定，不进此集。）
+  const nonLegacyLongIds = new Set<string>();
+
   // 1) 逐个分流：legacy 攒一批（需要互相推断父子）；nested 就地展开；two-tier 原样透传。
   for (const g of list) {
     if (isLegacy(g)) {
       legacyBatch.push(g);
     } else if (isNested(g)) {
+      nonLegacyLongIds.add(g.id);
       out.push(nestedToLong(g));
       for (const s of g.subgoals ?? []) out.push(nestedSubgoalToShort(s, g));
     } else if (isTwoTier(g)) {
+      if (g.kind === "long") nonLegacyLongIds.add(g.id); // 仅 long 可作 short 的父
       out.push(g); // 幂等：已是两级，原样透传
     } else {
       // 形态不明（无 actions/horizon/subgoals/kind）：当 long 兜底，保 id。
-      out.push({ ...(g as Goal), kind: "long", parentGoalId: null });
+      const fallback = g as Goal;
+      nonLegacyLongIds.add(fallback.id);
+      out.push({ ...fallback, kind: "long", parentGoalId: null });
     }
   }
 
-  // 2) legacy 批量迁移（保留批内父子关系）。
-  if (legacyBatch.length) out.push(...migrateLegacyGroup(legacyBatch));
+  // 2) legacy 批量迁移（保留批内父子关系；可挂到跨输入的 nested/two-tier long 上）。
+  if (legacyBatch.length) out.push(...migrateLegacyGroup(legacyBatch, nonLegacyLongIds));
 
   // 3) 安全网：每个输入目标 id + nested subgoal id 都必须作为输出 goal id 出现；
   //    缺失则补一条 long 兜底（极端形态防御，保证无损）。

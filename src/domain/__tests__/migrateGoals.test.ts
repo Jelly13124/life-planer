@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { migrateActions, migrateGoals } from "../migrateGoals";
-import type { Goal, LegacyGoal, NestedGoal } from "../types";
+import { shortGoalsOf } from "../goalTree";
+import type { Goal, LegacyGoal, LifeTree, NestedGoal } from "../types";
+
+// 把一组迁好的 Goal[] 包成最小 LifeTree，便于复用 goalTree 的访问器（shortGoalsOf 等）。
+const treeOf = (goals: Goal[]): LifeTree =>
+  ({ goals } as unknown as LifeTree);
 
 const legacyGoal = (over: Partial<LegacyGoal> = {}): LegacyGoal => ({
   id: "g1",
@@ -159,6 +164,31 @@ describe("migrateGoals — legacy 扁平 → 两级", () => {
     expect(out[0].kind).toBe("long");
     expect(out[0].tasks.map((t) => t.id)).toEqual(["az"]);
   });
+
+  it("legacy grandchild (short→short→long) parents to the NEAREST long and stays UI-reachable", () => {
+    // long1 ⊃ child(short) ⊃ grandchild(short)。两级化后 short→short 在 UI 不可达，
+    // 故 grandchild 必须挂到最近的 long 祖先 long1，且能被 shortGoalsOf(long1) 取到。
+    const out = migrateGoals([
+      legacyGoal({ id: "long1", horizon: "long", title: "长期" }),
+      legacyGoal({ id: "child", horizon: "short", parentGoalId: "long1", title: "短期" }),
+      legacyGoal({ id: "grandchild", horizon: "short", parentGoalId: "child", title: "孙级" }),
+    ]);
+
+    const grandchild = out.find((g) => g.id === "grandchild")!;
+    expect(grandchild.kind).toBe("short");
+    expect(grandchild.parentGoalId).toBe("long1"); // 不是 "child"（那是个 short，UI 不可达）
+
+    // 关键：可达性 —— grandchild 真的能从顶层 long 的 shortGoalsOf 里被取到。
+    const tree = treeOf(out);
+    const shortsUnderLong1 = shortGoalsOf(tree, "long1").map((g) => g.id);
+    expect(shortsUnderLong1).toContain("grandchild");
+    expect(shortsUnderLong1).toContain("child");
+    // 反证：没有任何 short 的 parentGoalId 指向另一个 short。
+    const shortIds = new Set(out.filter((g) => g.kind === "short").map((g) => g.id));
+    for (const g of out) {
+      if (g.kind === "short") expect(shortIds.has(g.parentGoalId ?? "")).toBe(false);
+    }
+  });
 });
 
 describe("migrateGoals — nested 嵌套 → 两级", () => {
@@ -300,6 +330,22 @@ describe("migrateGoals — 已是两级（幂等透传）", () => {
     const snest = out.find((g) => g.id === "Snest")!;
     expect(snest.kind).toBe("short");
     expect(snest.parentGoalId).toBe("G");
+  });
+
+  it("mixed: a legacy short pointing at a two-tier long stays a real short under it (not orphaned/promoted)", () => {
+    // L 是 two-tier long；legacy short 的 parentGoalId 指向 L（跨形态父）。
+    // 旧逻辑只查 legacy 批 → 误判孤儿 → 提为 long，切断真实链接。修复后应保留为 L 下的 short。
+    const out = migrateGoals([
+      long, // two-tier long L
+      legacyGoal({ id: "legShort", horizon: "short", parentGoalId: "L", title: "挂在两级 long 下" }),
+    ]);
+
+    const legShort = out.find((g) => g.id === "legShort")!;
+    expect(legShort.kind).toBe("short");
+    expect(legShort.parentGoalId).toBe("L"); // 没被提为 long
+
+    // 可达性：能从 shortGoalsOf(L) 取到。
+    expect(shortGoalsOf(treeOf(out), "L").map((g) => g.id)).toContain("legShort");
   });
 });
 
