@@ -17,7 +17,7 @@ export function areaSummaries(tree: LifeTree): AreaSummary[] {
     const score = Math.max(0, Math.min(100, raw ?? 50));
     // 领域卡只列长期目标（方向/身份级）；短期目标挂在其长期父目标之下。
     const goals = longs.filter((g) => g.status === "active" && g.area === area);
-    const habitCount = habits.filter((r) => r.goal.area === area).length;
+    const habitCount = habits.filter((r) => r.goal?.area === area).length;
     return { area, score, goals, habitCount };
   });
 }

@@ -7,11 +7,11 @@ import { allHabits } from "./goalTree";
 // 纯函数；today 由外部注入，不调 Date.now/Math.random。
 // ───────────────────────────────────────────────────────────────────────────
 
-// 所有"习惯"（active 目标里的重复 Habit，任意层）。
-export function recurringActions(tree: LifeTree): { goal: Goal; habit: Habit }[] {
-  const out: { goal: Goal; habit: Habit }[] = [];
+// 所有"习惯"（active 目标里的重复 Habit，任意层）+ 散习惯/日常（goal=null，无 active 概念，恒计入）。
+export function recurringActions(tree: LifeTree): { goal: Goal | null; habit: Habit }[] {
+  const out: { goal: Goal | null; habit: Habit }[] = [];
   for (const { goal, habit } of allHabits(tree)) {
-    if (goal.status !== "active") continue;
+    if (goal && goal.status !== "active") continue;
     out.push({ goal, habit });
   }
   return out;

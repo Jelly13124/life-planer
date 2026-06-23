@@ -8,6 +8,7 @@ import {
 import { createTree, addPath } from "@/domain/tree";
 import {
   addLongGoal, addShortGoal, addHabit, addTask, findHabit, findTask,
+  addLooseHabit, addLooseTask,
 } from "@/domain/goalTree";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
 import type { LifeTree, Profile } from "@/domain/types";
@@ -124,6 +125,24 @@ describe("daily domain", () => {
     expect(recurringDueToday(t, "2026-06-09").map((x) => x.item.id)).not.toContain(h.id);
     // 结束日之后 → 不再出现
     expect(recurringDueToday(t, "2026-06-19").map((x) => x.item.id)).not.toContain(h.id);
+  });
+
+  it("recurringDueToday: a loose daily habit (no goal) is due every day (no window)", () => {
+    let t = createTree(profile, gen, NOW);
+    const h = addLooseHabit(t, "上班", "daily", undefined, NOW);
+    t = h.tree;
+    // 无目标 → 无 active 概念 / 无时间窗 → 任意日恒到期，goal 为 null。
+    expect(recurringDueToday(t, T).find((x) => x.item.id === h.id)?.goal).toBeNull();
+    expect(recurringDueToday(t, "2030-12-31").map((x) => x.item.id)).toContain(h.id);
+  });
+
+  it("todayItems surfaces a planned loose task with goal:null", () => {
+    let t = createTree(profile, gen, NOW);
+    const task = addLooseTask(t, "临时买菜", NOW);
+    t = planToday(task.tree, task.id, T);
+    const item = todayItems(t, T).find((i) => i.item.id === task.id);
+    expect(item?.kind).toBe("task");
+    expect(item?.goal).toBeNull();
   });
 
   it("todayItems = manual one-shot ∪ recurring-due, each with kind + doneToday", () => {

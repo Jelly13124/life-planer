@@ -40,18 +40,18 @@ export type DayActionKind = "scheduled" | "daily" | "weekly";
 export function actionsOnDay(
   tree: LifeTree,
   date: string,
-): { goal: Goal; item: Task | Habit; kind: DayActionKind; done: boolean }[] {
+): { goal: Goal | null; item: Task | Habit; kind: DayActionKind; done: boolean }[] {
   const wd = weekdayOf(date);
-  const out: { goal: Goal; item: Task | Habit; kind: DayActionKind; done: boolean }[] = [];
+  const out: { goal: Goal | null; item: Task | Habit; kind: DayActionKind; done: boolean }[] = [];
   for (const { goal, task } of allTasks(tree)) {
-    if (goal.status !== "active") continue;
+    if (goal && goal.status !== "active") continue; // 散任务（goal=null）无 active 概念，恒计入
     if (task.scheduledDate === date) {
       out.push({ goal, item: task, kind: "scheduled", done: isActionDoneToday(tree, task, date) });
     }
   }
   for (const { goal, habit } of allHabits(tree)) {
-    if (goal.status !== "active") continue;
-    if (!habitInWindow(goal, date)) continue; // 习惯只在所属目标时间窗内出现（过 endDate 不再显示）
+    if (goal && goal.status !== "active") continue; // 散习惯（goal=null）恒计入
+    if (!habitInWindow(goal, date)) continue; // 习惯只在所属目标时间窗内出现（散习惯无窗 → 恒显示）
     let kind: DayActionKind | null = null;
     if (habit.repeat === "daily") kind = "daily";
     else if (habit.repeat === "weekly") kind = (habit.repeatWeekday ?? 1) === wd ? "weekly" : null;
@@ -60,11 +60,11 @@ export function actionsOnDay(
   return out;
 }
 
-// 未排期托盘：active 目标里 一次性、未完成、没排期 的 Task。
-export function unscheduledActions(tree: LifeTree): { goal: Goal; item: Task }[] {
-  const out: { goal: Goal; item: Task }[] = [];
+// 未排期托盘：一次性、未完成、没排期 的 Task（active 目标的 + 散任务）。
+export function unscheduledActions(tree: LifeTree): { goal: Goal | null; item: Task }[] {
+  const out: { goal: Goal | null; item: Task }[] = [];
   for (const { goal, task } of allTasks(tree)) {
-    if (goal.status !== "active") continue;
+    if (goal && goal.status !== "active") continue; // 散任务（goal=null）恒计入
     if (!task.done && !task.scheduledDate) out.push({ goal, item: task });
   }
   return out;

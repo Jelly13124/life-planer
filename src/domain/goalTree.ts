@@ -9,42 +9,49 @@ import { removePath } from "./tree";
 // ───────────────────────────────────────────────────────────────────────────
 
 const goalsOf = (tree: LifeTree): Goal[] => tree.goals ?? [];
+const looseTasksOf = (tree: LifeTree): Task[] => tree.tasks ?? [];
+const looseHabitsOf = (tree: LifeTree): Habit[] => tree.habits ?? [];
 
 export type ItemKind = "task" | "habit";
 
+// Loc.goal === null 表示该项是「散」（goal-less）的，挂在 tree 根而非任何目标下。
 export interface TaskLoc {
-  goal: Goal;
+  goal: Goal | null;
   task: Task;
 }
 export interface HabitLoc {
-  goal: Goal;
+  goal: Goal | null;
   habit: Habit;
 }
 export interface ItemLoc {
-  goal: Goal;
+  goal: Goal | null;
   kind: ItemKind;
   item: Task | Habit;
 }
 export interface MetricLoc {
-  goal: Goal;
+  goal: Goal; // 指标只属于目标；散项无指标，故此处恒为非空。
   metric: Metric;
 }
 
 // ───────── reads ─────────
 
+// 所有一次性任务：每个目标的 goal.tasks（goal=该目标）+ 树根的散任务（goal=null）。
 export function allTasks(tree: LifeTree): TaskLoc[] {
   const out: TaskLoc[] = [];
   for (const goal of goalsOf(tree)) {
     for (const task of goal.tasks ?? []) out.push({ goal, task });
   }
+  for (const task of looseTasksOf(tree)) out.push({ goal: null, task });
   return out;
 }
 
+// 所有习惯：每个目标的 goal.habits（goal=该目标）+ 树根的散习惯/日常（goal=null）。
 export function allHabits(tree: LifeTree): HabitLoc[] {
   const out: HabitLoc[] = [];
   for (const goal of goalsOf(tree)) {
     for (const habit of goal.habits ?? []) out.push({ goal, habit });
   }
+  for (const habit of looseHabitsOf(tree)) out.push({ goal: null, habit });
   return out;
 }
 
@@ -87,6 +94,11 @@ export function shortGoalsOf(tree: LifeTree, longId: string): Goal[] {
   return goalsOf(tree).filter((g) => g.kind === "short" && g.parentGoalId === longId);
 }
 
+// 独立短期目标：kind==="short" 且无长期父（parentGoalId 为 null/undefined）。如「这周运动10小时」。
+export function standaloneShortGoals(tree: LifeTree): Goal[] {
+  return goalsOf(tree).filter((g) => g.kind === "short" && g.parentGoalId == null);
+}
+
 // ───────── write helpers ─────────
 
 // 对每个 goal 应用变换；用于按 id 定位修改 task/habit/metric。
@@ -108,28 +120,43 @@ function pruneActivity(tree: LifeTree, ids: Set<string>): LifeTree {
 
 // ───────── writes: tasks / habits ─────────
 
+// 改一个 task（任意目标，或树根散任务）的字段，按 id 定位，保留 id。
 export function updateTask(tree: LifeTree, id: string, patch: Partial<Task>): LifeTree {
-  return mapGoals(tree, (g) => ({
+  const next = mapGoals(tree, (g) => ({
     ...g,
     tasks: (g.tasks ?? []).map((t) => (t.id === id ? { ...t, ...patch, id: t.id } : t)),
   }));
+  return {
+    ...next,
+    tasks: looseTasksOf(next).map((t) => (t.id === id ? { ...t, ...patch, id: t.id } : t)),
+  };
 }
 
+// 改一个 habit（任意目标，或树根散习惯）的字段，按 id 定位，保留 id。
 export function updateHabit(tree: LifeTree, id: string, patch: Partial<Habit>): LifeTree {
-  return mapGoals(tree, (g) => ({
+  const next = mapGoals(tree, (g) => ({
     ...g,
     habits: (g.habits ?? []).map((h) => (h.id === id ? { ...h, ...patch, id: h.id } : h)),
   }));
+  return {
+    ...next,
+    habits: looseHabitsOf(next).map((h) => (h.id === id ? { ...h, ...patch, id: h.id } : h)),
+  };
 }
 
-// 删除一个 task 或 habit（任意 goal），并清理它在每日活动里的计划/完成记录。
+// 删除一个 task 或 habit（任意目标，或树根散项），并清理它在每日活动里的计划/完成记录。
 export function removeItem(tree: LifeTree, id: string): LifeTree {
   const next = mapGoals(tree, (g) => ({
     ...g,
     tasks: (g.tasks ?? []).filter((t) => t.id !== id),
     habits: (g.habits ?? []).filter((h) => h.id !== id),
   }));
-  return pruneActivity(next, new Set([id]));
+  const pruned: LifeTree = {
+    ...next,
+    tasks: looseTasksOf(next).filter((t) => t.id !== id),
+    habits: looseHabitsOf(next).filter((h) => h.id !== id),
+  };
+  return pruneActivity(pruned, new Set([id]));
 }
 
 // 在某 goal（长或短皆可）上新增任务，返回新 tree + 新 id。
@@ -166,6 +193,37 @@ export function addHabit(
     g.id === goalId ? { ...g, habits: [...(g.habits ?? []), habit] } : g,
   );
   return { tree: next, id };
+}
+
+// ───────── writes: loose (goal-less) tasks / habits ─────────
+
+// 新增一个「散」一次性任务（不属任何目标），挂到 tree.tasks。
+export function addLooseTask(
+  tree: LifeTree,
+  text: string,
+  now: string,
+): { tree: LifeTree; id: string } {
+  const id = `task-${hashSeed(`loose|${text}|${now}`)}`;
+  const task: Task = { id, text: text.trim(), done: false };
+  return { tree: { ...tree, tasks: [...looseTasksOf(tree), task] }, id };
+}
+
+// 新增一个「散」习惯/日常（不属任何目标），挂到 tree.habits。无目标 → 无时间窗，永远重复。
+export function addLooseHabit(
+  tree: LifeTree,
+  text: string,
+  repeat: "daily" | "weekly",
+  weekday: number | undefined,
+  now: string,
+): { tree: LifeTree; id: string } {
+  const id = `habit-${hashSeed(`loose|${text}|${now}`)}`;
+  const habit: Habit = {
+    id,
+    text: text.trim(),
+    repeat,
+    repeatWeekday: repeat === "weekly" ? (weekday ?? 1) : undefined,
+  };
+  return { tree: { ...tree, habits: [...looseHabitsOf(tree), habit] }, id };
 }
 
 // ───────── writes: metrics ─────────
@@ -238,18 +296,20 @@ export function addLongGoal(
   return { tree: { ...tree, goals: [...goalsOf(tree), goal] }, id };
 }
 
-// 新增短期目标：kind:"short"，parentGoalId 指向所属长期目标，无 pathId（不上树）。
+// 新增短期目标：kind:"short"，无 pathId（不上树）。
+//   parentLongId 为某长期目标 id → 挂在其下；为 null/"" → 独立短期目标（无长期父）。
 export function addShortGoal(
   tree: LifeTree,
-  parentLongId: string,
+  parentLongId: string | null | undefined,
   input: AddGoalInput,
   now: string,
 ): { tree: LifeTree; id: string } {
-  const id = `goal-${hashSeed(`${parentLongId}|${input.title}|${now}`)}`;
+  const parent = parentLongId ? parentLongId : null; // 空串/undefined → null（独立）
+  const id = `goal-${hashSeed(`${parent ?? "standalone"}|${input.title}|${now}`)}`;
   const goal: Goal = {
     id,
     kind: "short",
-    parentGoalId: parentLongId,
+    parentGoalId: parent,
     area: input.area,
     title: input.title.trim(),
     why: (input.why ?? "").trim(),
@@ -264,6 +324,15 @@ export function addShortGoal(
     habits: [],
   };
   return { tree: { ...tree, goals: [...goalsOf(tree), goal] }, id };
+}
+
+// 新增独立短期目标（无长期父）：addShortGoal 的便捷封装，parentGoalId 固定 null。
+export function addStandaloneShortGoal(
+  tree: LifeTree,
+  input: AddGoalInput,
+  now: string,
+): { tree: LifeTree; id: string } {
+  return addShortGoal(tree, null, input, now);
 }
 
 export function updateGoalById(tree: LifeTree, id: string, patch: Partial<Goal>): LifeTree {

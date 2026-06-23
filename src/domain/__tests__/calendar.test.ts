@@ -3,7 +3,9 @@ import {
   weekdayOf, monthGrid, actionsOnDay, unscheduledActions, setActionScheduledDate,
 } from "@/domain/calendar";
 import { createTree } from "@/domain/tree";
-import { addLongGoal, addShortGoal, addHabit, addTask } from "@/domain/goalTree";
+import {
+  addLongGoal, addShortGoal, addHabit, addTask, addLooseHabit, addLooseTask,
+} from "@/domain/goalTree";
 import { completeAction } from "@/domain/daily";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
 import type { LifeTree, Profile } from "@/domain/types";
@@ -126,5 +128,34 @@ describe("calendar domain", () => {
     expect(actionsOnDay(tree, "2026-06-22").length).toBe(1);
     tree = setActionScheduledDate(tree, w.a[0], null);
     expect(unscheduledActions(tree).map((x) => x.item.id)).toContain(w.a[0]);
+  });
+
+  it("actionsOnDay: a loose daily habit (no goal, no window) is due every day forever", () => {
+    let t = createTree(profile, gen, NOW);
+    const h = addLooseHabit(t, "上班", "daily", undefined, `${NOW}-loose`);
+    t = h.tree;
+    // 任意日期都到期（无目标 → 无时间窗），且 goal 为 null。
+    const day1 = actionsOnDay(t, "2026-06-22");
+    const day2 = actionsOnDay(t, "2030-01-01");
+    expect(day1.find((x) => x.item.id === h.id)?.kind).toBe("daily");
+    expect(day1.find((x) => x.item.id === h.id)?.goal).toBeNull();
+    expect(day2.map((x) => x.item.id)).toContain(h.id);
+  });
+
+  it("actionsOnDay: a loose task shows only on its scheduledDate (goal null)", () => {
+    let t = createTree(profile, gen, NOW);
+    const task = addLooseTask(t, "临时买菜", `${NOW}-buy`);
+    t = setActionScheduledDate(task.tree, task.id, "2026-06-22");
+    expect(actionsOnDay(t, "2026-06-22").find((x) => x.item.id === task.id)?.goal).toBeNull();
+    expect(actionsOnDay(t, "2026-06-23").map((x) => x.item.id)).not.toContain(task.id);
+  });
+
+  it("unscheduledActions: a loose unscheduled task appears (goal null)", () => {
+    let t = createTree(profile, gen, NOW);
+    const task = addLooseTask(t, "临时买菜", `${NOW}-buy`);
+    t = task.tree;
+    const u = unscheduledActions(t).find((x) => x.item.id === task.id);
+    expect(u).toBeTruthy();
+    expect(u!.goal).toBeNull();
   });
 });

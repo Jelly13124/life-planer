@@ -25,6 +25,8 @@ function makeTree(choices: Choice[] = []): LifeTree {
     paths: [],
     decisions: [],
     goals: [],
+    tasks: [],
+    habits: [],
     choices,
     activity: [],
     createdAt: NOW,

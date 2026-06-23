@@ -81,6 +81,8 @@ function makeTree(): LifeTree {
     paths: [makeSqPath(profile.age), makeChoicePath(profile.age)],
     decisions: [],
     goals: [],
+    tasks: [],
+    habits: [],
     choices: [],
     activity: [],
     createdAt: "2026-06-19T00:00:00.000Z",

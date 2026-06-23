@@ -338,6 +338,8 @@ export interface LifeTree {
   paths: LifePath[]; // 含 1 条 status-quo + N 条 choice
   decisions: Decision[]; // 决策日志（看见→追问→选定→落地→复盘）
   goals: Goal[]; // 规划主线：长期/短期目标
+  tasks: Task[]; // 无目标的散任务（goal-less，如「临时买菜」）—— 与 goal.tasks 区分，挂树根
+  habits: Habit[]; // 无目标的散习惯/日常（goal-less，如「上班」）—— 与 goal.habits 区分，挂树根
   choices: Choice[]; // 选择面板：决策对比（与人生树打通）
   activity: ActivityDay[]; // 每日激励闭环：今日计划/完成记录
   dayStart?: string; // 清醒时段起点 HH:MM（未设默认 07:00）

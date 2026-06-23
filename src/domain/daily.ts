@@ -61,7 +61,7 @@ const addUniq = (arr: string[], id: string) => (arr.includes(id) ? arr : [...arr
 export function findAction(
   tree: LifeTree,
   actionId: string,
-): { goal: Goal; item: Task | Habit; kind: ItemKind } | null {
+): { goal: Goal | null; item: Task | Habit; kind: ItemKind } | null {
   const loc = findItem(tree, actionId);
   if (!loc) return null;
   return { goal: loc.goal, item: loc.item, kind: loc.kind };
@@ -112,7 +112,9 @@ export function uncompleteAction(tree: LifeTree, actionId: string, today: string
 //   date 落在 [goal.startDate, goal.endDate]（任一端未设则该端不限）时返回 true。
 //   日期一律本地日 "YYYY-MM-DD"，字符串比较即可（同长度同格式按字典序 = 时间序）。
 // 短期目标常带 endDate，故其习惯过了结束日就不再出现；长期目标通常无 endDate → 永远在窗内。
-export function habitInWindow(goal: Goal, date: string): boolean {
+// goal 为 null（散习惯/日常，如「上班」）→ 无时间窗，永远到期（恒 true）。
+export function habitInWindow(goal: Goal | null, date: string): boolean {
+  if (!goal) return true;
   if (goal.startDate && date < goal.startDate) return false;
   if (goal.endDate && date > goal.endDate) return false;
   return true;
@@ -135,10 +137,11 @@ export function isActionDoneToday(tree: LifeTree, item: Task | Habit, today: str
 export function recurringDueToday(
   tree: LifeTree,
   today: string,
-): { goal: Goal; item: Habit }[] {
-  const out: { goal: Goal; item: Habit }[] = [];
+): { goal: Goal | null; item: Habit }[] {
+  const out: { goal: Goal | null; item: Habit }[] = [];
   for (const { goal, habit } of allHabits(tree)) {
-    if (goal.status !== "active") continue;
+    // 散习惯（goal=null）无 active 概念，永远参与；目标习惯仅 active 目标计入。
+    if (goal && goal.status !== "active") continue;
     if (!habitInWindow(goal, today)) continue;
     if (habit.repeat === "weekly" && isActionDoneToday(tree, habit, today)) continue;
     out.push({ goal, item: habit });
@@ -150,10 +153,10 @@ export function recurringDueToday(
 export function todayItems(
   tree: LifeTree,
   today: string,
-): { goal: Goal; item: Task | Habit; kind: ItemKind; doneToday: boolean }[] {
+): { goal: Goal | null; item: Task | Habit; kind: ItemKind; doneToday: boolean }[] {
   const e = dayEntry(tree, today);
   const seen = new Set<string>();
-  const out: { goal: Goal; item: Task | Habit; kind: ItemKind; doneToday: boolean }[] = [];
+  const out: { goal: Goal | null; item: Task | Habit; kind: ItemKind; doneToday: boolean }[] = [];
   for (const id of [...e.plannedActionIds, ...e.completedActionIds]) {
     if (seen.has(id)) continue;
     const hit = findAction(tree, id);

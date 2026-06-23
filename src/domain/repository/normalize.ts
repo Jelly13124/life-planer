@@ -11,6 +11,9 @@ export function normalizeLoadedTree(parsed: unknown): LifeTree | null {
   const t: LifeTree = { ...src };
   if (!Array.isArray(t.decisions)) t.decisions = [];
   if (!Array.isArray(t.goals)) t.goals = [];
+  // 散（goal-less）任务/习惯：旧数据无此字段 → 补空数组（不动 goal.tasks/goal.habits）。
+  if (!Array.isArray(t.tasks)) t.tasks = [];
+  if (!Array.isArray(t.habits)) t.habits = [];
   if (!Array.isArray(t.choices)) t.choices = [];
   if (!Array.isArray(t.activity)) t.activity = [];
 

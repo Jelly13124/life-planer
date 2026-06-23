@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   addHabit,
   addLongGoal,
+  addLooseHabit,
+  addLooseTask,
   addShortGoal,
+  addStandaloneShortGoal,
   addTask,
   allHabits,
   allMetrics,
@@ -18,18 +21,23 @@ import {
   removeMetric,
   setMetric,
   shortGoalsOf,
+  standaloneShortGoals,
   updateGoalById,
   updateHabit,
   updateTask,
 } from "../goalTree";
 import { createTree, addPath } from "../tree";
 import { LocalPathGenerator } from "../generator/localGenerator";
-import type { Goal, LifeTree, Metric, Profile } from "../types";
+import type { Goal, Habit, LifeTree, Metric, Profile, Task } from "../types";
 
 const NOW = "2026-06-20T00:00:00.000Z";
 
 // 最小可用 tree：只填 goalTree 关心的字段；其余用空壳满足类型。
-function makeTree(goals: Goal[], activity: LifeTree["activity"] = []): LifeTree {
+function makeTree(
+  goals: Goal[],
+  activity: LifeTree["activity"] = [],
+  loose: { tasks?: Task[]; habits?: Habit[] } = {},
+): LifeTree {
   return {
     id: "tree-test",
     profile: {} as Profile,
@@ -37,6 +45,8 @@ function makeTree(goals: Goal[], activity: LifeTree["activity"] = []): LifeTree 
     paths: [],
     decisions: [],
     goals,
+    tasks: loose.tasks ?? [],
+    habits: loose.habits ?? [],
     choices: [],
     activity,
     createdAt: NOW,
@@ -85,12 +95,12 @@ describe("goalTree reads", () => {
     ]);
     const tasks = allTasks(tree);
     expect(tasks.map((t) => t.task.id).sort()).toEqual(["gt1", "st1"]);
-    expect(tasks.find((t) => t.task.id === "gt1")?.goal.id).toBe("g1");
-    expect(tasks.find((t) => t.task.id === "st1")?.goal.id).toBe("s1");
+    expect(tasks.find((t) => t.task.id === "gt1")?.goal?.id).toBe("g1");
+    expect(tasks.find((t) => t.task.id === "st1")?.goal?.id).toBe("s1");
 
     const habits = allHabits(tree);
     expect(habits.map((h) => h.habit.id).sort()).toEqual(["gh1", "sh1"]);
-    expect(habits.find((h) => h.habit.id === "sh1")?.goal.id).toBe("s1");
+    expect(habits.find((h) => h.habit.id === "sh1")?.goal?.id).toBe("s1");
   });
 
   it("findTask / findHabit / findItem locate across goals", () => {
@@ -98,8 +108,8 @@ describe("goalTree reads", () => {
       longGoal({ id: "g1", tasks: [{ id: "gt1", text: "x", done: false }] }),
       shortGoal({ id: "s1", parentGoalId: "g1", habits: [{ id: "sh1", text: "y", repeat: "daily" }] }),
     ]);
-    expect(findTask(tree, "gt1")?.goal.id).toBe("g1");
-    expect(findHabit(tree, "sh1")?.goal.id).toBe("s1");
+    expect(findTask(tree, "gt1")?.goal?.id).toBe("g1");
+    expect(findHabit(tree, "sh1")?.goal?.id).toBe("s1");
     expect(findItem(tree, "gt1")?.kind).toBe("task");
     expect(findItem(tree, "sh1")?.kind).toBe("habit");
     expect(findItem(tree, "missing")).toBeNull();
@@ -114,8 +124,8 @@ describe("goalTree reads", () => {
     ]);
     const metrics = allMetrics(tree);
     expect(metrics).toHaveLength(2);
-    expect(metrics.find((x) => x.metric.id === "m1")?.goal.id).toBe("g1");
-    expect(metrics.find((x) => x.metric.id === "m2")?.goal.id).toBe("s1");
+    expect(metrics.find((x) => x.metric.id === "m1")?.goal?.id).toBe("g1");
+    expect(metrics.find((x) => x.metric.id === "m2")?.goal?.id).toBe("s1");
   });
 
   it("longGoals / shortGoalsOf / goalById partition the flat array by tier", () => {
@@ -244,12 +254,12 @@ describe("goalTree writes — tasks / habits", () => {
     let tree = makeTree([longGoal({ id: "g1" }), shortGoal({ id: "s1", parentGoalId: "g1" })]);
     const a = addTask(tree, "g1", "长任务", NOW);
     tree = a.tree;
-    expect(findTask(tree, a.id)?.goal.id).toBe("g1");
+    expect(findTask(tree, a.id)?.goal?.id).toBe("g1");
     expect(findTask(tree, a.id)?.task.text).toBe("长任务");
 
     const b = addTask(tree, "s1", "短任务", "2026-06-20T01:00:00.000Z");
     tree = b.tree;
-    expect(findTask(tree, b.id)?.goal.id).toBe("s1");
+    expect(findTask(tree, b.id)?.goal?.id).toBe("s1");
     expect(a.id).not.toBe(b.id);
   });
 
@@ -320,5 +330,118 @@ describe("goalTree writes — metrics", () => {
     expect(tree.goals[0].metrics[0].current).toBe(10); // clamped to target
     tree = bumpMetric(tree, "m1", -20);
     expect(tree.goals[0].metrics[0].current).toBe(0); // clamped to 0
+  });
+});
+
+describe("goalTree — loose (goal-less) tasks / habits", () => {
+  it("addLooseTask lands in tree.tasks and surfaces via allTasks with goal:null", () => {
+    let tree = makeTree([longGoal({ id: "g1", tasks: [{ id: "gt1", text: "目标任务", done: false }] })]);
+    const r = addLooseTask(tree, "临时买菜", NOW);
+    tree = r.tree;
+    expect(r.id).toMatch(/^task-/);
+    // 落在树根 tree.tasks，而非任何 goal。
+    expect(tree.tasks.map((t) => t.id)).toEqual([r.id]);
+    expect(tree.goals[0].tasks.map((t) => t.id)).toEqual(["gt1"]); // goal 任务不受影响
+    // allTasks 同时含目标任务（goal=g1）与散任务（goal=null）。
+    const tasks = allTasks(tree);
+    expect(tasks.map((t) => t.task.id).sort()).toEqual([r.id, "gt1"].sort());
+    expect(tasks.find((t) => t.task.id === "gt1")?.goal?.id).toBe("g1");
+    expect(tasks.find((t) => t.task.id === r.id)?.goal).toBeNull();
+  });
+
+  it("addLooseHabit lands in tree.habits and surfaces via allHabits with goal:null", () => {
+    let tree = makeTree([]);
+    const d = addLooseHabit(tree, "上班", "daily", undefined, NOW);
+    tree = d.tree;
+    expect(d.id).toMatch(/^habit-/);
+    expect(tree.habits.map((h) => h.id)).toEqual([d.id]);
+    const habits = allHabits(tree);
+    expect(habits).toHaveLength(1);
+    expect(habits[0].habit.repeat).toBe("daily");
+    expect(habits[0].goal).toBeNull();
+    // weekly 散习惯默认锚定周一。
+    const w = addLooseHabit(tree, "每周采购", "weekly", undefined, `${NOW}-w`);
+    expect(w.tree.habits.find((h) => h.id === w.id)?.repeatWeekday).toBe(1);
+  });
+
+  it("findItem / findTask / findHabit resolve a loose id with goal:null", () => {
+    let tree = makeTree([longGoal({ id: "g1" })]);
+    const t = addLooseTask(tree, "买菜", NOW);
+    tree = t.tree;
+    const h = addLooseHabit(tree, "上班", "daily", undefined, `${NOW}-h`);
+    tree = h.tree;
+    expect(findTask(tree, t.id)?.goal).toBeNull();
+    expect(findTask(tree, t.id)?.task.text).toBe("买菜");
+    expect(findHabit(tree, h.id)?.goal).toBeNull();
+    const item = findItem(tree, t.id);
+    expect(item?.kind).toBe("task");
+    expect(item?.goal).toBeNull();
+    expect(findItem(tree, h.id)?.kind).toBe("habit");
+  });
+
+  it("updateTask patches a loose task in place (keeps id)", () => {
+    let tree = makeTree([]);
+    const t = addLooseTask(tree, "买菜", NOW);
+    tree = updateTask(t.tree, t.id, { done: true, scheduledDate: "2026-07-01" });
+    expect(tree.tasks[0].id).toBe(t.id);
+    expect(tree.tasks[0].done).toBe(true);
+    expect(tree.tasks[0].scheduledDate).toBe("2026-07-01");
+  });
+
+  it("updateHabit patches a loose habit in place (keeps id)", () => {
+    let tree = makeTree([]);
+    const h = addLooseHabit(tree, "上班", "daily", undefined, NOW);
+    tree = updateHabit(h.tree, h.id, { startTime: "09:00", durationMin: 480 });
+    expect(tree.habits[0].id).toBe(h.id);
+    expect(tree.habits[0].startTime).toBe("09:00");
+    expect(tree.habits[0].durationMin).toBe(480);
+  });
+
+  it("removeItem deletes a loose task and prunes its activity ids", () => {
+    let tree = makeTree(
+      [],
+      [{ date: "2026-06-20", plannedActionIds: ["other"], completedActionIds: ["other"] }],
+    );
+    const t = addLooseTask(tree, "买菜", NOW);
+    tree = t.tree;
+    // 把它排进/勾掉当天，再删除应一并清掉。
+    tree = {
+      ...tree,
+      activity: [
+        { date: "2026-06-20", plannedActionIds: ["other", t.id], completedActionIds: ["other", t.id] },
+      ],
+    };
+    const next = removeItem(tree, t.id);
+    expect(next.tasks).toEqual([]);
+    expect(findTask(next, t.id)).toBeNull();
+    expect(next.activity[0].plannedActionIds).toEqual(["other"]);
+    expect(next.activity[0].completedActionIds).toEqual(["other"]);
+  });
+});
+
+describe("goalTree — standalone short goals (no long parent)", () => {
+  it("addStandaloneShortGoal creates a parentless short; standaloneShortGoals returns it; longGoals excludes it", () => {
+    const base = makeTree([longGoal({ id: "g1" })]);
+    const r = addStandaloneShortGoal(base, { area: "health", title: "这周运动10小时", endDate: "2026-06-27" }, NOW);
+    const tree = r.tree;
+    const g = goalById(tree, r.id)!;
+    expect(g.kind).toBe("short");
+    expect(g.parentGoalId).toBeNull();
+    expect(g.endDate).toBe("2026-06-27");
+    // standaloneShortGoals 仅含无父短期目标。
+    expect(standaloneShortGoals(tree).map((s) => s.id)).toEqual([r.id]);
+    // longGoals 只含长期；不含此短期。
+    expect(longGoals(tree).map((s) => s.id)).toEqual(["g1"]);
+    // 它不挂在任何长期下（shortGoalsOf("g1") 不含它）。
+    expect(shortGoalsOf(tree, "g1")).toEqual([]);
+  });
+
+  it("addShortGoal with null/empty parent creates a standalone short", () => {
+    const tree = makeTree([]);
+    const a = addShortGoal(tree, null, { area: "career", title: "无父短期" }, NOW);
+    expect(goalById(a.tree, a.id)!.parentGoalId).toBeNull();
+    const b = addShortGoal(a.tree, "", { area: "career", title: "空串父短期" }, `${NOW}-b`);
+    expect(goalById(b.tree, b.id)!.parentGoalId).toBeNull();
+    expect(standaloneShortGoals(b.tree).map((s) => s.id).sort()).toEqual([a.id, b.id].sort());
   });
 });

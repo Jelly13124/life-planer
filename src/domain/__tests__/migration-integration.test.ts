@@ -161,7 +161,7 @@ describe("migration integration — legacy 扁平 → 两级（无损）", () =>
     expect(t1task.durationMin).toBe(60);
     expect(t1task.done).toBe(false);
     // t1 挂在 L1（long）上。
-    expect(t1!.goal.id).toBe("L1");
+    expect(t1!.goal!.id).toBe("L1");
 
     const h1 = findItem(tree, "h1");
     expect(h1).not.toBeNull();
@@ -173,7 +173,7 @@ describe("migration integration — legacy 扁平 → 两级（无损）", () =>
     expect(t2!.kind).toBe("task");
     expect((t2!.item as Task).done).toBe(true);
     // t2 落在 S1（short，parentGoalId=L1）里。
-    expect(t2!.goal.id).toBe("S1");
+    expect(t2!.goal!.id).toBe("S1");
     expect(goalById(tree, "S1")!.tasks.map((t) => t.id)).toEqual(["t2"]);
 
     const h2 = findItem(tree, "h2");
@@ -183,7 +183,7 @@ describe("migration integration — legacy 扁平 → 两级（无损）", () =>
     expect(h2habit.repeat).toBe("weekly");
     expect(h2habit.repeatWeekday).toBe(1);
     // h2 在 S2（孤儿提为 long）里。
-    expect(h2!.goal.id).toBe("S2");
+    expect(h2!.goal!.id).toBe("S2");
   });
 
   it("3) activity is untouched: deep-equals the legacy activity (ids still line up)", () => {
@@ -229,6 +229,25 @@ describe("migration integration — legacy 扁平 → 两级（无损）", () =>
     expect(findItem(again, "t1")!.kind).toBe("task");
     expect(findItem(again, "h2")!.kind).toBe("habit");
     expect((findItem(again, "h2")!.item as Habit).repeatWeekday).toBe(1);
+  });
+
+  it("7) loose tasks/habits: missing tree-level arrays backfill to [] (idempotent; goal items untouched)", () => {
+    const tree = migrate();
+    // 旧数据无树级 tasks/habits → 补成空数组（散项容器）。
+    expect(tree.tasks).toEqual([]);
+    expect(tree.habits).toEqual([]);
+    // goal 自己的 tasks/habits 不受影响（L1 仍持 t1/h1）。
+    expect(goalById(tree, "L1")!.tasks.map((t) => t.id)).toEqual(["t1"]);
+    expect(goalById(tree, "L1")!.habits.map((h) => h.id)).toEqual(["h1"]);
+    // 幂等：已有散项时再 normalize 原样保留。
+    const withLoose: LifeTree = {
+      ...tree,
+      tasks: [{ id: "loose-t", text: "买菜", done: false }],
+      habits: [{ id: "loose-h", text: "上班", repeat: "daily" }],
+    };
+    const again = normalizeLoadedTree(JSON.parse(JSON.stringify(withLoose)))!;
+    expect(again.tasks.map((t) => t.id)).toEqual(["loose-t"]);
+    expect(again.habits.map((h) => h.id)).toEqual(["loose-h"]);
   });
 });
 
