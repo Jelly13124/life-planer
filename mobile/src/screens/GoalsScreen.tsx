@@ -2,6 +2,7 @@
 // 全部数据走共享领域核心；可选「AI 建议目标」走后端（离线则提示无后端）。
 import React, { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   GOAL_AREAS,
   GOAL_AREA_LABELS,
@@ -15,6 +16,7 @@ import { colors, AREA_COLORS, space } from "../theme";
 
 export default function GoalsScreen() {
   const app = useApp();
+  const insets = useSafeAreaInsets();
   const [area, setArea] = useState<GoalArea>("career");
   const [title, setTitle] = useState("");
   const [taskInputs, setTaskInputs] = useState<Record<string, string>>({});
@@ -66,7 +68,10 @@ export default function GoalsScreen() {
   const looseTasks = app.tree?.tasks ?? [];
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + space }]}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.h1}>目标</Text>
 
       {/* 建立目标 */}
@@ -277,7 +282,7 @@ export default function GoalsScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: space, paddingBottom: 48 },
+  content: { paddingHorizontal: space, paddingBottom: 48 },
   h1: { fontSize: 30, fontWeight: "700", color: colors.fg, marginBottom: 14 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   chip: {

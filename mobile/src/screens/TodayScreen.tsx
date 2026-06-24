@@ -1,6 +1,7 @@
 // 今日屏：今天该做的一次性任务 ∪ 到期习惯，勾选完成 → 喂连续天数。
 import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GOAL_AREA_LABELS } from "@lifeplanner/core/types";
 import { useApp } from "../state/store";
 import { Card, Checkbox, Dot, Muted, SectionTitle } from "../ui";
@@ -8,10 +9,11 @@ import { colors, AREA_COLORS, space } from "../theme";
 
 export default function TodayScreen() {
   const { today, todayRows, streak, toggleTodayDone } = useApp();
+  const insets = useSafeAreaInsets();
   const doneCount = todayRows.filter((r) => r.doneToday).length;
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + space }]}>
       <Text style={styles.h1}>今日</Text>
       <View style={styles.metaRow}>
         <Muted>{today}</Muted>
@@ -62,7 +64,7 @@ export default function TodayScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: space, paddingBottom: 48 },
+  content: { paddingHorizontal: space, paddingBottom: 48 },
   h1: { fontSize: 30, fontWeight: "700", color: colors.fg, marginBottom: 6 },
   metaRow: {
     flexDirection: "row",
