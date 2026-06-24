@@ -89,6 +89,8 @@ interface AppValue {
   progressOf: (goal: Goal) => number;
   todayRows: TodayRow[];
   streak: number;
+  nudge: { title: string; delta: number; id: number } | null;
+  clearNudge: () => void;
   // 安排（日视图）
   viewDate: string;
   isViewToday: boolean;
@@ -131,6 +133,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [today, setToday] = useState<string>(() => todayStr());
   const [viewDate, setViewDate] = useState<string>(() => todayStr());
+  // 完成动力提示：完成某目标的任务时弹"你的努力让『X』+Y%"。id 单调递增以重触发自动消失。
+  const [nudge, setNudge] = useState<{ title: string; delta: number; id: number } | null>(null);
+  const nudgeId = useRef(0);
   // 用 ref 保证持久化/动作读到的是最新树（避免闭包旧值）。在 effect 里同步，不在渲染期写 ref。
   const treeRef = useRef<LifeTree | null>(null);
   useEffect(() => {
@@ -165,6 +170,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     treeRef.current = next;
     void saveTree(next);
   }, []);
+
+  const bumpNudge = useCallback((title: string, delta: number) => {
+    nudgeId.current += 1;
+    setNudge({ title, delta, id: nudgeId.current });
+  }, []);
+  const clearNudge = useCallback(() => setNudge(null), []);
+
+  // 完成/取消完成核心：完成属于某目标的任务时，算出该目标进度增量 → 触发动力提示。
+  const applyComplete = useCallback(
+    (cur: LifeTree, id: string, date: string, done: boolean): LifeTree => {
+      const next = done ? uncompleteAction(cur, id, date) : completeAction(cur, id, date);
+      if (!done) {
+        const hit = findTask(cur, id);
+        if (hit?.goal) {
+          const before = goalProgress(cur, hit.goal);
+          const after = goalProgress(next, hit.goal);
+          if (after > before) bumpNudge(hit.goal.title, after - before);
+        }
+      }
+      return next;
+    },
+    [bumpNudge],
+  );
 
   // ───────── 写入动作（全部复用领域核心；时间在此注入） ─────────
   const addLongGoal = useCallback(
@@ -280,24 +308,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (id: string, date: string, done: boolean) => {
       const cur = treeRef.current;
       if (!cur) return;
-      commit(done ? uncompleteAction(cur, id, date) : completeAction(cur, id, date));
+      commit(applyComplete(cur, id, date, done));
     },
-    [commit],
+    [commit, applyComplete],
   );
 
-  // 目标屏勾选任务：在"今天"完成/取消完成（同时记进度 + 喂连续天数）。
+  // 目标屏勾选任务：在"今天"完成/取消完成（同时记进度 + 喂连续天数 + 动力提示）。
   const toggleTaskDone = useCallback(
     (taskId: string) => {
       const cur = treeRef.current;
       if (!cur) return;
       const hit = findTask(cur, taskId);
       const done = hit?.task.done ?? false;
-      const next = done
-        ? uncompleteAction(cur, taskId, today)
-        : completeAction(cur, taskId, today);
-      commit(next);
+      commit(applyComplete(cur, taskId, today, done));
     },
-    [commit, today],
+    [commit, today, applyComplete],
   );
 
   // 今日屏勾选：按当前 doneToday 翻转。
@@ -305,12 +330,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (itemId: string, doneToday: boolean) => {
       const cur = treeRef.current;
       if (!cur) return;
-      const next = doneToday
-        ? uncompleteAction(cur, itemId, today)
-        : completeAction(cur, itemId, today);
-      commit(next);
+      commit(applyComplete(cur, itemId, today, doneToday));
     },
-    [commit, today],
+    [commit, today, applyComplete],
   );
 
   const planTaskToday = useCallback(
@@ -416,6 +438,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       progressOf: (goal: Goal) => (t ? goalProgress(t, goal) : 0),
       todayRows: t ? todayItems(t, today) : [],
       streak: t ? currentStreak(t, today) : 0,
+      nudge,
+      clearNudge,
       viewDate,
       isViewToday: viewDate === today,
       dayWin: t ? dayWindow(t) : { start: "07:00", end: "23:00" },
@@ -451,6 +475,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     tree,
     ready,
     today,
+    nudge,
+    clearNudge,
     viewDate,
     shiftViewDate,
     goToday,

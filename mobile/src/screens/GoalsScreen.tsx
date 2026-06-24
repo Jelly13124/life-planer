@@ -39,13 +39,6 @@ export default function GoalsScreen() {
     setTaskInput(goalId, "");
   };
 
-  const submitLooseTask = () => {
-    const text = taskInputs.__loose__ ?? "";
-    if (!text.trim()) return;
-    app.addLooseTask(text);
-    setTaskInput("__loose__", "");
-  };
-
   const runSuggest = async () => {
     if (!hasBackend()) {
       Alert.alert("需要连接后端", "设 EXPO_PUBLIC_API_BASE_URL 指向运行中的网页后端后可用 AI 建议。");
@@ -64,8 +57,6 @@ export default function GoalsScreen() {
       { text: "取消", style: "cancel" },
       { text: "删除", style: "destructive", onPress: () => app.removeGoal(goal.id) },
     ]);
-
-  const looseTasks = app.tree?.tasks ?? [];
 
   return (
     <ScrollView
@@ -242,41 +233,9 @@ export default function GoalsScreen() {
         })
       )}
 
-      {/* 散任务（无目标） */}
-      <SectionTitle>无目标 · 散任务</SectionTitle>
-      <Card>
-        {looseTasks.length === 0 ? (
-          <Muted style={{ marginBottom: 10 }}>临时的事不必先建目标，直接记在这里。</Muted>
-        ) : (
-          looseTasks.map((task) => (
-            <View key={task.id} style={styles.taskRow}>
-              <Checkbox checked={task.done} onPress={() => app.toggleTaskDone(task.id)} />
-              <Text style={[styles.taskText, task.done && styles.taskTextDone]}>{task.text}</Text>
-              {!task.done ? (
-                <Pressable onPress={() => app.planTaskToday(task.id)} hitSlop={6}>
-                  <Text style={styles.todayLink}>今天</Text>
-                </Pressable>
-              ) : null}
-              <Pressable onPress={() => app.removeItem(task.id)} hitSlop={6}>
-                <Text style={styles.removeLink}>删</Text>
-              </Pressable>
-            </View>
-          ))
-        )}
-        <View style={styles.addRow}>
-          <Input
-            value={taskInputs.__loose__ ?? ""}
-            onChangeText={(v) => setTaskInput("__loose__", v)}
-            placeholder="添加散任务…"
-            onSubmitEditing={submitLooseTask}
-            returnKeyType="done"
-            style={{ flex: 1 }}
-          />
-          <Pressable onPress={submitLooseTask} style={styles.addBtn}>
-            <Text style={styles.addBtnText}>＋</Text>
-          </Pressable>
-        </View>
-      </Card>
+      <Muted style={{ marginTop: 4, textAlign: "center" }}>
+        临时、不属于目标的事，去「安排」直接加到时间轴。
+      </Muted>
     </ScrollView>
   );
 }

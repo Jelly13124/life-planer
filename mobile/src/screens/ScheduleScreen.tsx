@@ -1,6 +1,6 @@
 // 安排（首页）：当日竖向时间轴 + 未排托盘 + 轻点排期 + AI 排今天。
 // 日/月/年 切换：日视图本阶段完成；月/年占位（P3 接）。拖拽排期 P7 叠加（轻点是兜底）。
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Modal,
@@ -16,7 +16,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { GOAL_AREA_LABELS, type Task, type Habit } from "@lifeplanner/core/types";
 import { weekdayOf } from "@lifeplanner/core/calendar";
 import { useApp, type DayAction } from "../state/store";
-import { Button, Card, Checkbox, Dot, Input, Muted, SectionTitle } from "../ui";
+import { Button, Card, Checkbox, Dot, Input, Muted, Progress, SectionTitle } from "../ui";
 import { colors, AREA_COLORS, space } from "../theme";
 import { hourTicks, hourTop, timelineHeight, blockLayout, PX_PER_MIN } from "../lib/timeline";
 import { MonthView, YearView } from "../components/calendar";
@@ -43,6 +43,16 @@ export default function ScheduleScreen() {
   const untimed = app.dayActions.filter((a) => !a.item.startTime);
   const vy = Number(app.viewDate.slice(0, 4));
   const vm = Number(app.viewDate.slice(5, 7));
+  const activeGoals = app.longGoals.filter((g) => g.status === "active");
+
+  // 动力提示自动消失。
+  const nudge = app.nudge;
+  const clearNudge = app.clearNudge;
+  useEffect(() => {
+    if (!nudge) return;
+    const t = setTimeout(clearNudge, 2800);
+    return () => clearTimeout(t);
+  }, [nudge, clearNudge]);
 
   const colorOf = (a: DayAction) => (a.goal ? AREA_COLORS[a.goal.area] : colors.fgMuted);
   const isHabit = (a: DayAction) => a.kind !== "scheduled";
@@ -133,6 +143,32 @@ export default function ScheduleScreen() {
           />
         ) : (
           <>
+            {/* 目标进度小条：在进行的长期目标 + 离目标多近 */}
+            {activeGoals.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.goalStrip}
+                contentContainerStyle={{ gap: 8, paddingRight: space }}
+              >
+                {activeGoals.map((g) => {
+                  const p = app.progressOf(g);
+                  const c = AREA_COLORS[g.area];
+                  return (
+                    <View key={g.id} style={styles.goalChip}>
+                      <Text style={styles.goalChipTitle} numberOfLines={1}>
+                        {g.title}
+                      </Text>
+                      <View style={{ marginVertical: 5 }}>
+                        <Progress value={p} color={c} />
+                      </View>
+                      <Text style={styles.goalChipPct}>{p}% · 离目标更近</Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
+
             {!app.isViewToday ? (
               <Pressable onPress={app.goToday} style={styles.backToday}>
                 <Text style={styles.backTodayText}>回到今天</Text>
@@ -237,6 +273,15 @@ export default function ScheduleScreen() {
         )}
       </ScrollView>
 
+      {/* 完成动力提示 */}
+      {app.nudge ? (
+        <View style={[styles.nudge, { top: insets.top + 8 }]} pointerEvents="none">
+          <Text style={styles.nudgeText}>
+            你的努力让「{app.nudge.title}」+{app.nudge.delta}%
+          </Text>
+        </View>
+      ) : null}
+
       {/* 时间选择器 */}
       {pick ? (
         <DateTimePicker
@@ -303,6 +348,28 @@ const styles = StyleSheet.create({
   toggleItemActive: { backgroundColor: colors.accent },
   toggleText: { fontSize: 14, fontWeight: "600", color: colors.fg },
   emptyTitle: { fontSize: 16, fontWeight: "600", color: colors.fg, marginBottom: 4 },
+  goalStrip: { marginBottom: 12 },
+  goalChip: {
+    width: 150,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    padding: 10,
+  },
+  goalChipTitle: { fontSize: 13, fontWeight: "600", color: colors.fg },
+  goalChipPct: { fontSize: 11, color: colors.fgMuted },
+  nudge: {
+    position: "absolute",
+    left: 24,
+    right: 24,
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    alignItems: "center",
+  },
+  nudgeText: { color: "#fff", fontSize: 14, fontWeight: "600" },
   backToday: { alignSelf: "flex-start", marginBottom: 8 },
   backTodayText: { color: colors.accent, fontWeight: "600", fontSize: 13 },
   untimedWrap: { marginBottom: 12 },
