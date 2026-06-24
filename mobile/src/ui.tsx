@@ -131,11 +131,11 @@ export function Spinner() {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.card,
-    borderRadius: radius,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.line,
-    padding: 14,
+    borderRadius: 16,
+    borderCurve: "continuous",
+    padding: 16,
     marginBottom: 12,
+    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
   },
   sectionTitle: {
     fontSize: 13,

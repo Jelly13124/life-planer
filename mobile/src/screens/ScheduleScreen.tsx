@@ -20,6 +20,7 @@ import { useApp, type DayAction } from "../state/store";
 import { Button, Card, Checkbox, Dot, Input, Muted, Progress, SectionTitle } from "../ui";
 import { colors, AREA_COLORS, space } from "../theme";
 import { WeekStrip } from "../components/calendar";
+import { AreaTile, Icon } from "../components/icons";
 
 const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 function fmtDate(date: string): string {
@@ -39,6 +40,8 @@ export default function ScheduleScreen() {
   const [addOpen, setAddOpen] = useState(false);
   const [addText, setAddText] = useState("");
   const [addGoalId, setAddGoalId] = useState<string | null>(null); // null = 无目标
+  const [addTime, setAddTime] = useState<string | null>(null); // null = 不定时
+  const [addPickTime, setAddPickTime] = useState(false);
   const [pick, setPick] = useState<{ id: string; mode: PickMode } | null>(null);
 
   const timed = app.dayActions
@@ -79,16 +82,28 @@ export default function ScheduleScreen() {
   const openAdd = () => {
     setAddText("");
     setAddGoalId(null);
+    setAddTime(null);
     setAddOpen(true);
   };
   const submitAdd = () => {
     const text = addText.trim();
     if (text) {
-      if (addGoalId) app.addTaskToGoal(addGoalId, text);
-      else app.addTimelineTask(text);
+      app.addScheduledTask({
+        text,
+        goalId: addGoalId,
+        date: addTime ? app.viewDate : undefined,
+        time: addTime ?? undefined,
+      });
     }
     setAddText("");
+    setAddGoalId(null);
+    setAddTime(null);
     setAddOpen(false);
+  };
+  const onPickAddTime = (e: { type: string }, dt?: Date) => {
+    setAddPickTime(false);
+    if (e.type !== "set" || !dt) return;
+    setAddTime(`${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`);
   };
 
   const empty = timed.length === 0 && untimed.length === 0;
@@ -171,22 +186,12 @@ export default function ScheduleScreen() {
             {timed.map((a, i) => {
               const c = colorOf(a);
               const habit = isHabit(a);
-              const initial = a.goal ? GOAL_AREA_LABELS[a.goal.area].slice(0, 1) : "";
               const last = i === timed.length - 1;
               return (
                 <View key={a.item.id} style={styles.tlRow}>
                   <View style={styles.tlLeft}>
                     <Text style={styles.tlTime}>{a.item.startTime}</Text>
-                    <View
-                      style={[
-                        styles.tlPill,
-                        habit
-                          ? { borderColor: c, borderWidth: 2, borderStyle: "dashed" }
-                          : { backgroundColor: c },
-                      ]}
-                    >
-                      <Text style={[styles.tlPillText, habit && { color: c }]}>{initial}</Text>
-                    </View>
+                    <AreaTile area={a.goal ? a.goal.area : null} size={40} outline={habit} />
                     {!last ? <View style={styles.tlSpine} /> : null}
                   </View>
                   <Pressable style={styles.tlContent} onPress={() => blockPressed(a)}>
@@ -240,7 +245,7 @@ export default function ScheduleScreen() {
 
       {/* 悬浮加号 */}
       <Pressable style={styles.fab} onPress={openAdd}>
-        <Text style={styles.fabText}>＋</Text>
+        <Icon name="plus" size={28} color="#fff" />
       </Pressable>
 
       {/* 完成动力提示 */}
@@ -262,6 +267,15 @@ export default function ScheduleScreen() {
           onChange={onPickTime}
         />
       ) : null}
+      {addPickTime ? (
+        <DateTimePicker
+          value={new Date()}
+          mode="time"
+          is24Hour
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={onPickAddTime}
+        />
+      ) : null}
 
       {/* 添加任务（可选绑定目标） */}
       <Modal visible={addOpen} transparent animationType="fade" onRequestClose={() => setAddOpen(false)}>
@@ -276,6 +290,23 @@ export default function ScheduleScreen() {
               onSubmitEditing={submitAdd}
               returnKeyType="done"
             />
+            <Text style={styles.modalLabel}>时间</Text>
+            <View style={styles.chipRow}>
+              <Pressable
+                onPress={() => setAddPickTime(true)}
+                style={[styles.goalPick, addTime ? styles.goalPickActive : null]}
+              >
+                <Text style={[styles.goalPickText, addTime ? { color: "#fff" } : null]}>
+                  {addTime ? `今天 ${addTime}` : "选时间"}
+                </Text>
+              </Pressable>
+              {addTime ? (
+                <Pressable onPress={() => setAddTime(null)} style={styles.goalPick}>
+                  <Text style={styles.goalPickText}>改为不定时</Text>
+                </Pressable>
+              ) : null}
+            </View>
+
             <Text style={styles.modalLabel}>绑定目标（可选，完成后计入目标进度）</Text>
             <View style={styles.chipRow}>
               <Pressable
@@ -302,7 +333,9 @@ export default function ScheduleScreen() {
                 );
               })}
             </View>
-            <Muted style={{ marginTop: 8 }}>加好后它进未排，点它选时间排进当天。</Muted>
+            <Muted style={{ marginTop: 10 }}>
+              {addTime ? `会直接排到今天 ${addTime}` : "不选时间 → 先进未排，稍后点它选时间"}
+            </Muted>
             <View style={{ height: 12 }} />
             <Button label="添加" onPress={submitAdd} disabled={!addText.trim()} />
           </Pressable>

@@ -115,6 +115,7 @@ interface AppValue {
   addHabitToGoal: (goalId: string, text: string, repeat: "daily" | "weekly") => void;
   addLooseTask: (text: string) => void;
   addTimelineTask: (text: string, date?: string, time?: string) => void;
+  addScheduledTask: (opts: { text: string; goalId?: string | null; date?: string; time?: string }) => void;
   scheduleAtTime: (taskId: string, date: string, time: string, durationMin?: number) => void;
   setActionTimeById: (id: string, time: string, durationMin?: number) => void;
   unschedule: (taskId: string) => void;
@@ -260,6 +261,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       let t = t1;
       if (date) t = setActionScheduledDate(t, id, date);
       if (time) t = setActionTime(t, id, time, DEFAULT_DURATION_MIN);
+      commit(t);
+    },
+    [commit],
+  );
+
+  // 加任务（可绑目标 + 可直接给日期/时刻）：一次提交完成建+排+定时。
+  const addScheduledTask = useCallback(
+    (opts: { text: string; goalId?: string | null; date?: string; time?: string }) => {
+      const cur = treeRef.current;
+      const text = opts.text.trim();
+      if (!cur || !text) return;
+      let t: LifeTree;
+      let id: string;
+      if (opts.goalId) {
+        const r = domainAddTask(cur, opts.goalId, text, nowISO());
+        t = r.tree;
+        id = r.id;
+      } else {
+        const r = domainAddLooseTask(cur, text, nowISO());
+        t = r.tree;
+        id = r.id;
+      }
+      if (opts.date) t = setActionScheduledDate(t, id, opts.date);
+      if (opts.time) t = setActionTime(t, id, opts.time, DEFAULT_DURATION_MIN);
       commit(t);
     },
     [commit],
@@ -490,6 +515,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addHabitToGoal,
       addLooseTask,
       addTimelineTask,
+      addScheduledTask,
       scheduleAtTime,
       setActionTimeById,
       unschedule,
@@ -522,6 +548,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addHabitToGoal,
     addLooseTask,
     addTimelineTask,
+    addScheduledTask,
     scheduleAtTime,
     setActionTimeById,
     unschedule,

@@ -1,11 +1,14 @@
-// 底部 5 Tab：首页(周+当天时间轴) / 月历 / 目标 / 人生树 / 我。极简线条风（小圆点图标，无 emoji）。
+// 底部 5 Tab：首页 / 月历 / 目标 / 人生树 / 我。真线性图标（MaterialCommunityIcons）。
 import { Tabs } from "expo-router";
-import { View, type ColorValue } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import type { ColorValue } from "react-native";
 import { colors } from "../../src/theme";
 
-function TabDot({ color }: { color: ColorValue }) {
-  return <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: color }} />;
-}
+type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
+const icon =
+  (name: IconName) =>
+  ({ color, size }: { color: ColorValue; size: number }) =>
+    <MaterialCommunityIcons name={name} size={size ?? 24} color={color as string} />;
 
 export default function TabsLayout() {
   return (
@@ -14,30 +17,21 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.fgMuted,
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.line },
+        tabBarStyle: {
+          backgroundColor: colors.card,
+          borderTopColor: colors.line,
+          height: 60,
+          paddingTop: 6,
+          paddingBottom: 8,
+        },
         tabBarLabelStyle: { fontSize: 11 },
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{ title: "首页", tabBarIcon: ({ color }) => <TabDot color={color} /> }}
-      />
-      <Tabs.Screen
-        name="month"
-        options={{ title: "月历", tabBarIcon: ({ color }) => <TabDot color={color} /> }}
-      />
-      <Tabs.Screen
-        name="goals"
-        options={{ title: "目标", tabBarIcon: ({ color }) => <TabDot color={color} /> }}
-      />
-      <Tabs.Screen
-        name="tree"
-        options={{ title: "人生树", tabBarIcon: ({ color }) => <TabDot color={color} /> }}
-      />
-      <Tabs.Screen
-        name="me"
-        options={{ title: "我", tabBarIcon: ({ color }) => <TabDot color={color} /> }}
-      />
+      <Tabs.Screen name="index" options={{ title: "首页", tabBarIcon: icon("calendar-today") }} />
+      <Tabs.Screen name="month" options={{ title: "月历", tabBarIcon: icon("calendar-month-outline") }} />
+      <Tabs.Screen name="goals" options={{ title: "目标", tabBarIcon: icon("target") }} />
+      <Tabs.Screen name="tree" options={{ title: "人生树", tabBarIcon: icon("sitemap-outline") }} />
+      <Tabs.Screen name="me" options={{ title: "我", tabBarIcon: icon("account-circle-outline") }} />
     </Tabs>
   );
 }
