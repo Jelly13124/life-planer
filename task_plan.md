@@ -4,14 +4,15 @@
 Goal: "好的你今晚去做我验收" — 把 Expo 手机端做成完整可用 app，早上验收。
 Spec: docs/superpowers/specs/2026-06-24-mobile-complete-design.md · Plan: docs/superpowers/plans/2026-06-24-mobile-complete-plan.md
 每阶段：实现 → mobile tsc + 模拟器截图 → 提交 → master 跟进 + 推备份。
-- [ ] 依赖：expo-notifications + gesture-handler + reanimated + datetimepicker（babel/根布局接线）
-- [ ] P1 日视图时间轴渲染（刻度 + 已排块 + 习惯幽灵 + 作息窗；ScheduleScreen 作主屏）
-- [ ] P2 未排托盘 + 轻点排期 + +任务 + AI 排今天（排期闭环可用）
-- [ ] P3 月/年日历 + 日/月/年 切换
-- [ ] P4 目标进度小条 + 完成动力提示；目标屏去散任务
-- [ ] P5 人生树 AI 增强分支 + 和未来的自己对话屏（/api/enrich + /api/chat 非流式）
-- [ ] P6 本地定时通知（syncNotifications 树变更校准）
-- [ ] P7 拖拽排期（最后；轻点兜底已在）
+- [x] 依赖：expo-notifications + gesture-handler + datetimepicker（reanimated 因 peer 冲突弃用，拖拽改 gesture-handler）`87b4658`
+- [x] P1 日视图时间轴渲染 `ed7a46b`
+- [x] P2 未排托盘 + 轻点排期 + +任务 + AI 排今天 `ed7a46b`
+- [x] P3 月/年日历 + 日/月/年 切换 `3bdf205`
+- [x] P4 目标进度小条 + 完成动力提示；目标屏去散任务 `7e38ea6`
+- [x] P5 人生树 AI 增强分支 + 和未来的自己对话屏 `e2b04e3`
+- [x] P6 本地定时通知（Expo Go 安全 no-op；dev build 真用）`dda9bef`
+- [~] P7 拖拽排期 —— **延后到 dev build 阶段**：gesture-handler 3.0.2 + 传递 reanimated 4.5.0(无 babel 插件) 在 Expo Go 触发手势会崩，adb 无法可靠验证长按拖拽；轻点排期已完全可用作替代。详见 docs/MORNING-2026-06-24.md
+全部已提交并推到备份（master + feat @ dda9bef）。web 全绿（tsc 0 / 464 / build）。
 护栏：core 纯净不破；web 全绿；只改 mobile/；中文串规范；无 emoji；苹果白。
 摩擦点（靠后+兜底）：拖拽落点算时间、RN 读 SSE（先非流式）、通知权限。后端相关需用户设 EXPO_PUBLIC_API_BASE_URL；没设离线降级。
 
