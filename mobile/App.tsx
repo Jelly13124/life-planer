@@ -1,10 +1,10 @@
 import { StatusBar } from "expo-status-bar";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
-// Imported from the SHARED pure domain at <repo>/src/domain (NOT copied here).
-// Resolves via the "@core" alias wired in metro.config.js + babel.config.js.
-// Proves the domain bundles in React Native.
-import { LIFE_AREAS, AREA_LABELS } from "@core/types";
+// Imported from the shared pure domain workspace package @lifeplanner/core
+// (real source at <repo>/packages/core, symlinked into node_modules by npm
+// workspaces). Proves the domain bundles in React Native.
+import { LIFE_AREAS, AREA_LABELS } from "@lifeplanner/core/types";
 
 export default function App() {
   return (

@@ -21,9 +21,6 @@ expo-env.d.ts
 # Metro
 .metro-health-check*
 
-# Generated links to the shared repo domain (created by scripts/link-shared.js)
-.shared/
-
 # debug
 npm-debug.*
 yarn-debug.*

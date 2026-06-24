@@ -19,7 +19,10 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/domain/*": ["./packages/core/src/*"],
+      "@/*": ["./src/*"],
+      "@lifeplanner/core": ["./packages/core/src/index.ts"],
+      "@lifeplanner/core/*": ["./packages/core/src/*"]
     }
   },
   "include": [

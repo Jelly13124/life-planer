@@ -13,12 +13,12 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
-  // 领域层纯函数铁律：src/domain/** 不得取当前时间/随机数（time 由 state 层注入）。
+  // 领域层纯函数铁律：packages/core/** 不得取当前时间/随机数（time 由 state 层注入）。
   // 只禁不纯的形式——无参 new Date()/Date.now()/Math.random()；new Date(注入值) 仍允许。
-  // 编辑后由 scripts/hooks/check-edit.mjs 自动执行；测试目录豁免。
+  // 编辑后由 .claude/hooks/check-edit.mjs 自动执行；测试目录豁免。
   {
-    files: ["src/domain/**/*.{ts,tsx}"],
-    ignores: ["src/domain/**/__tests__/**", "src/domain/**/*.test.{ts,tsx}"],
+    files: ["packages/core/**/*.{ts,tsx}"],
+    ignores: ["packages/core/**/__tests__/**", "packages/core/**/*.test.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": [
         "error",

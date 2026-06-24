@@ -11,8 +11,25 @@ export default defineConfig({
     pool: "threads",
   },
   resolve: {
-    alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
-    },
+    // Order matters: more specific aliases first so "@/domain/*" (now living in
+    // the workspace package) wins over the generic "@/*" web-app alias.
+    alias: [
+      {
+        find: /^@\/domain\//,
+        replacement: fileURLToPath(new URL("./packages/core/src/", import.meta.url)),
+      },
+      {
+        find: /^@lifeplanner\/core$/,
+        replacement: fileURLToPath(new URL("./packages/core/src/index.ts", import.meta.url)),
+      },
+      {
+        find: /^@lifeplanner\/core\//,
+        replacement: fileURLToPath(new URL("./packages/core/src/", import.meta.url)),
+      },
+      {
+        find: /^@\//,
+        replacement: fileURLToPath(new URL("./src/", import.meta.url)),
+      },
+    ],
   },
 });

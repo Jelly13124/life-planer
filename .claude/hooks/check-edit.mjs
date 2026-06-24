@@ -13,8 +13,8 @@ process.stdin.on("end", () => {
   } catch {
     process.exit(0);
   }
-  // 只检查 app 源码（src/**），跳过 md/json/css/配置/脚本
-  if (!/[\\/]src[\\/].*\.(ts|tsx|js|jsx)$/.test(p)) process.exit(0);
+  // 只检查源码（src/** 与 packages/**，后者含搬走的 domain），跳过 md/json/css/配置/脚本
+  if (!/[\\/](src|packages)[\\/].*\.(ts|tsx|js|jsx)$/.test(p)) process.exit(0);
 
   try {
     execSync(`npx eslint "${p}" --quiet`, { stdio: "pipe" });

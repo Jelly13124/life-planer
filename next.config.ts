@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Compile the workspace domain package (@lifeplanner/core ships raw TS).
+  // The web app imports the domain via the "@/domain/*" alias (repointed to
+  // ./packages/core/src in tsconfig); transpilePackages ensures Next/Turbopack
+  // also transpiles it when reached as the symlinked workspace package.
+  transpilePackages: ["@lifeplanner/core"],
   async headers() {
     return [
       {

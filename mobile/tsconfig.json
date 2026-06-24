@@ -3,9 +3,9 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@core/*": ["./.shared/domain/*"],
-      "@/*": ["./.shared/src/*"]
+      "@lifeplanner/core": ["../packages/core/src/index.ts"],
+      "@lifeplanner/core/*": ["../packages/core/src/*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".shared/domain/**/*.ts"]
+  "include": ["**/*.ts", "**/*.tsx"]
 }

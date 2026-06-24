@@ -1,51 +1,32 @@
-// Metro config — lets the mobile app bundle the SHARED pure domain that lives
-// OUTSIDE this project at <repo>/src/domain. The domain is NOT copied/moved.
+// Metro config for the Expo app inside an npm workspaces monorepo.
 //
-// How the sharing works:
-//   scripts/link-shared.js creates junctions (Windows) / symlinks under
-//     mobile/.shared/  ->  domain -> ../src/domain,  src -> ../src
-//   so the real source is reachable from a path UNDER the project root.
-//   (Metro reliably watches/indexes files under projectRoot; pointing
-//   watchFolders at the sibling ../src directly failed to index on Windows —
-//   "Failed to get the SHA-1 for ...". The junction sidesteps that.)
+// The shared pure domain lives at <repo>/packages/core and is published in the
+// workspace as the package "@lifeplanner/core". npm install symlinks it into
+// node_modules, so Metro resolves it like any normal dependency — no junctions,
+// no custom resolver, no .shared hack.
 //
-// This resolver just maps the aliases to the junctioned paths:
-//   "@core" / "@core/x" -> mobile/.shared/domain[/x]  (= ../src/domain)
-//   "@/x"               -> mobile/.shared/src/x        (= ../src/x; the alias
-//                          the web app uses internally, so transitive imports
-//                          that use it resolve too)
+// Two monorepo essentials:
+//   1. watchFolders includes the repo root so Metro crawls/watches the linked
+//      package's real source under packages/core.
+//   2. nodeModulesPaths includes the root node_modules so hoisted deps resolve.
 const { getDefaultConfig } = require("expo/metro-config");
 const path = require("path");
 
 const projectRoot = __dirname;
-const sharedRoot = path.resolve(projectRoot, ".shared");
-const domainRoot = path.join(sharedRoot, "domain");
-const srcRoot = path.join(sharedRoot, "src");
+const workspaceRoot = path.resolve(projectRoot, "..");
 
 const config = getDefaultConfig(projectRoot);
 
-// Follow symlinks/junctions to their real targets when crawling.
+// Follow the workspace symlink (@lifeplanner/core) to its real target.
 config.resolver.unstable_enableSymlinks = true;
 
-const defaultResolveRequest = config.resolver.resolveRequest;
-config.resolver.resolveRequest = (context, moduleName, platform) => {
-  let target = null;
-  if (moduleName === "@core") {
-    target = domainRoot;
-  } else if (moduleName.startsWith("@core/")) {
-    target = path.join(domainRoot, moduleName.slice("@core/".length));
-  } else if (moduleName.startsWith("@/")) {
-    target = path.join(srcRoot, moduleName.slice("@/".length));
-  }
+// Watch the whole monorepo so edits to packages/core are picked up.
+config.watchFolders = [workspaceRoot];
 
-  if (target) {
-    return context.resolveRequest(context, target, platform);
-  }
-  return (defaultResolveRequest || context.resolveRequest)(
-    context,
-    moduleName,
-    platform,
-  );
-};
+// Resolve modules from the app's own node_modules first, then the hoisted root.
+config.resolver.nodeModulesPaths = [
+  path.resolve(projectRoot, "node_modules"),
+  path.resolve(workspaceRoot, "node_modules"),
+];
 
 module.exports = config;
