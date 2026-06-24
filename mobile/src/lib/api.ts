@@ -7,6 +7,7 @@
 // Expo 公开环境变量：以 EXPO_PUBLIC_ 开头，构建时内联进客户端包。
 // 在 mobile/.env 或 shell 里设 EXPO_PUBLIC_API_BASE_URL=http://<开发机IP>:3000
 
+import Constants from "expo-constants";
 import {
   DIMENSIONS,
   type Dimension,
@@ -18,10 +19,19 @@ import {
   type PathNode,
 } from "@lifeplanner/core/types";
 
-// 末尾去掉斜杠，避免拼出 //api。未配置 → 空串（视为「无后端」）。
+// 开发期零配置：没设 EXPO_PUBLIC_API_BASE_URL 时，用 Metro 同一台主机的 :3000 当后端。
+// （adb reverse tcp:3000 → 127.0.0.1:3000；或同局域网用主机 IP:3000。）正式包用 env 覆盖。
+function devBackendFromMetro(): string {
+  const hostUri = Constants.expoConfig?.hostUri; // 如 "127.0.0.1:8081" / "192.168.x.x:8081"
+  if (!hostUri) return "";
+  const host = hostUri.split(":")[0];
+  return host ? `http://${host}:3000` : "";
+}
+
+// 末尾去掉斜杠，避免拼出 //api。env 优先；dev 自动回退到 Metro 主机:3000；都没有 → 空串（无后端）。
 export const API_BASE_URL: string = (
-  process.env.EXPO_PUBLIC_API_BASE_URL ?? ""
-).replace(/\/+$/, "");
+  (process.env.EXPO_PUBLIC_API_BASE_URL ?? "").replace(/\/+$/, "") || devBackendFromMetro()
+);
 
 export function hasBackend(): boolean {
   return API_BASE_URL.length > 0;
