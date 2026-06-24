@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
   type TextInputProps,
+  type TextStyle,
   type ViewStyle,
 } from "react-native";
 import { colors, radius } from "./theme";
@@ -21,7 +22,7 @@ export function SectionTitle({ children }: { children: React.ReactNode }) {
   return <Text style={styles.sectionTitle}>{children}</Text>;
 }
 
-export function Muted({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
+export function Muted({ children, style }: { children: React.ReactNode; style?: TextStyle }) {
   return <Text style={[styles.muted, style]}>{children}</Text>;
 }
 

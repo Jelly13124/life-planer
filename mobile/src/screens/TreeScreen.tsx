@@ -4,7 +4,7 @@
 //
 // 这里是只读视图：加分支需要 AI 推演（predictAndCommit），那条链路在 Phase 3 后续/网页端。
 import React from "react";
-import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path, Line, Circle, Text as SvgText, Rect } from "react-native-svg";
 import { LIFE_AREAS, type LifePath } from "@lifeplanner/core/types";
@@ -42,8 +42,14 @@ function compositePoints(path: LifePath): { age: number; value: number }[] {
 }
 
 export default function TreeScreen() {
-  const { tree } = useApp();
+  const { tree, reset } = useApp();
   const insets = useSafeAreaInsets();
+
+  const confirmReset = () =>
+    Alert.alert("重置全部数据", "会清空人生树、目标和任务，重新填写资料。此操作不可撤销。", [
+      { text: "取消", style: "cancel" },
+      { text: "重置", style: "destructive", onPress: () => reset() },
+    ]);
   const { width } = useWindowDimensions();
 
   if (!tree) return null;
@@ -168,6 +174,10 @@ export default function TreeScreen() {
       {choices.length > 0 ? (
         <Text style={styles.disclaimer}>可行度为 AI 粗估，非精确概率；随你的实际进度上升。</Text>
       ) : null}
+
+      <Pressable onPress={confirmReset} hitSlop={8} style={styles.resetBtn}>
+        <Text style={styles.resetText}>重置全部数据（重新填写资料）</Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -188,4 +198,6 @@ const styles = StyleSheet.create({
   feasibility: { fontSize: 14, fontWeight: "700", color: colors.accent },
   feasNote: { fontSize: 12, color: colors.fgMuted, marginTop: 6 },
   disclaimer: { fontSize: 12, color: colors.fgMuted, marginTop: 4, textAlign: "center" },
+  resetBtn: { marginTop: 32, alignItems: "center", paddingVertical: 8 },
+  resetText: { fontSize: 13, color: colors.danger },
 });

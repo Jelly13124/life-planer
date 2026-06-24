@@ -30,6 +30,7 @@ import {
   findTask,
 } from "@lifeplanner/core/goalTree";
 import { goalProgress, completeGoal as domainCompleteGoal } from "@lifeplanner/core/goals";
+import { deriveAreas, buildSnapshot } from "@lifeplanner/core/profile";
 import {
   localDay,
   todayItems,
@@ -46,25 +47,8 @@ import { fetchGoalSuggestions, type GoalSuggestion } from "../lib/api";
 const nowISO = (): string => new Date().toISOString();
 const todayStr = (): string => localDay(new Date());
 
-// 还没引导/没存档时的起始 Profile：给 app 一份可渲染、可持久化的数据。
-// 各领域起点取中性 50；正式上线时由移动端 onboarding 覆盖（Phase 3）。
-const DEFAULT_PROFILE: Profile = {
-  name: "你",
-  age: 25,
-  education: "bachelor",
-  major: "",
-  occupation: "",
-  salary: "5to10",
-  hasSideHustle: false,
-  sideHustle: "",
-  hobbies: "",
-  relationship: "single",
-  location: "",
-  status: "",
-  snapshot: "",
-  areas: { career: 50, wealth: 50, relationships: 50, health: 50, growth: 50 },
-  crossroad: "",
-};
+// onboarding 收集的字段 = Profile 去掉派生的 areas/snapshot（由 deriveAreas/buildSnapshot 计算）。
+export type ProfileInputs = Omit<Profile, "areas" | "snapshot">;
 
 export interface TodayRow {
   goal: Goal | null;
@@ -95,6 +79,7 @@ interface AppValue {
   removeItem: (id: string) => void;
   removeGoal: (goalId: string) => void;
   completeGoal: (goalId: string) => void;
+  onboard: (inputs: ProfileInputs) => void;
   reset: () => void;
   // 后端（AI 建议；离线返回 []）
   suggestGoals: () => Promise<GoalSuggestion[]>;
@@ -106,19 +91,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [tree, setTree] = useState<LifeTree | null>(null);
   const [ready, setReady] = useState(false);
   const [today, setToday] = useState<string>(() => todayStr());
-  // 用 ref 保证持久化读到的是最新树（避免闭包旧值）。
+  // 用 ref 保证持久化/动作读到的是最新树（避免闭包旧值）。在 effect 里同步，不在渲染期写 ref。
   const treeRef = useRef<LifeTree | null>(null);
-  treeRef.current = tree;
+  useEffect(() => {
+    treeRef.current = tree;
+  }, [tree]);
 
-  // 启动：加载存档；没有则用起始 Profile 生成一棵树并落盘。
+  // 启动：加载存档（可能为 null → 未引导，Gate 显示 onboarding）。不再自动生成默认树。
   useEffect(() => {
     let alive = true;
     (async () => {
-      let loaded = await loadTree();
-      if (!loaded) {
-        loaded = createTree(DEFAULT_PROFILE, localGenerator, nowISO());
-        await saveTree(loaded);
-      }
+      const loaded = await loadTree();
       if (!alive) return;
       setTree(loaded);
       setReady(true);
@@ -251,13 +234,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [commit],
   );
 
+  // 引导完成：由结构化输入派生 areas/snapshot，生成人生树并落盘。
+  const onboard = useCallback(
+    (inputs: ProfileInputs) => {
+      const profile: Profile = {
+        ...inputs,
+        areas: deriveAreas(inputs),
+        snapshot: buildSnapshot(inputs),
+      };
+      commit(createTree(profile, localGenerator, nowISO()));
+    },
+    [commit],
+  );
+
   const reset = useCallback(() => {
     void (async () => {
       await clearTree();
-      const fresh = createTree(DEFAULT_PROFILE, localGenerator, nowISO());
-      await saveTree(fresh);
-      setTree(fresh);
-      treeRef.current = fresh;
+      setTree(null);
+      treeRef.current = null;
     })();
   }, []);
 
@@ -292,6 +286,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       removeItem,
       removeGoal,
       completeGoal,
+      onboard,
       reset,
       suggestGoals,
     };
@@ -309,6 +304,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     removeItem,
     removeGoal,
     completeGoal,
+    onboard,
     reset,
     suggestGoals,
   ]);
