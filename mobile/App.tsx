@@ -1,69 +1,82 @@
+// Life Planner — 移动端入口（Expo / React Native）。
+// Phase 2：状态层（AsyncStorage + 共享领域核心）+ 头两个真实屏（今日 / 目标）。
+// 导航暂用底部双 Tab；expo-router + 人生树/选择面板等屏在 Phase 3 接。
+import React, { useState } from "react";
+import {
+  Platform,
+  Pressable,
+  StatusBar as RNStatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
 
-// Imported from the shared pure domain workspace package @lifeplanner/core
-// (real source at <repo>/packages/core, symlinked into node_modules by npm
-// workspaces). Proves the domain bundles in React Native.
-import { LIFE_AREAS, AREA_LABELS } from "@lifeplanner/core/types";
+import { AppProvider, useApp } from "./src/state/store";
+import TodayScreen from "./src/screens/TodayScreen";
+import GoalsScreen from "./src/screens/GoalsScreen";
+import { Spinner } from "./src/ui";
+import { colors } from "./src/theme";
 
-export default function App() {
+type Tab = "today" | "goals";
+
+const TOP_PAD = Platform.OS === "android" ? (RNStatusBar.currentHeight ?? 24) : 56;
+
+function Shell() {
+  const { ready } = useApp();
+  const [tab, setTab] = useState<Tab>("today");
+
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Life Planner (mobile)</Text>
-        <Text style={styles.subtitle}>
-          人生五大领域 · shared from src/domain
-        </Text>
-        {LIFE_AREAS.map((area) => (
-          <View key={area} style={styles.row}>
-            <Text style={styles.label}>{AREA_LABELS[area]}</Text>
-            <Text style={styles.code}>{area}</Text>
-          </View>
-        ))}
-      </ScrollView>
-      <StatusBar style="auto" />
+    <View style={styles.root}>
+      <View style={[styles.body, { paddingTop: TOP_PAD }]}>
+        {!ready ? <Spinner /> : tab === "today" ? <TodayScreen /> : <GoalsScreen />}
+      </View>
+      <View style={styles.tabBar}>
+        <TabButton label="今日" active={tab === "today"} onPress={() => setTab("today")} />
+        <TabButton label="目标" active={tab === "goals"} onPress={() => setTab("goals")} />
+      </View>
+      <StatusBar style="dark" />
     </View>
   );
 }
 
+function TabButton({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.tab} onPress={onPress} accessibilityRole="tab" accessibilityState={{ selected: active }}>
+      <Text style={[styles.tabText, active && { color: colors.accent, fontWeight: "700" }]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+export default function App() {
+  return (
+    <AppProvider>
+      <Shell />
+    </AppProvider>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  content: {
-    paddingTop: 72,
-    paddingHorizontal: 24,
-    paddingBottom: 48,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#111",
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 6,
-    marginBottom: 24,
-  },
-  row: {
+  root: { flex: 1, backgroundColor: colors.bg },
+  body: { flex: 1 },
+  tabBar: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    marginBottom: 10,
-    borderRadius: 12,
-    backgroundColor: "#f4f4f5",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+    backgroundColor: colors.card,
+    paddingBottom: Platform.OS === "ios" ? 24 : 8,
+    paddingTop: 8,
   },
-  label: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#111",
-  },
-  code: {
-    fontSize: 13,
-    color: "#888",
-  },
+  tab: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 6 },
+  tabText: { fontSize: 14, color: colors.fgMuted },
 });

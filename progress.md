@@ -67,3 +67,13 @@ User showed Griply sidebar ("这些都要有，除 inbox") + wanted a horizontal
 | dev `/` 404 after a build | clear `.next`, restart dev |
 | messages.ts Chinese-comma keys | must be quoted; ASCII delimiters; no smart quotes as delimiters |
 | predictAndCommit clobbers concurrent patches | bake the mutation into the working-tree snapshot (e.g. promoteInboxToLongGoal) |
+
+## Session — 2026-06-23 (cont.) Expo Phase 2: mobile state layer + first real screens
+Continued the app port (`docs/superpowers/plans/2026-06-23-expo-migration.md` Phase 2) while keeping web green. All new code lives under `mobile/` — `packages/core` and the web app are untouched by construction, so the web can't regress.
+- **Dep**: `@react-native-async-storage/async-storage` via `npx expo install` (SDK 56-compatible, hoisted to root node_modules).
+- **`mobile/src/lib/storage.ts`**: AsyncStorage tree repo (load/save/clear → Promise). Reuses core `normalizeLoadedTree` (校验 + 旧数据迁移) + same storage key `lifeplanner.tree.v3` as web → same jsonb shape for future Supabase sync.
+- **`mobile/src/lib/api.ts`**: base-URL API client. Reads `EXPO_PUBLIC_API_BASE_URL`; `postJson` + `fetchGoalSuggestions`/`fetchGoalActions`; any failure/no-base → null/[] (offline-tolerant). RN never calls DeepSeek directly — always via Next `/api/*`.
+- **`mobile/src/state/store.tsx`**: AppProvider + useApp (精简版 AppContext). Loads tree, bootstraps a starter tree (default Profile, areas=50) if none, persists on every change via treeRef snapshot. Mutators all reuse shared domain (`addLongGoal`/`addTask`/`addHabit`/`addLooseTask`/`completeAction`/`uncompleteAction`/`planToday`/`removeItem`/`removeGoalById`/`completeGoal`). Time (now/today) injected here — domain stays pure. `today` refreshes on AppState→active.
+- **Screens**: `theme.ts` (Apple-white tokens + area colors) + `ui.tsx` (Card/Checkbox/Button/Input/Progress/Dot/Spinner, line-style, no emoji) + `TodayScreen` (today items + streak + toggle) + `GoalsScreen` (build long goal, area chips, add/complete/delete tasks, +今天, habits read-only, short-goals list, loose tasks, AI 建议目标 via backend). `App.tsx` = AppProvider + 今日/目标 bottom tabs + loading state.
+- **Verify**: mobile `npx tsc --noEmit` clean + `npx expo export --platform ios` bundles 592 modules (proves shared TS core resolves through Metro). Web re-verified GREEN: tsc 0 / 464 vitest / next build ok / .next cleared.
+- STILL TODO (Phase 3): expo-router nav; 人生树(react-native-svg)/选择面板/日历 screens; NativeWind; onboarding (replace bootstrap default Profile); Supabase auth+sync on RN. Bundling caveat: `@lifeplanner/core` ships raw `.ts` via the package `"./*"` exports map — Metro/babel-preset-expo transpiles it fine (confirmed).
