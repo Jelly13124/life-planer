@@ -19,6 +19,7 @@ import { useApp, type DayAction } from "../state/store";
 import { Button, Card, Checkbox, Dot, Input, Muted, SectionTitle } from "../ui";
 import { colors, AREA_COLORS, space } from "../theme";
 import { hourTicks, hourTop, timelineHeight, blockLayout, PX_PER_MIN } from "../lib/timeline";
+import { MonthView, YearView } from "../components/calendar";
 
 const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
@@ -40,6 +41,8 @@ export default function ScheduleScreen() {
   const win = app.dayWin;
   const timed = app.dayActions.filter((a) => a.item.startTime);
   const untimed = app.dayActions.filter((a) => !a.item.startTime);
+  const vy = Number(app.viewDate.slice(0, 4));
+  const vm = Number(app.viewDate.slice(5, 7));
 
   const colorOf = (a: DayAction) => (a.goal ? AREA_COLORS[a.goal.area] : colors.fgMuted);
   const isHabit = (a: DayAction) => a.kind !== "scheduled";
@@ -105,11 +108,29 @@ export default function ScheduleScreen() {
           })}
         </View>
 
-        {view !== "day" ? (
-          <Card>
-            <Text style={styles.emptyTitle}>{view === "month" ? "月视图" : "年视图"}</Text>
-            <Muted>即将到来。先用「日」视图安排今天。</Muted>
-          </Card>
+        {view === "month" ? (
+          <MonthView
+            year={vy}
+            month={vm}
+            today={app.today}
+            viewDate={app.viewDate}
+            densityOf={(d) => app.actionsOn(d).length}
+            onPickDay={(d) => {
+              app.setViewDate(d);
+              setView("day");
+            }}
+            onShiftMonth={(d) => app.setViewDate(d)}
+          />
+        ) : view === "year" ? (
+          <YearView
+            year={vy}
+            today={app.today}
+            onPickMonth={(d) => {
+              app.setViewDate(d);
+              setView("month");
+            }}
+            onShiftYear={(d) => app.setViewDate(d)}
+          />
         ) : (
           <>
             {!app.isViewToday ? (
