@@ -54,6 +54,7 @@ import {
 } from "@lifeplanner/core/schedule";
 
 import { loadTree, saveTree, clearTree } from "../lib/storage";
+import { syncNotifications } from "../lib/notifications";
 import {
   fetchGoalSuggestions,
   hasBackend,
@@ -149,6 +150,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     treeRef.current = tree;
   }, [tree]);
+  // 本地通知重排的去抖定时器（commit 高频，1.5s 合并）。
+  const notifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 启动：加载存档（可能为 null → 未引导，Gate 显示 onboarding）。不再自动生成默认树。
   useEffect(() => {
@@ -158,6 +161,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!alive) return;
       setTree(loaded);
       setReady(true);
+      if (loaded) void syncNotifications(loaded, todayStr());
     })();
     return () => {
       alive = false;
@@ -177,6 +181,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTree(next);
     treeRef.current = next;
     void saveTree(next);
+    // 去抖重排本地通知（取消旧的 → 排未来几天已排时间的提醒）。
+    if (notifTimer.current) clearTimeout(notifTimer.current);
+    notifTimer.current = setTimeout(() => void syncNotifications(next, todayStr()), 1500);
   }, []);
 
   const bumpNudge = useCallback((title: string, delta: number) => {
