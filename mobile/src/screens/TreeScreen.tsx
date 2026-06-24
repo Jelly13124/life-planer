@@ -3,13 +3,13 @@
 // 选择路径=彩色实线，终点标注现实可行度 %。曲线由各领域指标按年龄平均得到（真实数据，非编造）。
 //
 // 这里是只读视图：加分支需要 AI 推演（predictAndCommit），那条链路在 Phase 3 后续/网页端。
-import React from "react";
+import React, { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path, Line, Circle, Text as SvgText, Rect } from "react-native-svg";
 import { LIFE_AREAS, type LifePath } from "@lifeplanner/core/types";
 import { useApp } from "../state/store";
-import { Card, Muted } from "../ui";
+import { Button, Card, Input, Muted } from "../ui";
 import { colors, space } from "../theme";
 
 // 暗色「媒体面板」配色（对应 web 的 .lp-media-dark）。
@@ -42,8 +42,21 @@ function compositePoints(path: LifePath): { age: number; value: number }[] {
 }
 
 export default function TreeScreen() {
-  const { tree, reset } = useApp();
+  const { tree, reset, addChoiceBranch, removeBranch } = useApp();
   const insets = useSafeAreaInsets();
+  const [label, setLabel] = useState("");
+
+  const submitBranch = () => {
+    if (!label.trim()) return;
+    addChoiceBranch(label);
+    setLabel("");
+  };
+
+  const confirmRemove = (p: LifePath) =>
+    Alert.alert("删除这条路", `删除「${p.choiceLabel}」分支？`, [
+      { text: "取消", style: "cancel" },
+      { text: "删除", style: "destructive", onPress: () => removeBranch(p.id) },
+    ]);
 
   const confirmReset = () =>
     Alert.alert("重置全部数据", "会清空人生树、目标和任务，重新填写资料。此操作不可撤销。", [
@@ -145,12 +158,29 @@ export default function TreeScreen() {
         </Svg>
       </View>
 
+      {/* 加人生选择 */}
+      <Card>
+        <Text style={styles.composerTitle}>加一条人生选择</Text>
+        <Muted style={{ marginBottom: 10 }}>
+          输入一个选择（如「去创业」「出国读研」），立刻在树上长出这条路。
+        </Muted>
+        <Input
+          value={label}
+          onChangeText={setLabel}
+          placeholder="这条路是…"
+          onSubmitEditing={submitBranch}
+          returnKeyType="done"
+        />
+        <View style={{ height: 10 }} />
+        <Button label="推演这条路" onPress={submitBranch} disabled={!label.trim()} />
+      </Card>
+
       {/* 路径清单 */}
       {choices.length === 0 ? (
         <Card>
           <Text style={styles.emptyTitle}>暂时只有「维持现状」</Text>
           <Muted>
-            添加人生选择后，这里会长出不同的彩色分支，并给出每条路的现实可行度。加分支需要 AI 推演，将在后续版本接入手机端（目前可在网页端操作）。
+            上面加一条人生选择，这里就会长出不同的彩色分支。（离线即时推演；接入后端后会换成更贴近你的 AI 预测 + 现实可行度。）
           </Muted>
         </Card>
       ) : (
@@ -167,6 +197,9 @@ export default function TreeScreen() {
             {p.feasibilityNote ? (
               <Text style={styles.feasNote}>可行度依据：{p.feasibilityNote}</Text>
             ) : null}
+            <Pressable onPress={() => confirmRemove(p)} hitSlop={6} style={styles.removeBranch}>
+              <Text style={styles.removeBranchText}>删除这条路</Text>
+            </Pressable>
           </Card>
         ))
       )}
@@ -192,6 +225,9 @@ const styles = StyleSheet.create({
     backgroundColor: DARK.bg,
   },
   emptyTitle: { fontSize: 16, fontWeight: "600", color: colors.fg, marginBottom: 4 },
+  composerTitle: { fontSize: 16, fontWeight: "700", color: colors.fg, marginBottom: 4 },
+  removeBranch: { marginTop: 10, alignSelf: "flex-start" },
+  removeBranchText: { fontSize: 13, color: colors.danger },
   legendHead: { flexDirection: "row", alignItems: "center", gap: 8 },
   swatch: { width: 12, height: 12, borderRadius: 3 },
   legendTitle: { flex: 1, fontSize: 16, fontWeight: "700", color: colors.fg },

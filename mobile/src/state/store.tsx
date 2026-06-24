@@ -15,7 +15,7 @@ import React, {
 import { AppState } from "react-native";
 
 import type { GoalArea, Goal, LifeTree, Profile, Task, Habit } from "@lifeplanner/core/types";
-import { createTree } from "@lifeplanner/core/tree";
+import { createTree, addPath, removePath } from "@lifeplanner/core/tree";
 import { localGenerator } from "@lifeplanner/core/generator/localGenerator";
 import {
   longGoals,
@@ -79,6 +79,8 @@ interface AppValue {
   removeItem: (id: string) => void;
   removeGoal: (goalId: string) => void;
   completeGoal: (goalId: string) => void;
+  addChoiceBranch: (label: string) => void;
+  removeBranch: (pathId: string) => void;
   onboard: (inputs: ProfileInputs) => void;
   reset: () => void;
   // 后端（AI 建议；离线返回 []）
@@ -234,6 +236,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [commit],
   );
 
+  // 加一条人生选择分支（离线：本地生成器，立即长出彩色曲线；AI 推演待后续接后端）。
+  const addChoiceBranch = useCallback(
+    (label: string) => {
+      const cur = treeRef.current;
+      if (!cur || !label.trim()) return;
+      commit(addPath(cur, label.trim(), localGenerator, nowISO()));
+    },
+    [commit],
+  );
+
+  // 删除一条分支（级联删其后代；维持现状不可删，由领域层保证）。
+  const removeBranch = useCallback(
+    (pathId: string) => {
+      const cur = treeRef.current;
+      if (!cur) return;
+      commit(removePath(cur, pathId, nowISO()));
+    },
+    [commit],
+  );
+
   // 引导完成：由结构化输入派生 areas/snapshot，生成人生树并落盘。
   const onboard = useCallback(
     (inputs: ProfileInputs) => {
@@ -286,6 +308,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       removeItem,
       removeGoal,
       completeGoal,
+      addChoiceBranch,
+      removeBranch,
       onboard,
       reset,
       suggestGoals,
@@ -304,6 +328,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     removeItem,
     removeGoal,
     completeGoal,
+    addChoiceBranch,
+    removeBranch,
     onboard,
     reset,
     suggestGoals,
