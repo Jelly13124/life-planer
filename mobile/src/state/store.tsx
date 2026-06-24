@@ -48,6 +48,7 @@ import {
 } from "@lifeplanner/core/calendar";
 import {
   dayWindow,
+  setDayWindow,
   setActionTime,
   arrangeDay,
   DEFAULT_DURATION_MIN,
@@ -128,7 +129,7 @@ interface AppValue {
   addChoiceBranch: (label: string) => void;
   removeBranch: (pathId: string) => void;
   enriching: boolean;
-  onboard: (inputs: ProfileInputs) => void;
+  onboard: (inputs: ProfileInputs, win?: { start: string; end: string }) => void;
   reset: () => void;
   // 后端（AI 建议；离线返回 []）
   suggestGoals: () => Promise<GoalSuggestion[]>;
@@ -424,15 +425,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [commit],
   );
 
-  // 引导完成：由结构化输入派生 areas/snapshot，生成人生树并落盘。
+  // 引导完成：由结构化输入派生 areas/snapshot，生成人生树；可带起床/睡觉作息窗。
   const onboard = useCallback(
-    (inputs: ProfileInputs) => {
+    (inputs: ProfileInputs, win?: { start: string; end: string }) => {
       const profile: Profile = {
         ...inputs,
         areas: deriveAreas(inputs),
         snapshot: buildSnapshot(inputs),
       };
-      commit(createTree(profile, localGenerator, nowISO()));
+      let tree = createTree(profile, localGenerator, nowISO());
+      if (win) tree = setDayWindow(tree, win.start, win.end);
+      commit(tree);
     },
     [commit],
   );

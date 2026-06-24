@@ -1,8 +1,9 @@
 // 引导屏：录入真实的你 → 由结构化信息推导五大领域起点 + 现状摘要 → 生成人生树。
 // 没有存档时由根布局直接渲染本屏（不是路由），完成后 tree 落地、自动进入主界面。
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   EDUCATION_OPTIONS,
   SALARY_OPTIONS,
@@ -82,9 +83,21 @@ export default function OnboardingScreen() {
   const [location, setLocation] = useState("");
   const [hobbies, setHobbies] = useState("");
   const [crossroad, setCrossroad] = useState("");
+  const [wake, setWake] = useState("07:00");
+  const [sleep, setSleep] = useState("23:00");
+  const [picker, setPicker] = useState<"wake" | "sleep" | null>(null);
 
   const ageNum = parseInt(age, 10);
   const valid = name.trim().length > 0 && Number.isFinite(ageNum) && ageNum >= 10 && ageNum <= 100;
+
+  const onPickTime = (e: { type: string }, dt?: Date) => {
+    const which = picker;
+    setPicker(null);
+    if (e.type !== "set" || !dt || !which) return;
+    const t = `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
+    if (which === "wake") setWake(t);
+    else setSleep(t);
+  };
 
   const submit = () => {
     if (!valid) return;
@@ -103,7 +116,7 @@ export default function OnboardingScreen() {
       status: "",
       crossroad: crossroad.trim(),
     };
-    onboard(inputs);
+    onboard(inputs, { start: wake, end: sleep });
   };
 
   return (
@@ -162,9 +175,32 @@ export default function OnboardingScreen() {
         />
       </Field>
 
+      <Field label="作息时间（用来排日程的清醒时段）">
+        <View style={styles.timeRow}>
+          <Pressable style={styles.timePill} onPress={() => setPicker("wake")}>
+            <Text style={styles.timePillLabel}>起床</Text>
+            <Text style={styles.timePillValue}>{wake}</Text>
+          </Pressable>
+          <Pressable style={styles.timePill} onPress={() => setPicker("sleep")}>
+            <Text style={styles.timePillLabel}>睡觉</Text>
+            <Text style={styles.timePillValue}>{sleep}</Text>
+          </Pressable>
+        </View>
+      </Field>
+
       <Button label="生成我的人生树" onPress={submit} disabled={!valid} />
       {!valid ? (
         <Muted style={{ marginTop: 8, textAlign: "center" }}>填写名字和年龄后即可生成</Muted>
+      ) : null}
+
+      {picker ? (
+        <DateTimePicker
+          value={new Date()}
+          mode="time"
+          is24Hour
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={onPickTime}
+        />
       ) : null}
     </ScrollView>
   );
@@ -177,4 +213,20 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1 },
   chipText: { fontSize: 13, fontWeight: "600", color: colors.fg },
+  timeRow: { flexDirection: "row", gap: 12 },
+  timePill: {
+    flex: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  timePillLabel: { fontSize: 14, color: colors.fgMuted },
+  timePillValue: { fontSize: 16, fontWeight: "700", color: colors.fg },
 });
+
