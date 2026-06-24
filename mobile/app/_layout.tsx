@@ -1,5 +1,7 @@
 // 根布局（expo-router）：装 SafeArea + 应用状态 Provider，并在树加载完成前显示加载态。
 // 路由文件只在 app/ 下；真正的屏幕组件在 src/screens/（避免在 app/ 里堆组件）。
+import "react-native-gesture-handler";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -17,11 +19,13 @@ function Gate() {
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <AppProvider>
-        <Gate />
-        <StatusBar style="dark" />
-      </AppProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AppProvider>
+          <Gate />
+          <StatusBar style="dark" />
+        </AppProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
