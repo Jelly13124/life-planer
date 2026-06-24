@@ -9,7 +9,10 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.jelly13124.lifeplanner"
+      "bundleIdentifier": "com.jelly13124.lifeplanner",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.jelly13124.lifeplanner",
@@ -27,6 +30,13 @@
     "plugins": [
       "expo-router",
       "expo-notifications"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bbb6f73c-30ed-4eb9-b2c6-97289c3bcac9"
+      }
+    },
+    "owner": "jelly2474"
   }
 }
