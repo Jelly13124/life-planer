@@ -1,4 +1,4 @@
-// 底部 Tab 导航：今日 / 目标 / 人生树。极简线条风（小圆点作图标，无 emoji）。
+// 底部 5 Tab：首页(周+当天时间轴) / 月历 / 目标 / 人生树 / 我。极简线条风（小圆点图标，无 emoji）。
 import { Tabs } from "expo-router";
 import { View, type ColorValue } from "react-native";
 import { colors } from "../../src/theme";
@@ -20,7 +20,11 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{ title: "安排", tabBarIcon: ({ color }) => <TabDot color={color} /> }}
+        options={{ title: "首页", tabBarIcon: ({ color }) => <TabDot color={color} /> }}
+      />
+      <Tabs.Screen
+        name="month"
+        options={{ title: "月历", tabBarIcon: ({ color }) => <TabDot color={color} /> }}
       />
       <Tabs.Screen
         name="goals"
@@ -29,6 +33,10 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="tree"
         options={{ title: "人生树", tabBarIcon: ({ color }) => <TabDot color={color} /> }}
+      />
+      <Tabs.Screen
+        name="me"
+        options={{ title: "我", tabBarIcon: ({ color }) => <TabDot color={color} /> }}
       />
     </Tabs>
   );

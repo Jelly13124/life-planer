@@ -1,10 +1,65 @@
 // 月 / 年 日历视图（展示层）。数据走核心 calendar.monthGrid；密度/导航由 ScheduleScreen 注入。
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { monthGrid } from "@lifeplanner/core/calendar";
+import { monthGrid, weekdayOf } from "@lifeplanner/core/calendar";
+import { addDays } from "@lifeplanner/core/daily";
 import { colors } from "../theme";
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
+const WEEK_SUN = ["日", "一", "二", "三", "四", "五", "六"];
+
+// 首页顶部：viewDate 所在周（周日起），点某天切换。densityOf>0 显小圆点。
+export function WeekStrip({
+  viewDate,
+  today,
+  densityOf,
+  onPickDay,
+}: {
+  viewDate: string;
+  today: string;
+  densityOf: (date: string) => number;
+  onPickDay: (date: string) => void;
+}) {
+  const weekStart = addDays(viewDate, -weekdayOf(viewDate));
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  return (
+    <View style={styles.weekStrip}>
+      {days.map((d) => {
+        const isToday = d === today;
+        const isSel = d === viewDate;
+        const has = densityOf(d) > 0;
+        return (
+          <Pressable key={d} style={styles.weekCellWrap} onPress={() => onPickDay(d)}>
+            <Text style={styles.weekWd}>{WEEK_SUN[weekdayOf(d)]}</Text>
+            <View
+              style={[
+                styles.weekNum,
+                isSel && { backgroundColor: colors.accent },
+                isToday && !isSel && { borderWidth: 1.5, borderColor: colors.accent },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.weekNumText,
+                  isSel && { color: "#fff" },
+                  isToday && !isSel && { color: colors.accent },
+                ]}
+              >
+                {Number(d.slice(8, 10))}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.weekDot,
+                { backgroundColor: has ? (isSel ? colors.accent : colors.fgMuted) : "transparent" },
+              ]}
+            />
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
 const firstOfMonth = (y: number, m: number): string => {
   // m 可能越界（0 或 13）→ 归一化年月
   const d = new Date(Date.UTC(y, m - 1, 1));
@@ -166,4 +221,17 @@ const styles = StyleSheet.create({
   },
   monthCardCur: { borderColor: colors.accent, borderWidth: 1.5 },
   monthCardText: { fontSize: 16, fontWeight: "600", color: colors.fg },
+  weekStrip: { flexDirection: "row", marginBottom: 12 },
+  weekCellWrap: { flex: 1, alignItems: "center", gap: 5 },
+  weekWd: { fontSize: 11, color: colors.fgMuted },
+  weekNum: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  weekNumText: { fontSize: 15, fontWeight: "600", color: colors.fg },
+  weekDot: { width: 5, height: 5, borderRadius: 3 },
 });
+

@@ -43,7 +43,7 @@ function compositePoints(path: LifePath): { age: number; value: number }[] {
 }
 
 export default function TreeScreen() {
-  const { tree, reset, addChoiceBranch, removeBranch, enriching } = useApp();
+  const { tree, addChoiceBranch, removeBranch, enriching } = useApp();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [label, setLabel] = useState("");
@@ -60,11 +60,6 @@ export default function TreeScreen() {
       { text: "删除", style: "destructive", onPress: () => removeBranch(p.id) },
     ]);
 
-  const confirmReset = () =>
-    Alert.alert("重置全部数据", "会清空人生树、目标和任务，重新填写资料。此操作不可撤销。", [
-      { text: "取消", style: "cancel" },
-      { text: "重置", style: "destructive", onPress: () => reset() },
-    ]);
   const { width } = useWindowDimensions();
 
   if (!tree) return null;
@@ -216,9 +211,6 @@ export default function TreeScreen() {
         <Text style={styles.disclaimer}>可行度为 AI 粗估，非精确概率；随你的实际进度上升。</Text>
       ) : null}
 
-      <Pressable onPress={confirmReset} hitSlop={8} style={styles.resetBtn}>
-        <Text style={styles.resetText}>重置全部数据（重新填写资料）</Text>
-      </Pressable>
     </ScrollView>
   );
 }
