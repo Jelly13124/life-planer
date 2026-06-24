@@ -6,6 +6,7 @@
 import React, { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import Svg, { Path, Line, Circle, Text as SvgText, Rect } from "react-native-svg";
 import { LIFE_AREAS, type LifePath } from "@lifeplanner/core/types";
 import { useApp } from "../state/store";
@@ -42,8 +43,9 @@ function compositePoints(path: LifePath): { age: number; value: number }[] {
 }
 
 export default function TreeScreen() {
-  const { tree, reset, addChoiceBranch, removeBranch } = useApp();
+  const { tree, reset, addChoiceBranch, removeBranch, enriching } = useApp();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [label, setLabel] = useState("");
 
   const submitBranch = () => {
@@ -173,6 +175,7 @@ export default function TreeScreen() {
         />
         <View style={{ height: 10 }} />
         <Button label="推演这条路" onPress={submitBranch} disabled={!label.trim()} />
+        {enriching ? <Muted style={{ marginTop: 8, textAlign: "center" }}>AI 推演中…</Muted> : null}
       </Card>
 
       {/* 路径清单 */}
@@ -197,9 +200,14 @@ export default function TreeScreen() {
             {p.feasibilityNote ? (
               <Text style={styles.feasNote}>可行度依据：{p.feasibilityNote}</Text>
             ) : null}
-            <Pressable onPress={() => confirmRemove(p)} hitSlop={6} style={styles.removeBranch}>
-              <Text style={styles.removeBranchText}>删除这条路</Text>
-            </Pressable>
+            <View style={styles.cardActions}>
+              <Pressable onPress={() => router.push(`/chat/${p.id}`)} hitSlop={6}>
+                <Text style={styles.chatLink}>和未来的自己聊聊 ›</Text>
+              </Pressable>
+              <Pressable onPress={() => confirmRemove(p)} hitSlop={6}>
+                <Text style={styles.removeBranchText}>删除</Text>
+              </Pressable>
+            </View>
           </Card>
         ))
       )}
@@ -226,7 +234,16 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 16, fontWeight: "600", color: colors.fg, marginBottom: 4 },
   composerTitle: { fontSize: 16, fontWeight: "700", color: colors.fg, marginBottom: 4 },
-  removeBranch: { marginTop: 10, alignSelf: "flex-start" },
+  cardActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+  },
+  chatLink: { fontSize: 14, fontWeight: "600", color: colors.accent },
   removeBranchText: { fontSize: 13, color: colors.danger },
   legendHead: { flexDirection: "row", alignItems: "center", gap: 8 },
   swatch: { width: 12, height: 12, borderRadius: 3 },

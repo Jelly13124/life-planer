@@ -54,7 +54,13 @@ import {
 } from "@lifeplanner/core/schedule";
 
 import { loadTree, saveTree, clearTree } from "../lib/storage";
-import { fetchGoalSuggestions, type GoalSuggestion } from "../lib/api";
+import {
+  fetchGoalSuggestions,
+  hasBackend,
+  enrichPath,
+  applyEnrichToPath,
+  type GoalSuggestion,
+} from "../lib/api";
 
 // 时间注入（状态层，允许取当前时间——领域层才禁止）。
 const nowISO = (): string => new Date().toISOString();
@@ -120,6 +126,7 @@ interface AppValue {
   completeGoal: (goalId: string) => void;
   addChoiceBranch: (label: string) => void;
   removeBranch: (pathId: string) => void;
+  enriching: boolean;
   onboard: (inputs: ProfileInputs) => void;
   reset: () => void;
   // 后端（AI 建议；离线返回 []）
@@ -136,6 +143,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // 完成动力提示：完成某目标的任务时弹"你的努力让『X』+Y%"。id 单调递增以重触发自动消失。
   const [nudge, setNudge] = useState<{ title: string; delta: number; id: number } | null>(null);
   const nudgeId = useRef(0);
+  const [enriching, setEnriching] = useState(false); // 人生树分支 AI 推演中
   // 用 ref 保证持久化/动作读到的是最新树（避免闭包旧值）。在 effect 里同步，不在渲染期写 ref。
   const treeRef = useRef<LifeTree | null>(null);
   useEffect(() => {
@@ -371,12 +379,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [commit],
   );
 
-  // 加一条人生选择分支（离线：本地生成器，立即长出彩色曲线；AI 推演待后续接后端）。
+  // 加一条人生选择分支：本地生成器立即出线；若后端可达 → 异步 AI 推演覆盖 summary/可行度/节点。
   const addChoiceBranch = useCallback(
     (label: string) => {
       const cur = treeRef.current;
       if (!cur || !label.trim()) return;
-      commit(addPath(cur, label.trim(), localGenerator, nowISO()));
+      const next = addPath(cur, label.trim(), localGenerator, nowISO());
+      const newPath = next.paths[next.paths.length - 1];
+      commit(next);
+      if (hasBackend()) {
+        setEnriching(true);
+        void enrichPath(next, newPath)
+          .then((result) => {
+            if (!result) return;
+            const t = treeRef.current;
+            if (!t) return;
+            commit({
+              ...t,
+              paths: t.paths.map((p) =>
+                p.id === newPath.id ? applyEnrichToPath(p, result) : p,
+              ),
+            });
+          })
+          .finally(() => setEnriching(false));
+      }
     },
     [commit],
   );
@@ -467,6 +493,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       completeGoal,
       addChoiceBranch,
       removeBranch,
+      enriching,
       onboard,
       reset,
       suggestGoals,
@@ -498,6 +525,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     completeGoal,
     addChoiceBranch,
     removeBranch,
+    enriching,
     onboard,
     reset,
     suggestGoals,
