@@ -33,12 +33,25 @@ import { goalProgress, completeGoal as domainCompleteGoal } from "@lifeplanner/c
 import { deriveAreas, buildSnapshot } from "@lifeplanner/core/profile";
 import {
   localDay,
+  addDays,
   todayItems,
   completeAction,
   uncompleteAction,
   planToday,
   currentStreak,
 } from "@lifeplanner/core/daily";
+import {
+  actionsOnDay,
+  unscheduledActions,
+  setActionScheduledDate,
+  type DayActionKind,
+} from "@lifeplanner/core/calendar";
+import {
+  dayWindow,
+  setActionTime,
+  arrangeDay,
+  DEFAULT_DURATION_MIN,
+} from "@lifeplanner/core/schedule";
 
 import { loadTree, saveTree, clearTree } from "../lib/storage";
 import { fetchGoalSuggestions, type GoalSuggestion } from "../lib/api";
@@ -57,6 +70,14 @@ export interface TodayRow {
   doneToday: boolean;
 }
 
+// 某天日历上的一行（已排一次性任务 / 当天到期习惯）。
+export interface DayAction {
+  goal: Goal | null;
+  item: Task | Habit;
+  kind: DayActionKind;
+  done: boolean;
+}
+
 interface AppValue {
   ready: boolean;
   tree: LifeTree | null;
@@ -68,11 +89,27 @@ interface AppValue {
   progressOf: (goal: Goal) => number;
   todayRows: TodayRow[];
   streak: number;
+  // 安排（日视图）
+  viewDate: string;
+  isViewToday: boolean;
+  dayWin: { start: string; end: string };
+  dayActions: DayAction[]; // viewDate 当天的已排/到期行动
+  unscheduled: { goal: Goal | null; item: Task }[]; // 未排托盘
+  actionsOn: (date: string) => DayAction[]; // 任意天（月历密度用）
+  setViewDate: (date: string) => void;
+  shiftViewDate: (delta: number) => void;
+  goToday: () => void;
   // 写入（复用领域核心）
   addLongGoal: (area: GoalArea, title: string, why?: string) => void;
   addTaskToGoal: (goalId: string, text: string) => void;
   addHabitToGoal: (goalId: string, text: string, repeat: "daily" | "weekly") => void;
   addLooseTask: (text: string) => void;
+  addTimelineTask: (text: string, date?: string, time?: string) => void;
+  scheduleAtTime: (taskId: string, date: string, time: string, durationMin?: number) => void;
+  setActionTimeById: (id: string, time: string, durationMin?: number) => void;
+  unschedule: (taskId: string) => void;
+  arrangeToday: (date: string) => void;
+  toggleDoneOn: (id: string, date: string, done: boolean) => void;
   toggleTaskDone: (taskId: string) => void;
   toggleTodayDone: (itemId: string, doneToday: boolean) => void;
   planTaskToday: (taskId: string) => void;
@@ -93,6 +130,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [tree, setTree] = useState<LifeTree | null>(null);
   const [ready, setReady] = useState(false);
   const [today, setToday] = useState<string>(() => todayStr());
+  const [viewDate, setViewDate] = useState<string>(() => todayStr());
   // 用 ref 保证持久化/动作读到的是最新树（避免闭包旧值）。在 effect 里同步，不在渲染期写 ref。
   const treeRef = useRef<LifeTree | null>(null);
   useEffect(() => {
@@ -122,14 +160,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // 任一变更后持久化（仅在初始化完成后；避免用起始树覆盖刚读到的存档）。
-  const commit = useCallback(
-    (next: LifeTree) => {
-      setTree(next);
-      treeRef.current = next;
-      void saveTree(next);
-    },
-    [],
-  );
+  const commit = useCallback((next: LifeTree) => {
+    setTree(next);
+    treeRef.current = next;
+    void saveTree(next);
+  }, []);
 
   // ───────── 写入动作（全部复用领域核心；时间在此注入） ─────────
   const addLongGoal = useCallback(
@@ -168,6 +203,84 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!cur || !text.trim()) return;
       const { tree: next } = domainAddLooseTask(cur, text.trim(), nowISO());
       commit(next);
+    },
+    [commit],
+  );
+
+  // 安排屏加任务：建散任务，可选直接排到某天某时刻（不传则进未排托盘）。
+  const addTimelineTask = useCallback(
+    (text: string, date?: string, time?: string) => {
+      const cur = treeRef.current;
+      if (!cur || !text.trim()) return;
+      const { tree: t1, id } = domainAddLooseTask(cur, text.trim(), nowISO());
+      let t = t1;
+      if (date) t = setActionScheduledDate(t, id, date);
+      if (time) t = setActionTime(t, id, time, DEFAULT_DURATION_MIN);
+      commit(t);
+    },
+    [commit],
+  );
+
+  // 把任务排到某天某时刻（托盘→时间轴 / 拖拽落点）。
+  const scheduleAtTime = useCallback(
+    (taskId: string, date: string, time: string, durationMin?: number) => {
+      const cur = treeRef.current;
+      if (!cur) return;
+      let t = setActionScheduledDate(cur, taskId, date);
+      t = setActionTime(t, taskId, time, durationMin ?? DEFAULT_DURATION_MIN);
+      commit(t);
+    },
+    [commit],
+  );
+
+  const setActionTimeById = useCallback(
+    (id: string, time: string, durationMin?: number) => {
+      const cur = treeRef.current;
+      if (!cur) return;
+      commit(setActionTime(cur, id, time, durationMin));
+    },
+    [commit],
+  );
+
+  // 移回未排：清掉排期日期 + 时间。
+  const unschedule = useCallback(
+    (taskId: string) => {
+      const cur = treeRef.current;
+      if (!cur) return;
+      let t = setActionScheduledDate(cur, taskId, null);
+      t = setActionTime(t, taskId, null);
+      commit(t);
+    },
+    [commit],
+  );
+
+  // AI 排今天：未排托盘任务全部排到 date，再按作息窗顺排时间。
+  const arrangeToday = useCallback(
+    (date: string) => {
+      const cur = treeRef.current;
+      if (!cur) return;
+      let t = cur;
+      for (const { item } of unscheduledActions(cur)) {
+        t = setActionScheduledDate(t, item.id, date);
+      }
+      const win = dayWindow(t);
+      const dayTasks = actionsOnDay(t, date).filter((a) => a.kind === "scheduled");
+      const arranged = arrangeDay(
+        dayTasks.map((a) => ({ id: a.item.id, durationMin: a.item.durationMin })),
+        { start: win.start, end: win.end },
+      );
+      for (const r of arranged) t = setActionTime(t, r.id, r.startTime, r.durationMin);
+      commit(t);
+    },
+    [commit],
+  );
+
+  // 在某天完成/取消完成一个行动（时间轴块勾选）。
+  const toggleDoneOn = useCallback(
+    (id: string, date: string, done: boolean) => {
+      const cur = treeRef.current;
+      if (!cur) return;
+      commit(done ? uncompleteAction(cur, id, date) : completeAction(cur, id, date));
     },
     [commit],
   );
@@ -277,6 +390,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  const shiftViewDate = useCallback((delta: number) => {
+    setViewDate((d) => addDays(d, delta));
+  }, []);
+  const goToday = useCallback(() => setViewDate(todayStr()), []);
+
   const suggestGoals = useCallback(async (): Promise<GoalSuggestion[]> => {
     const cur = treeRef.current;
     if (!cur) return [];
@@ -298,10 +416,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       progressOf: (goal: Goal) => (t ? goalProgress(t, goal) : 0),
       todayRows: t ? todayItems(t, today) : [],
       streak: t ? currentStreak(t, today) : 0,
+      viewDate,
+      isViewToday: viewDate === today,
+      dayWin: t ? dayWindow(t) : { start: "07:00", end: "23:00" },
+      dayActions: t ? actionsOnDay(t, viewDate) : [],
+      unscheduled: t ? unscheduledActions(t) : [],
+      actionsOn: (date: string) => (t ? actionsOnDay(t, date) : []),
+      setViewDate,
+      shiftViewDate,
+      goToday,
       addLongGoal,
       addTaskToGoal,
       addHabitToGoal,
       addLooseTask,
+      addTimelineTask,
+      scheduleAtTime,
+      setActionTimeById,
+      unschedule,
+      arrangeToday,
+      toggleDoneOn,
       toggleTaskDone,
       toggleTodayDone,
       planTaskToday,
@@ -318,10 +451,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     tree,
     ready,
     today,
+    viewDate,
+    shiftViewDate,
+    goToday,
     addLongGoal,
     addTaskToGoal,
     addHabitToGoal,
     addLooseTask,
+    addTimelineTask,
+    scheduleAtTime,
+    setActionTimeById,
+    unschedule,
+    arrangeToday,
+    toggleDoneOn,
     toggleTaskDone,
     toggleTodayDone,
     planTaskToday,

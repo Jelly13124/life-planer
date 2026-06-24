@@ -1,1 +1,1 @@
-export { default } from "../../src/screens/TodayScreen";
+export { default } from "../../src/screens/ScheduleScreen";

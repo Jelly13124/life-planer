@@ -20,7 +20,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{ title: "今日", tabBarIcon: ({ color }) => <TabDot color={color} /> }}
+        options={{ title: "安排", tabBarIcon: ({ color }) => <TabDot color={color} /> }}
       />
       <Tabs.Screen
         name="goals"
