@@ -11,7 +11,7 @@ Spec: docs/superpowers/specs/2026-06-24-mobile-complete-design.md · Plan: docs/
 - [x] P4 目标进度小条 + 完成动力提示；目标屏去散任务 `7e38ea6`
 - [x] P5 人生树 AI 增强分支 + 和未来的自己对话屏 `e2b04e3`
 - [x] P6 本地定时通知（Expo Go 安全 no-op；dev build 真用）`dda9bef`
-- [~] P7 拖拽排期 —— **延后到 dev build 阶段**：gesture-handler 3.0.2 + 传递 reanimated 4.5.0(无 babel 插件) 在 Expo Go 触发手势会崩，adb 无法可靠验证长按拖拽；轻点排期已完全可用作替代。详见 docs/MORNING-2026-06-24.md
+- [x] P7 拖拽排期 —— **弃用**（2026-06-24 用户拍板"不要拖拽"）。排期方式 = 轻点未排任务→选时间→落时间轴（已是现状）；已排块点击可改时间/完成/移回未排。gesture-handler 仍装着但暂不用于自定义拖拽。
 全部已提交并推到备份（master + feat @ dda9bef）。web 全绿（tsc 0 / 464 / build）。
 护栏：core 纯净不破；web 全绿；只改 mobile/；中文串规范；无 emoji；苹果白。
 摩擦点（靠后+兜底）：拖拽落点算时间、RN 读 SSE（先非流式）、通知权限。后端相关需用户设 EXPO_PUBLIC_API_BASE_URL；没设离线降级。
