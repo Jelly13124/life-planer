@@ -1,5 +1,22 @@
 # Task Plan — Life Planner (人生树 / decision + planning app)
 
+## ▶ CURRENT — 手机端完整功能（过夜自主 /goal，2026-06-24）
+Goal: "好的你今晚去做我验收" — 把 Expo 手机端做成完整可用 app，早上验收。
+Spec: docs/superpowers/specs/2026-06-24-mobile-complete-design.md · Plan: docs/superpowers/plans/2026-06-24-mobile-complete-plan.md
+每阶段：实现 → mobile tsc + 模拟器截图 → 提交 → master 跟进 + 推备份。
+- [ ] 依赖：expo-notifications + gesture-handler + reanimated + datetimepicker（babel/根布局接线）
+- [ ] P1 日视图时间轴渲染（刻度 + 已排块 + 习惯幽灵 + 作息窗；ScheduleScreen 作主屏）
+- [ ] P2 未排托盘 + 轻点排期 + +任务 + AI 排今天（排期闭环可用）
+- [ ] P3 月/年日历 + 日/月/年 切换
+- [ ] P4 目标进度小条 + 完成动力提示；目标屏去散任务
+- [ ] P5 人生树 AI 增强分支 + 和未来的自己对话屏（/api/enrich + /api/chat 非流式）
+- [ ] P6 本地定时通知（syncNotifications 树变更校准）
+- [ ] P7 拖拽排期（最后；轻点兜底已在）
+护栏：core 纯净不破；web 全绿；只改 mobile/；中文串规范；无 emoji；苹果白。
+摩擦点（靠后+兜底）：拖拽落点算时间、RN 读 SSE（先非流式）、通知权限。后端相关需用户设 EXPO_PUBLIC_API_BASE_URL；没设离线降级。
+
+---
+
 ## Goal
 A life-planning web app whose centerpiece is an animated branching prediction tree ("人生树") + talk-to-future-self, wrapped in a Griply-style planner (calendar, goals, habits, life areas, insights, inbox). Prediction is the motivation engine, not fortune-telling. Build to small-circle-validation quality.
 
