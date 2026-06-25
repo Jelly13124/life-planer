@@ -18,9 +18,9 @@ export const colors = {
 // 紫已降级为 growth（成长）领域色，让品牌色（橙）与领域色系彼此独立。
 export const AREA_COLORS: Record<GoalArea, string> = {
   career: "#0a93d6", // sky
-  wealth: "#c77600", // amber
+  wealth: "#0a7d33", // green（money=green）
   relationships: "#e84a6f", // rose
-  health: "#0f9d6a", // emerald
+  health: "#0b8a8a", // teal
   growth: "#6d4aff", // violet
   other: "#8e8e93", // gray（= web --fg-faint）
 };

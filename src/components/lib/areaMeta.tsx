@@ -18,9 +18,9 @@ import {
 
 export const AREA_COLOR: Record<GoalArea, string> = {
   career: "var(--c-sky)",
-  wealth: "var(--c-amber)",
+  wealth: "var(--c-green)",
   relationships: "var(--c-rose)",
-  health: "var(--c-emerald)",
+  health: "var(--c-teal)",
   growth: "var(--c-violet)",
   other: "var(--fg-faint)",
 };

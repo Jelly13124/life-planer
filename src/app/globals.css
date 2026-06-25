@@ -18,6 +18,8 @@
   --c-violet: #6d4aff;
   --c-sky: #0a93d6;
   --c-emerald: #0f9d6a;
+  --c-green: #0a7d33; /* 财富领域：money=green（与品牌橙分离） */
+  --c-teal: #0b8a8a; /* 健康领域：青 */
   --c-amber: #c77600;
   --c-blue: #2f6fe0;
   --c-fuchsia: #c026d3;
@@ -215,6 +217,8 @@ body {
   --c-violet: #a78bfa;
   --c-sky: #38bdf8;
   --c-emerald: #34d399;
+  --c-green: #34d399;
+  --c-teal: #2dd4bf;
   --c-amber: #f59e0b;
   --c-blue: #60a5fa;
   --c-fuchsia: #e879f9;
