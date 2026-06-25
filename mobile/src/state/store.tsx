@@ -115,7 +115,7 @@ interface AppValue {
   addHabitToGoal: (goalId: string, text: string, repeat: "daily" | "weekly") => void;
   addLooseTask: (text: string) => void;
   addTimelineTask: (text: string, date?: string, time?: string) => void;
-  addScheduledTask: (opts: { text: string; goalId?: string | null; date?: string; time?: string }) => void;
+  addScheduledTask: (opts: { text: string; goalId?: string | null; date?: string; time?: string; durationMin?: number }) => void;
   scheduleAtTime: (taskId: string, date: string, time: string, durationMin?: number) => void;
   setActionTimeById: (id: string, time: string, durationMin?: number) => void;
   unschedule: (taskId: string) => void;
@@ -268,7 +268,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // 加任务（可绑目标 + 可直接给日期/时刻）：一次提交完成建+排+定时。
   const addScheduledTask = useCallback(
-    (opts: { text: string; goalId?: string | null; date?: string; time?: string }) => {
+    (opts: { text: string; goalId?: string | null; date?: string; time?: string; durationMin?: number }) => {
       const cur = treeRef.current;
       const text = opts.text.trim();
       if (!cur || !text) return;
@@ -284,7 +284,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         id = r.id;
       }
       if (opts.date) t = setActionScheduledDate(t, id, opts.date);
-      if (opts.time) t = setActionTime(t, id, opts.time, DEFAULT_DURATION_MIN);
+      if (opts.time) t = setActionTime(t, id, opts.time, opts.durationMin ?? DEFAULT_DURATION_MIN);
       commit(t);
     },
     [commit],
