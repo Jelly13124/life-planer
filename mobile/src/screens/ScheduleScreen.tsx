@@ -108,15 +108,25 @@ export default function ScheduleScreen() {
   };
   const submitAdd = () => {
     const text = addText.trim();
-    if (text) {
-      app.addScheduledTask({
-        text,
-        goalId: addGoalId,
-        date: addTime ? app.viewDate : undefined,
-        time: addTime ?? undefined,
-        durationMin: addDur,
+    if (!text) return;
+    if (!addTime) {
+      // 时间必填：没选时间就直接弹出选时间面板，不允许无时间任务。
+      setTimeSheet({
+        mode: "add",
+        title: text || "新任务",
+        area: addGoalId ? activeGoals.find((g) => g.id === addGoalId)?.area : null,
+        start: addTime ?? undefined,
+        duration: addDur,
       });
+      return;
     }
+    app.addScheduledTask({
+      text,
+      goalId: addGoalId,
+      date: app.viewDate,
+      time: addTime,
+      durationMin: addDur,
+    });
     setAddOpen(false);
   };
 
@@ -309,7 +319,7 @@ export default function ScheduleScreen() {
               returnKeyType="done"
             />
 
-            <Text style={styles.modalLabel}>时间</Text>
+            <Text style={styles.modalLabel}>时间（必填）</Text>
             <Pressable
               onPress={() =>
                 setTimeSheet({
@@ -320,11 +330,11 @@ export default function ScheduleScreen() {
                   duration: addDur,
                 })
               }
-              style={[styles.timeBtn, addTime && styles.timeBtnOn]}
+              style={[styles.timeBtn, addTime ? styles.timeBtnOn : styles.timeBtnReq]}
             >
               <Icon name="clock-outline" size={18} color={addTime ? "#fff" : colors.accent} />
-              <Text style={[styles.timeBtnText, addTime && { color: "#fff" }]}>
-                {addTime ? `今天 ${addTime} · ${addDur}分钟` : "选时间（可不选）"}
+              <Text style={[styles.timeBtnText, addTime ? { color: "#fff" } : { color: colors.accent }]}>
+                {addTime ? `今天 ${addTime} · ${addDur}分钟` : "选时间（必填）"}
               </Text>
             </Pressable>
 
@@ -356,7 +366,11 @@ export default function ScheduleScreen() {
             </View>
 
             <View style={{ height: 14 }} />
-            <Button label="添加" onPress={submitAdd} disabled={!addText.trim()} />
+            <Button
+              label={addTime ? "添加" : "先选时间"}
+              onPress={submitAdd}
+              disabled={!addText.trim()}
+            />
           </Pressable>
         </Pressable>
       </Modal>
@@ -442,6 +456,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   timeBtnOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  timeBtnReq: { borderColor: colors.accent, borderWidth: 1.5 },
   timeBtnText: { fontSize: 14, fontWeight: "600", color: colors.fg },
   goalPick: {
     borderWidth: 1,
