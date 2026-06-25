@@ -11,7 +11,7 @@
   --fg-dim: #6e6e73; /* 次级文字 */
   --fg-faint: #8e8e93; /* 三级/弱文字 */
   --line: rgba(0, 0, 0, 0.1); /* 发丝分隔线 */
-  --accent: #6d4aff; /* 品牌紫——压深以在白底达 AA */
+  --accent: #c2410c; /* 品牌暖橙——压深以在白底达 AA（白字 ≈4.5:1）。与 mobile colors.accent 同值 */
 
   /* 路径色板：保留色相；用作白底上的文字/图标时已在组件处按需压深 */
   --c-rose: #e84a6f;
@@ -33,13 +33,14 @@
   --shadow-violet-lift:
     0 2px 4px rgba(0, 0, 0, 0.05), 0 14px 36px rgba(0, 0, 0, 0.09);
 
-  /* 强调渐变：主按钮 / 品牌点缀 / 焦点描边复用（压深的紫，白字可读） */
-  --grad-accent: linear-gradient(135deg, #6d4aff 0%, #7c5cff 100%);
-  --grad-accent-soft: linear-gradient(135deg, #7c5cff 0%, #9a6bff 100%);
-  --grad-sky: linear-gradient(135deg, #6d4aff 0%, #0a93d6 100%);
+  /* 强调色：主按钮 / 品牌点缀 / 焦点描边复用（暖橙，白字可读）。
+     刻意压成近乎平涂（避免 AI 紫渐变 slop）——只留一缕同色深浅做体积感。 */
+  --grad-accent: linear-gradient(135deg, #c2410c 0%, #a8380a 100%);
+  --grad-accent-soft: linear-gradient(135deg, #d2530a 0%, #c2410c 100%);
+  --grad-sky: linear-gradient(135deg, #c2410c 0%, #0a93d6 100%);
 
-  /* 焦点光环 */
-  --ring: 0 0 0 3px rgba(109, 74, 255, 0.28);
+  /* 焦点光环（暖橙） */
+  --ring: 0 0 0 3px rgba(194, 65, 12, 0.28);
 
   /* 展示字体：Apple 走系统 SF 无衬线（不再加载 Fraunces 衬线）。
      旧用法 font-[family-name:var(--font-display)] / .lp-display 仍可直接复用此值。 */
@@ -218,7 +219,7 @@ body {
   --c-blue: #60a5fa;
   --c-fuchsia: #e879f9;
   --c-slate: #7681a3;
-  --accent: #a78bfa;
+  --accent: #fb923c; /* 深色媒体面板上的品牌暖橙（提亮以在深底可读） */
   color: var(--fg);
   background:
     radial-gradient(120% 100% at 30% 0%, #1b1f3a 0%, #11132a 48%, #0a0b1a 100%);
@@ -316,7 +317,7 @@ textarea:focus,
 select:focus,
 select:focus-visible {
   border-color: var(--accent);
-  background: rgba(109, 74, 255, 0.06);
+  background: rgba(194, 65, 12, 0.06);
   box-shadow: var(--ring);
 }
 input[type="range"] {

@@ -50,7 +50,7 @@ export function SafetyCare({ onContinue }: SafetyCareProps) {
         {/* Icon — a soft sprout / warmth glyph */}
         <div
           className="mb-5 flex h-12 w-12 items-center justify-center rounded-full"
-          style={{ background: "rgba(109,74,255,0.1)", border: "1px solid rgba(109,74,255,0.22)", color: "var(--accent)" }}
+          style={{ background: "rgba(194,65,12,0.1)", border: "1px solid rgba(194,65,12,0.22)", color: "var(--accent)" }}
           aria-hidden
         >
           <IconSprout className="h-6 w-6" />

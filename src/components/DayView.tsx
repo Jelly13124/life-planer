@@ -361,7 +361,7 @@ export function DayView({
                       top,
                       height,
                       borderColor: isOpen ? "var(--accent)" : done ? "var(--line)" : accent ? `${accent}66` : "var(--accent)",
-                      backgroundColor: done ? "transparent" : accent ? `${accent}24` : "rgba(109,74,255,0.1)",
+                      backgroundColor: done ? "transparent" : accent ? `${accent}24` : "rgba(194,65,12,0.1)",
                     }}
                   >
                     {/* 块体不再整体切换完成；只有左侧的勾选框切换 */}

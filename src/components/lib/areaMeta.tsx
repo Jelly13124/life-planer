@@ -21,7 +21,7 @@ export const AREA_COLOR: Record<GoalArea, string> = {
   wealth: "var(--c-amber)",
   relationships: "var(--c-rose)",
   health: "var(--c-emerald)",
-  growth: "var(--accent)",
+  growth: "var(--c-violet)",
   other: "var(--fg-faint)",
 };
 

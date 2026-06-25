@@ -5,9 +5,9 @@ import { forwardRef, type ButtonHTMLAttributes } from "react";
 type Variant = "primary" | "ghost" | "subtle";
 
 const styles: Record<Variant, string> = {
-  // 主操作：压深的紫渐变 + 白字 + 柔影，悬浮微抬升、按下回弹（Apple 观感）
+  // 主操作：压深的暖橙强调 + 白字 + 柔影，悬浮微抬升、按下回弹（Apple 观感）
   primary:
-    "bg-[image:var(--grad-accent)] text-white font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.08),0_6px_16px_-6px_rgba(109,74,255,0.45)] hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(0,0,0,0.1),0_12px_28px_-8px_rgba(109,74,255,0.55)] hover:brightness-[1.05] active:translate-y-0 active:brightness-95",
+    "bg-[image:var(--grad-accent)] text-white font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.08),0_6px_16px_-6px_rgba(194,65,12,0.45)] hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(0,0,0,0.1),0_12px_28px_-8px_rgba(194,65,12,0.55)] hover:brightness-[1.05] active:translate-y-0 active:brightness-95",
   // 幽灵：克制发丝描边，悬浮加深文字与极浅灰底
   ghost:
     "bg-transparent text-[var(--fg-dim)] border border-[var(--line)] hover:text-[var(--fg)] hover:border-black/20 hover:bg-black/[0.03] active:translate-y-px",

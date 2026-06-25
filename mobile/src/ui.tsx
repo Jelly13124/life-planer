@@ -12,7 +12,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
-import { colors, radius } from "./theme";
+import { colors, radii } from "./theme";
 
 export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   return <View style={[styles.card, style]}>{children}</View>;
@@ -131,7 +131,7 @@ export function Spinner() {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.card,
-    borderRadius: 16,
+    borderRadius: radii.md,
     borderCurve: "continuous",
     padding: 16,
     marginBottom: 12,
@@ -167,7 +167,8 @@ const styles = StyleSheet.create({
   btn: {
     paddingHorizontal: 16,
     paddingVertical: 11,
-    borderRadius: 11,
+    borderRadius: radii.sm,
+    borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
     minHeight: 44,
@@ -179,7 +180,7 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.line,
-    borderRadius: 10,
+    borderRadius: radii.sm,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
