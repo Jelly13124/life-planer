@@ -2,17 +2,86 @@
 // 极简线条风、无 emoji。文案走中文（i18n 在 Phase 3 接）。
 import React from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
+  Animated,
+  Easing,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
+  type DimensionValue,
   type TextInputProps,
   type TextStyle,
   type ViewStyle,
 } from "react-native";
 import { colors, radii } from "./theme";
+
+// 读取系统「减少动态效果」开关（骨架屏脉冲据此降级为静态）。
+function useReduceMotion(): boolean {
+  const [reduce, setReduce] = React.useState(false);
+  React.useEffect(() => {
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((v) => {
+      if (alive) setReduce(v);
+    });
+    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduce);
+    return () => {
+      alive = false;
+      sub.remove();
+    };
+  }, []);
+  return reduce;
+}
+
+// 骨架块：缓慢呼吸的占位条（载入态用，匹配最终内容形状，而非通用转圈）。
+export function Skeleton({
+  width = "100%",
+  height = 14,
+  radius = radii.sm,
+  style,
+}: {
+  width?: DimensionValue;
+  height?: number;
+  radius?: number;
+  style?: ViewStyle;
+}) {
+  const reduce = useReduceMotion();
+  const [op] = React.useState(() => new Animated.Value(0.5));
+  React.useEffect(() => {
+    if (reduce) {
+      op.setValue(0.7);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.45, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reduce, op]);
+  return (
+    <Animated.View
+      style={[{ width, height, borderRadius: radius, backgroundColor: colors.line, opacity: op }, style]}
+    />
+  );
+}
+
+// 骨架卡：标题条 + 两行正文，用于 AI 推演/建议这类异步等待。
+export function SkeletonCard() {
+  return (
+    <Card>
+      <Skeleton width="55%" height={16} />
+      <View style={{ height: 12 }} />
+      <Skeleton width="100%" height={12} />
+      <View style={{ height: 6 }} />
+      <Skeleton width="82%" height={12} />
+    </Card>
+  );
+}
 
 export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   return <View style={[styles.card, style]}>{children}</View>;
@@ -89,7 +158,8 @@ export function Button({
         isPrimary && styles.btnPrimary,
         kind === "ghost" && styles.btnGhost,
         isDanger && styles.btnDanger,
-        (pressed || disabled || loading) && { opacity: 0.6 },
+        disabled || loading ? { opacity: 0.5 } : null,
+        pressed && !(disabled || loading) ? { opacity: 0.9, transform: [{ scale: 0.98 }] } : null,
       ]}
     >
       {loading ? (

@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import type { GoalArea } from "@lifeplanner/core/types";
 import { toMinutes, toHHMM } from "@lifeplanner/core/schedule";
-import { colors } from "../theme";
+import { colors, radii } from "../theme";
 import { AreaTile, Icon } from "./icons";
 
 const ROW = 48;
@@ -98,7 +98,11 @@ export function TimePickSheet({
         <View style={styles.sheet}>
           {/* 头部 */}
           <View style={styles.head}>
-            <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn}>
+            <Pressable
+              onPress={onClose}
+              hitSlop={8}
+              style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.6 }]}
+            >
               <Icon name="close" size={20} color={colors.fg} />
             </Pressable>
             <AreaTile area={area ?? null} size={44} />
@@ -152,7 +156,7 @@ export function TimePickSheet({
                 <Pressable
                   key={d.m}
                   onPress={() => setDur(d.m)}
-                  style={[styles.durChip, on && styles.durChipOn]}
+                  style={({ pressed }) => [styles.durChip, on && styles.durChipOn, pressed && { opacity: 0.7 }]}
                 >
                   <Text style={[styles.durChipText, on && { color: "#fff" }]}>{d.label}</Text>
                 </Pressable>
@@ -160,7 +164,10 @@ export function TimePickSheet({
             })}
           </View>
 
-          <Pressable style={styles.confirm} onPress={() => onConfirm(start, dur)}>
+          <Pressable
+            style={({ pressed }) => [styles.confirm, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}
+            onPress={() => onConfirm(start, dur)}
+          >
             <Text style={styles.confirmText}>确定</Text>
           </Pressable>
         </View>
@@ -173,8 +180,8 @@ const styles = StyleSheet.create({
   bg: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "flex-end" },
   sheet: {
     backgroundColor: colors.bg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
     borderCurve: "continuous",
     padding: 18,
     paddingBottom: 32,
@@ -183,7 +190,7 @@ const styles = StyleSheet.create({
   closeBtn: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radii.pill,
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
@@ -193,7 +200,7 @@ const styles = StyleSheet.create({
   wheelWrap: {
     height: ROW * VISIBLE,
     backgroundColor: "#fff",
-    borderRadius: 16,
+    borderRadius: radii.md,
     borderCurve: "continuous",
     overflow: "hidden",
     marginBottom: 18,
@@ -209,7 +216,7 @@ const styles = StyleSheet.create({
   timeRow: { height: ROW, alignItems: "center", justifyContent: "center" },
   selPill: {
     backgroundColor: colors.accent,
-    borderRadius: 999,
+    borderRadius: radii.pill,
     paddingHorizontal: 22,
     paddingVertical: 9,
   },
@@ -220,7 +227,7 @@ const styles = StyleSheet.create({
   durChip: {
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.line,
-    borderRadius: 999,
+    borderRadius: radii.pill,
     paddingHorizontal: 16,
     paddingVertical: 9,
     backgroundColor: "#fff",
@@ -229,7 +236,7 @@ const styles = StyleSheet.create({
   durChipText: { fontSize: 14, fontWeight: "600", color: colors.fg },
   confirm: {
     backgroundColor: colors.accent,
-    borderRadius: 14,
+    borderRadius: radii.sm,
     borderCurve: "continuous",
     paddingVertical: 15,
     alignItems: "center",

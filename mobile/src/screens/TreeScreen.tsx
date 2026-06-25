@@ -10,7 +10,7 @@ import { useRouter } from "expo-router";
 import Svg, { Path, Line, Circle, Text as SvgText, Rect } from "react-native-svg";
 import { LIFE_AREAS, type LifePath } from "@lifeplanner/core/types";
 import { useApp } from "../state/store";
-import { Button, Card, Input, Muted } from "../ui";
+import { Button, Card, Input, Muted, SkeletonCard } from "../ui";
 import { colors, space } from "../theme";
 
 // 暗色「媒体面板」配色（对应 web 的 .lp-media-dark）。
@@ -172,6 +172,9 @@ export default function TreeScreen() {
         <Button label="推演这条路" onPress={submitBranch} disabled={!label.trim()} />
         {enriching ? <Muted style={{ marginTop: 8, textAlign: "center" }}>AI 推演中…</Muted> : null}
       </Card>
+
+      {/* AI 推演中：骨架占位（匹配下方路径卡形状） */}
+      {enriching ? <SkeletonCard /> : null}
 
       {/* 路径清单 */}
       {choices.length === 0 ? (

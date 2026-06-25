@@ -3,7 +3,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { monthGrid, weekdayOf } from "@lifeplanner/core/calendar";
 import { addDays } from "@lifeplanner/core/daily";
-import { colors } from "../theme";
+import { colors, radii } from "../theme";
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 const WEEK_SUN = ["日", "一", "二", "三", "四", "五", "六"];
@@ -29,7 +29,11 @@ export function WeekStrip({
         const isSel = d === viewDate;
         const has = densityOf(d) > 0;
         return (
-          <Pressable key={d} style={styles.weekCellWrap} onPress={() => onPickDay(d)}>
+          <Pressable
+            key={d}
+            style={({ pressed }) => [styles.weekCellWrap, pressed && { opacity: 0.55 }]}
+            onPress={() => onPickDay(d)}
+          >
             <Text style={styles.weekWd}>{WEEK_SUN[weekdayOf(d)]}</Text>
             <View
               style={[
@@ -115,7 +119,7 @@ export function MonthView({
             <Pressable
               key={date}
               onPress={() => onPickDay(date)}
-              style={[styles.cell, isSel && styles.cellSel]}
+              style={({ pressed }) => [styles.cell, isSel && styles.cellSel, pressed && !isSel && { opacity: 0.5 }]}
             >
               <Text
                 style={[
@@ -171,7 +175,7 @@ export function YearView({
             <Pressable
               key={m}
               onPress={() => onPickMonth(firstOfMonth(year, m))}
-              style={[styles.monthCard, isCur && styles.monthCardCur]}
+              style={({ pressed }) => [styles.monthCard, isCur && styles.monthCardCur, pressed && { opacity: 0.6 }]}
             >
               <Text style={[styles.monthCardText, isCur && { color: colors.accent }]}>{m}月</Text>
             </Pressable>
@@ -200,7 +204,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 10,
+    borderRadius: radii.sm,
   },
   cellSel: { backgroundColor: colors.accent },
   cellNum: { fontSize: 15, color: colors.fg },
@@ -212,7 +216,7 @@ const styles = StyleSheet.create({
   monthCard: {
     width: `${(100 - 6) / 3}%`,
     aspectRatio: 1.6,
-    borderRadius: 12,
+    borderRadius: radii.sm,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.line,
     alignItems: "center",
@@ -227,7 +231,7 @@ const styles = StyleSheet.create({
   weekNum: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radii.pill,
     alignItems: "center",
     justifyContent: "center",
   },

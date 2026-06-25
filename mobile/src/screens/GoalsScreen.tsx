@@ -11,7 +11,7 @@ import {
 } from "@lifeplanner/core/types";
 import { useApp } from "../state/store";
 import { hasBackend, type GoalSuggestion } from "../lib/api";
-import { Button, Card, Checkbox, Dot, Input, Muted, Progress, SectionTitle } from "../ui";
+import { Button, Card, Checkbox, Dot, Input, Muted, Progress, SectionTitle, Skeleton } from "../ui";
 import { colors, AREA_COLORS, space } from "../theme";
 
 export default function GoalsScreen() {
@@ -105,7 +105,13 @@ export default function GoalsScreen() {
           onPress={runSuggest}
           loading={suggesting}
         />
-        {suggestions && suggestions.length > 0 ? (
+        {suggesting && !suggestions ? (
+          <View style={{ marginTop: 10, gap: 8 }}>
+            <Skeleton height={40} />
+            <Skeleton height={40} />
+            <Skeleton height={40} />
+          </View>
+        ) : suggestions && suggestions.length > 0 ? (
           <View style={{ marginTop: 10, gap: 8 }}>
             {suggestions.map((s, i) => (
               <Pressable

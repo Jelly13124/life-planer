@@ -16,7 +16,7 @@ import { weekdayOf } from "@lifeplanner/core/calendar";
 import { toMinutes, toHHMM } from "@lifeplanner/core/schedule";
 import { useApp, type DayAction } from "../state/store";
 import { Button, Card, Checkbox, Input, Muted, Progress, SectionTitle } from "../ui";
-import { colors, AREA_COLORS, space } from "../theme";
+import { colors, AREA_COLORS, radii, space } from "../theme";
 import { WeekStrip } from "../components/calendar";
 import { AreaTile, Icon } from "../components/icons";
 import { TimePickSheet } from "../components/TimePickSheet";
@@ -279,7 +279,10 @@ export default function ScheduleScreen() {
         ) : null}
       </ScrollView>
 
-      <Pressable style={styles.fab} onPress={openAdd}>
+      <Pressable
+        style={({ pressed }) => [styles.fab, pressed && { opacity: 0.92, transform: [{ scale: 0.95 }] }]}
+        onPress={openAdd}
+      >
         <Icon name="plus" size={28} color="#fff" />
       </Pressable>
 
@@ -330,7 +333,11 @@ export default function ScheduleScreen() {
                   duration: addDur,
                 })
               }
-              style={[styles.timeBtn, addTime ? styles.timeBtnOn : styles.timeBtnReq]}
+              style={({ pressed }) => [
+                styles.timeBtn,
+                addTime ? styles.timeBtnOn : styles.timeBtnReq,
+                pressed && { opacity: 0.8 },
+              ]}
             >
               <Icon name="clock-outline" size={18} color={addTime ? "#fff" : colors.accent} />
               <Text style={[styles.timeBtnText, addTime ? { color: "#fff" } : { color: colors.accent }]}>
@@ -342,7 +349,11 @@ export default function ScheduleScreen() {
             <View style={styles.chipRow}>
               <Pressable
                 onPress={() => setAddGoalId(null)}
-                style={[styles.goalPick, addGoalId === null && styles.goalPickActive]}
+                style={({ pressed }) => [
+                  styles.goalPick,
+                  addGoalId === null && styles.goalPickActive,
+                  pressed && { opacity: 0.75 },
+                ]}
               >
                 <Text style={[styles.goalPickText, addGoalId === null && { color: "#fff" }]}>无目标</Text>
               </Pressable>
@@ -352,9 +363,10 @@ export default function ScheduleScreen() {
                   <Pressable
                     key={g.id}
                     onPress={() => setAddGoalId(g.id)}
-                    style={[
+                    style={({ pressed }) => [
                       styles.goalPick,
                       on ? { backgroundColor: AREA_COLORS[g.area], borderColor: AREA_COLORS[g.area] } : null,
+                      pressed && { opacity: 0.75 },
                     ]}
                   >
                     <Text style={[styles.goalPickText, on && { color: "#fff" }]} numberOfLines={1}>
@@ -388,7 +400,7 @@ const styles = StyleSheet.create({
     width: 150,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.line,
-    borderRadius: 12,
+    borderRadius: radii.sm,
     backgroundColor: "#fff",
     padding: 10,
   },
@@ -401,7 +413,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     borderWidth: 1,
-    borderRadius: 999,
+    borderRadius: radii.pill,
     paddingHorizontal: 8,
     paddingVertical: 6,
     backgroundColor: "#fff",
@@ -423,7 +435,7 @@ const styles = StyleSheet.create({
     bottom: 20,
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: radii.pill,
     backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
@@ -434,14 +446,14 @@ const styles = StyleSheet.create({
     left: 24,
     right: 24,
     backgroundColor: colors.accent,
-    borderRadius: 12,
+    borderRadius: radii.sm,
     paddingVertical: 10,
     paddingHorizontal: 14,
     alignItems: "center",
   },
   nudgeText: { color: "#fff", fontSize: 14, fontWeight: "600" },
   modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "center", paddingHorizontal: 28 },
-  modalCard: { backgroundColor: "#fff", borderRadius: 16, padding: 18 },
+  modalCard: { backgroundColor: "#fff", borderRadius: radii.md, padding: 18 },
   modalTitle: { fontSize: 17, fontWeight: "700", color: colors.fg, marginBottom: 12 },
   modalLabel: { fontSize: 13, color: colors.fgMuted, marginTop: 14, marginBottom: 8 },
   timeBtn: {
@@ -450,7 +462,7 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: 12,
+    borderRadius: radii.sm,
     paddingHorizontal: 14,
     paddingVertical: 11,
     backgroundColor: "#fff",
@@ -461,7 +473,7 @@ const styles = StyleSheet.create({
   goalPick: {
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: 999,
+    borderRadius: radii.pill,
     paddingHorizontal: 12,
     paddingVertical: 7,
     backgroundColor: "#fff",

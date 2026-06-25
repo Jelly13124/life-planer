@@ -25,6 +25,6 @@ export const AREA_COLORS: Record<GoalArea, string> = {
   other: "#8e8e93", // gray（= web --fg-faint）
 };
 
-// 圆角标尺（统一形状，对齐 web）：输入/按钮=sm，卡片=md，胶囊/FAB/分段控件=pill。
-export const radii = { sm: 12, md: 16, pill: 999 } as const;
+// 圆角标尺（统一形状，对齐 web）：输入/按钮=sm，卡片=md，底板/弹窗=lg，胶囊/FAB/分段控件=pill。
+export const radii = { sm: 12, md: 16, lg: 24, pill: 999 } as const;
 export const space = 16;
