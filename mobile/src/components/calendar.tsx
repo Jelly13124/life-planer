@@ -77,6 +77,7 @@ export function MonthView({
   today,
   viewDate,
   densityOf,
+  dueOf,
   onPickDay,
   onShiftMonth,
 }: {
@@ -85,6 +86,7 @@ export function MonthView({
   today: string;
   viewDate: string;
   densityOf: (date: string) => number;
+  dueOf?: (date: string) => boolean; // 该天有目标到期 → 角标
   onPickDay: (date: string) => void;
   onShiftMonth: (firstOfMonthDate: string) => void;
 }) {
@@ -136,6 +138,9 @@ export function MonthView({
               ) : (
                 <View style={styles.dotPlaceholder} />
               )}
+              {dueOf?.(date) ? (
+                <View style={[styles.dueDot, isSel && { backgroundColor: "#fff" }]} />
+              ) : null}
             </Pressable>
           );
         })}
@@ -212,6 +217,7 @@ const styles = StyleSheet.create({
   cellToday: { color: colors.accent, fontWeight: "700" },
   dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.accent, marginTop: 3 },
   dotPlaceholder: { width: 5, height: 5, marginTop: 3 },
+  dueDot: { position: "absolute", top: 5, right: 7, width: 7, height: 7, borderRadius: 4, backgroundColor: "#c77600" },
   yearGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   monthCard: {
     width: `${(100 - 6) / 3}%`,

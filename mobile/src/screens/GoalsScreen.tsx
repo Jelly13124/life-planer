@@ -1,8 +1,9 @@
 // 目标屏：建立长期目标 → 加任务/习惯 → 勾选完成（喂今日/连续天数）→ 完成目标。
 // 全部数据走共享领域核心；可选「AI 建议目标」走后端（离线则提示无后端）。
 import React, { useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   GOAL_AREAS,
   GOAL_AREA_LABELS,
@@ -12,7 +13,14 @@ import {
 import { useApp } from "../state/store";
 import { hasBackend, type GoalSuggestion } from "../lib/api";
 import { Button, Card, Checkbox, Dot, Input, Muted, Progress, SectionTitle, Skeleton } from "../ui";
-import { colors, AREA_COLORS, space } from "../theme";
+import { colors, AREA_COLORS, radii, space } from "../theme";
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const ymd = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const fmtMD = (date: string) => {
+  const [, m, d] = date.split("-").map(Number);
+  return `${m}月${d}日`;
+};
 
 export default function GoalsScreen() {
   const app = useApp();
@@ -21,6 +29,8 @@ export default function GoalsScreen() {
   const [title, setTitle] = useState("");
   const [taskInputs, setTaskInputs] = useState<Record<string, string>>({});
   const [shortInputs, setShortInputs] = useState<Record<string, string>>({});
+  const [shortDue, setShortDue] = useState<Record<string, string>>({});
+  const [duePicker, setDuePicker] = useState<string | null>(null); // 哪个长期目标的到期日选择器开着
   const [suggestions, setSuggestions] = useState<GoalSuggestion[] | null>(null);
   const [suggesting, setSuggesting] = useState(false);
 
@@ -31,8 +41,24 @@ export default function GoalsScreen() {
   const submitShort = (longId: string) => {
     const t = shortInputs[longId] ?? "";
     if (!t.trim()) return;
-    app.addShortGoalToLong(longId, t);
+    app.addShortGoalToLong(longId, t, shortDue[longId]);
     setShortInput(longId, "");
+    setShortDue((m) => {
+      const n = { ...m };
+      delete n[longId];
+      return n;
+    });
+  };
+  // 到期日选择:Android 选完即关;iOS 滚轮实时更新,点完成关。
+  const onPickDue = (e: { type: string }, dt?: Date) => {
+    const gid = duePicker;
+    if (Platform.OS === "android") {
+      setDuePicker(null);
+      if (e.type !== "set" || !dt || !gid) return;
+      setShortDue((m) => ({ ...m, [gid]: ymd(dt) }));
+    } else if (dt && gid) {
+      setShortDue((m) => ({ ...m, [gid]: ymd(dt) }));
+    }
   };
 
   const submitGoal = () => {
@@ -211,7 +237,8 @@ export default function GoalsScreen() {
                 {shorts.map((s) => (
                   <View key={s.id} style={styles.shortRow}>
                     <Dot color={AREA_COLORS[s.area]} />
-                    <Text style={styles.shortText}>{s.title}</Text>
+                    <Text style={styles.shortText} numberOfLines={1}>{s.title}</Text>
+                    {s.endDate ? <Text style={styles.shortDueText}>到期 {fmtMD(s.endDate)}</Text> : null}
                     <Pressable onPress={() => confirmRemoveGoal(s)} hitSlop={6}>
                       <Text style={styles.removeLink}>删</Text>
                     </Pressable>
@@ -226,6 +253,18 @@ export default function GoalsScreen() {
                     returnKeyType="done"
                     style={{ flex: 1 }}
                   />
+                  <Pressable
+                    onPress={() => setDuePicker(goal.id)}
+                    style={({ pressed }) => [
+                      styles.dueBtn,
+                      shortDue[goal.id] && styles.dueBtnOn,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Text style={[styles.dueBtnText, shortDue[goal.id] && { color: "#fff" }]}>
+                      {shortDue[goal.id] ? fmtMD(shortDue[goal.id]) : "到期日"}
+                    </Text>
+                  </Pressable>
                   <Pressable
                     onPress={() => submitShort(goal.id)}
                     style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }]}
@@ -271,6 +310,33 @@ export default function GoalsScreen() {
       <Muted style={{ marginTop: 4, textAlign: "center" }}>
         临时、不属于目标的事，去「安排」直接加到时间轴。
       </Muted>
+
+      {/* 阶段目标到期日选择 */}
+      {duePicker && Platform.OS === "android" ? (
+        <DateTimePicker
+          value={shortDue[duePicker] ? new Date(shortDue[duePicker]) : new Date()}
+          mode="date"
+          onChange={onPickDue}
+        />
+      ) : null}
+      {duePicker && Platform.OS === "ios" ? (
+        <Modal transparent animationType="slide" visible onRequestClose={() => setDuePicker(null)}>
+          <View style={styles.pickerBg}>
+            <Pressable style={{ flex: 1 }} onPress={() => setDuePicker(null)} />
+            <View style={styles.pickerSheet}>
+              <Text style={styles.pickerTitle}>选到期日</Text>
+              <DateTimePicker
+                value={shortDue[duePicker] ? new Date(shortDue[duePicker]) : new Date()}
+                mode="date"
+                display="spinner"
+                onChange={onPickDue}
+                style={{ alignSelf: "stretch" }}
+              />
+              <Button label="完成" onPress={() => setDuePicker(null)} />
+            </View>
+          </View>
+        </Modal>
+      ) : null}
     </ScrollView>
   );
 }
@@ -329,6 +395,28 @@ const styles = StyleSheet.create({
   shortsLabel: { fontSize: 12, fontWeight: "600", color: colors.fgMuted, marginBottom: 4 },
   shortRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 5 },
   shortText: { flex: 1, fontSize: 14, color: colors.fg },
+  shortDueText: { fontSize: 12, color: "#c77600", fontWeight: "600" },
+  dueBtn: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    borderRadius: radii.sm,
+    paddingHorizontal: 10,
+    justifyContent: "center",
+    backgroundColor: "#fff",
+  },
+  dueBtnOn: { backgroundColor: "#c77600", borderColor: "#c77600" },
+  dueBtnText: { fontSize: 13, fontWeight: "600", color: colors.fgMuted },
+  pickerBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "flex-end" },
+  pickerSheet: {
+    backgroundColor: colors.bg,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
+    borderCurve: "continuous",
+    padding: 18,
+    paddingBottom: 32,
+    gap: 8,
+  },
+  pickerTitle: { fontSize: 16, fontWeight: "700", color: colors.fg, textAlign: "center" },
   addRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
   addBtn: {
     width: 44,
