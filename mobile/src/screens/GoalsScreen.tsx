@@ -84,11 +84,12 @@ export default function GoalsScreen() {
               <Pressable
                 key={a}
                 onPress={() => setArea(a)}
-                style={[
+                style={({ pressed }) => [
                   styles.chip,
                   active
                     ? { backgroundColor: AREA_COLORS[a], borderColor: AREA_COLORS[a] }
                     : { borderColor: colors.line },
+                  pressed && { opacity: 0.75 },
                 ]}
               >
                 <Text style={[styles.chipText, active && { color: "#fff" }]}>
@@ -125,7 +126,7 @@ export default function GoalsScreen() {
             {suggestions.map((s, i) => (
               <Pressable
                 key={`${s.title}-${i}`}
-                style={styles.suggestion}
+                style={({ pressed }) => [styles.suggestion, pressed && { opacity: 0.7 }]}
                 onPress={() => {
                   app.addLongGoal(s.area, s.title, s.why);
                   setSuggestions((cur) => (cur ?? []).filter((x) => x !== s));

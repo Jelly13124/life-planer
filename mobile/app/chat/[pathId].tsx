@@ -99,7 +99,11 @@ export default function ChatScreen() {
             {messages.length === 0 ? (
               <View style={styles.quickWrap}>
                 {QUICK.map((q) => (
-                  <Pressable key={q} onPress={() => send(q)} style={styles.quickChip}>
+                  <Pressable
+                    key={q}
+                    onPress={() => send(q)}
+                    style={({ pressed }) => [styles.quickChip, pressed && { opacity: 0.7 }]}
+                  >
                     <Text style={styles.quickText}>{q}</Text>
                   </Pressable>
                 ))}
@@ -128,7 +132,11 @@ export default function ChatScreen() {
             />
             <Pressable
               onPress={() => send(input)}
-              style={[styles.sendBtn, (!input.trim() || loading) && { opacity: 0.5 }]}
+              style={({ pressed }) => [
+                styles.sendBtn,
+                !input.trim() || loading ? { opacity: 0.5 } : null,
+                pressed && (input.trim() && !loading) ? { opacity: 0.85 } : null,
+              ]}
               disabled={!input.trim() || loading}
             >
               <Text style={styles.sendText}>发送</Text>
