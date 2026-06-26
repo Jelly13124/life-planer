@@ -68,8 +68,10 @@ export function TimePickSheet({
   const times = useMemo(() => {
     const out: string[] = [];
     const s = toMinutes(dayStart);
-    const e = toMinutes(dayEnd);
+    // 退化窗兜底：睡<=醒 时退回到一整天，保证滚轮永远非空（否则 idx 越界、面板空白）。
+    const e = toMinutes(dayEnd) > s ? toMinutes(dayEnd) : 24 * 60 - STEP;
     for (let m = s; m <= e; m += STEP) out.push(toHHMM(m));
+    if (out.length === 0) out.push(toHHMM(s)); // 双保险：s==e 也至少一档
     return out;
   }, [dayStart, dayEnd]);
 

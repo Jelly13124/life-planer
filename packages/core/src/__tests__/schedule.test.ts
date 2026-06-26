@@ -154,4 +154,16 @@ describe("schedule domain", () => {
     const tree = setDayWindow(w.tree, "06:00", "22:00");
     expect(dayWindow(tree)).toEqual({ start: "06:00", end: "22:00" });
   });
+
+  it("dayWindow falls back to defaults on a degenerate window (end <= start)", () => {
+    const w = withActions();
+    expect(dayWindow(setDayWindow(w.tree, "23:00", "07:00"))).toEqual({
+      start: DEFAULT_DAY_START,
+      end: DEFAULT_DAY_END,
+    });
+    expect(dayWindow(setDayWindow(w.tree, "09:00", "09:00"))).toEqual({
+      start: DEFAULT_DAY_START,
+      end: DEFAULT_DAY_END,
+    });
+  });
 });

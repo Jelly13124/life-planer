@@ -62,7 +62,12 @@ export function setActionTime(
 }
 
 export function dayWindow(tree: LifeTree): { start: string; end: string } {
-  return { start: tree.dayStart ?? DEFAULT_DAY_START, end: tree.dayEnd ?? DEFAULT_DAY_END };
+  const start = tree.dayStart ?? DEFAULT_DAY_START;
+  const end = tree.dayEnd ?? DEFAULT_DAY_END;
+  // 兜底：退化窗（睡<=醒，或跨午夜）会让日视图算出零/负高度的时间轴。
+  // 这是两端共用的读取点 → 在此归一，退回默认窗，保证 end>start。
+  if (toMinutes(end) <= toMinutes(start)) return { start: DEFAULT_DAY_START, end: DEFAULT_DAY_END };
+  return { start, end };
 }
 export function setDayWindow(tree: LifeTree, start: string, end: string): LifeTree {
   return { ...tree, dayStart: start, dayEnd: end };
