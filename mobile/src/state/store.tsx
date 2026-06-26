@@ -28,6 +28,7 @@ import {
   addLooseTask as domainAddLooseTask,
   removeItem as domainRemoveItem,
   removeGoalById as domainRemoveGoalById,
+  updateGoalById as domainUpdateGoalById,
   findTask,
 } from "@lifeplanner/core/goalTree";
 import { goalProgress, completeGoal as domainCompleteGoal } from "@lifeplanner/core/goals";
@@ -111,7 +112,8 @@ interface AppValue {
   shiftViewDate: (delta: number) => void;
   goToday: () => void;
   // 写入（复用领域核心）
-  addLongGoal: (area: GoalArea, title: string, why?: string) => void;
+  addLongGoal: (area: GoalArea, title: string, why?: string, endDate?: string) => void;
+  setGoalDueDate: (goalId: string, endDate?: string) => void;
   addShortGoalToLong: (longId: string, title: string, endDate?: string) => void;
   addTaskToGoal: (goalId: string, text: string) => void;
   addHabitToGoal: (goalId: string, text: string, repeat: "daily" | "weekly") => void;
@@ -217,11 +219,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ───────── 写入动作（全部复用领域核心；时间在此注入） ─────────
   const addLongGoal = useCallback(
-    (area: GoalArea, title: string, why?: string) => {
+    (area: GoalArea, title: string, why?: string, endDate?: string) => {
       const cur = treeRef.current;
       if (!cur || !title.trim()) return;
-      const { tree: next } = domainAddLongGoal(cur, { area, title: title.trim(), why }, nowISO());
+      const { tree: next } = domainAddLongGoal(cur, { area, title: title.trim(), why, endDate }, nowISO());
       commit(next);
+    },
+    [commit],
+  );
+
+  // 设/改某目标的到期日（endDate=undefined 清除）。
+  const setGoalDueDate = useCallback(
+    (goalId: string, endDate?: string) => {
+      const cur = treeRef.current;
+      if (!cur) return;
+      commit(domainUpdateGoalById(cur, goalId, { endDate }));
     },
     [commit],
   );
@@ -581,6 +593,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       shiftViewDate,
       goToday,
       addLongGoal,
+      setGoalDueDate,
       addShortGoalToLong,
       addTaskToGoal,
       addHabitToGoal,
@@ -617,6 +630,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     shiftViewDate,
     goToday,
     addLongGoal,
+    setGoalDueDate,
     addShortGoalToLong,
     addTaskToGoal,
     addHabitToGoal,
