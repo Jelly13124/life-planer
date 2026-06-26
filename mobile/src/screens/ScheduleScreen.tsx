@@ -245,7 +245,7 @@ export default function ScheduleScreen() {
                       </Text>
                       <Text style={styles.tlMeta}>
                         {rangeLabel(a.item.startTime!, a.item.durationMin)}
-                        {habit ? " · 习惯" : ""}
+                        {habit ? ((a.item as Habit).repeat === "weekly" ? " · 每周" : " · 每天") : ""}
                         {a.goal ? ` · ${GOAL_AREA_LABELS[a.goal.area]}` : ""}
                       </Text>
                     </Pressable>
