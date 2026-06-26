@@ -20,11 +20,20 @@ export default function GoalsScreen() {
   const [area, setArea] = useState<GoalArea>("career");
   const [title, setTitle] = useState("");
   const [taskInputs, setTaskInputs] = useState<Record<string, string>>({});
+  const [shortInputs, setShortInputs] = useState<Record<string, string>>({});
   const [suggestions, setSuggestions] = useState<GoalSuggestion[] | null>(null);
   const [suggesting, setSuggesting] = useState(false);
 
   const setTaskInput = (key: string, v: string) =>
     setTaskInputs((m) => ({ ...m, [key]: v }));
+  const setShortInput = (key: string, v: string) =>
+    setShortInputs((m) => ({ ...m, [key]: v }));
+  const submitShort = (longId: string) => {
+    const t = shortInputs[longId] ?? "";
+    if (!t.trim()) return;
+    app.addShortGoalToLong(longId, t);
+    setShortInput(longId, "");
+  };
 
   const submitGoal = () => {
     if (!title.trim()) return;
@@ -195,16 +204,35 @@ export default function GoalsScreen() {
                 </View>
               ))}
 
-              {/* 短期目标（紧凑展示） */}
-              {shorts.length > 0 ? (
-                <View style={styles.shortsWrap}>
-                  {shorts.map((s) => (
-                    <Text key={s.id} style={styles.shortItem}>
-                      · {s.title}
-                    </Text>
-                  ))}
+              {/* 阶段目标（短期目标）：可加、可删 */}
+              <View style={styles.shortsWrap}>
+                <Text style={styles.shortsLabel}>阶段目标</Text>
+                {shorts.map((s) => (
+                  <View key={s.id} style={styles.shortRow}>
+                    <Dot color={AREA_COLORS[s.area]} />
+                    <Text style={styles.shortText}>{s.title}</Text>
+                    <Pressable onPress={() => confirmRemoveGoal(s)} hitSlop={6}>
+                      <Text style={styles.removeLink}>删</Text>
+                    </Pressable>
+                  </View>
+                ))}
+                <View style={styles.addRow}>
+                  <Input
+                    value={shortInputs[goal.id] ?? ""}
+                    onChangeText={(v) => setShortInput(goal.id, v)}
+                    placeholder="加阶段目标…（如 先把简历改好）"
+                    onSubmitEditing={() => submitShort(goal.id)}
+                    returnKeyType="done"
+                    style={{ flex: 1 }}
+                  />
+                  <Pressable
+                    onPress={() => submitShort(goal.id)}
+                    style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }]}
+                  >
+                    <Text style={styles.addBtnText}>＋</Text>
+                  </Pressable>
                 </View>
-              ) : null}
+              </View>
 
               {/* 加任务 */}
               <View style={styles.addRow}>
@@ -291,14 +319,15 @@ const styles = StyleSheet.create({
   todayLink: { fontSize: 13, fontWeight: "600", color: colors.accent },
   removeLink: { fontSize: 13, color: colors.danger },
   shortsWrap: {
-    marginTop: 6,
+    marginTop: 10,
     marginLeft: 4,
-    gap: 2,
     borderLeftWidth: 2,
     borderLeftColor: colors.line,
     paddingLeft: 10,
   },
-  shortItem: { fontSize: 13, color: colors.fgMuted },
+  shortsLabel: { fontSize: 12, fontWeight: "600", color: colors.fgMuted, marginBottom: 4 },
+  shortRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 5 },
+  shortText: { flex: 1, fontSize: 14, color: colors.fg },
   addRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
   addBtn: {
     width: 44,

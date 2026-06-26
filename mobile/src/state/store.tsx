@@ -22,6 +22,7 @@ import {
   shortGoalsOf,
   standaloneShortGoals,
   addLongGoal as domainAddLongGoal,
+  addShortGoal as domainAddShortGoal,
   addTask as domainAddTask,
   addHabit as domainAddHabit,
   addLooseTask as domainAddLooseTask,
@@ -111,6 +112,7 @@ interface AppValue {
   goToday: () => void;
   // 写入（复用领域核心）
   addLongGoal: (area: GoalArea, title: string, why?: string) => void;
+  addShortGoalToLong: (longId: string, title: string) => void;
   addTaskToGoal: (goalId: string, text: string) => void;
   addHabitToGoal: (goalId: string, text: string, repeat: "daily" | "weekly") => void;
   addLooseTask: (text: string) => void;
@@ -217,6 +219,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const cur = treeRef.current;
       if (!cur || !title.trim()) return;
       const { tree: next } = domainAddLongGoal(cur, { area, title: title.trim(), why }, nowISO());
+      commit(next);
+    },
+    [commit],
+  );
+
+  const addShortGoalToLong = useCallback(
+    (longId: string, title: string) => {
+      const cur = treeRef.current;
+      if (!cur || !title.trim()) return;
+      const parent = longGoals(cur).find((g) => g.id === longId);
+      const { tree: next } = domainAddShortGoal(
+        cur,
+        longId,
+        { area: parent ? parent.area : "other", title: title.trim() },
+        nowISO(),
+      );
       commit(next);
     },
     [commit],
@@ -511,6 +529,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       shiftViewDate,
       goToday,
       addLongGoal,
+      addShortGoalToLong,
       addTaskToGoal,
       addHabitToGoal,
       addLooseTask,
@@ -544,6 +563,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     shiftViewDate,
     goToday,
     addLongGoal,
+    addShortGoalToLong,
     addTaskToGoal,
     addHabitToGoal,
     addLooseTask,
