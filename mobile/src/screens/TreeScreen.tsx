@@ -179,7 +179,7 @@ export default function TreeScreen() {
     <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + space }]}>
       <Text style={styles.h1}>人生树</Text>
       <Muted style={{ marginBottom: 14 }}>
-        从「现在」分叉出的每条路 · 点曲线和那个未来的自己聊聊 · 左右滑看更远
+        从「现在」分叉出的每条路 · 点下方卡片(或曲线)看这条路的未来 · 点节点在那年加岔路 · 左右滑看更远
       </Muted>
 
       {/* 暗色媒体面板 + 分支地图（横向可滚动） */}
@@ -300,6 +300,13 @@ export default function TreeScreen() {
                     <Circle cx={p.end.x} cy={p.end.y} r={16} fill={`url(#lm-glow-${p.id})`} />
                   )}
                   <Circle cx={p.end.x} cy={p.end.y} r={isSq ? 5 : 6} fill={color} />
+                  <Circle
+                    cx={p.end.x}
+                    cy={p.end.y}
+                    r={22}
+                    fill="transparent"
+                    onPress={() => router.push(`/path/${p.id}`)}
+                  />
                   <SvgText
                     x={p.end.x + 16}
                     y={p.end.y - 2}
@@ -365,17 +372,20 @@ export default function TreeScreen() {
       ) : (
         choices.map((p) => (
           <Card key={p.id}>
-            <View style={styles.legendHead}>
-              <View style={[styles.swatch, { backgroundColor: p.color }]} />
-              <Text style={styles.legendTitle}>{p.choiceLabel}</Text>
-              {typeof p.feasibility === "number" ? (
-                <Text style={styles.feasibility}>约 {p.feasibility}%</Text>
+            <Pressable onPress={() => router.push(`/path/${p.id}`)}>
+              <View style={styles.legendHead}>
+                <View style={[styles.swatch, { backgroundColor: p.color }]} />
+                <Text style={styles.legendTitle}>{p.choiceLabel}</Text>
+                {typeof p.feasibility === "number" ? (
+                  <Text style={styles.feasibility}>约 {p.feasibility}%</Text>
+                ) : null}
+              </View>
+              {p.summary ? <Muted style={{ marginTop: 6 }}>{p.summary}</Muted> : null}
+              {p.feasibilityNote ? (
+                <Text style={styles.feasNote}>可行度依据：{p.feasibilityNote}</Text>
               ) : null}
-            </View>
-            {p.summary ? <Muted style={{ marginTop: 6 }}>{p.summary}</Muted> : null}
-            {p.feasibilityNote ? (
-              <Text style={styles.feasNote}>可行度依据：{p.feasibilityNote}</Text>
-            ) : null}
+              <Text style={styles.detailHint}>查看这条路的未来（指标 · 情景 · 关键时刻）›</Text>
+            </Pressable>
             <View style={styles.cardActions}>
               <Pressable onPress={() => router.push(`/chat/${p.id}`)} hitSlop={6}>
                 <Text style={styles.chatLink}>和未来的自己聊聊 ›</Text>
@@ -440,6 +450,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.line,
   },
   chatLink: { fontSize: 14, fontWeight: "600", color: colors.accent },
+  detailHint: { fontSize: 13, fontWeight: "600", color: colors.accent, marginTop: 10 },
   removeBranchText: { fontSize: 13, color: colors.danger },
   legendHead: { flexDirection: "row", alignItems: "center", gap: 8 },
   swatch: { width: 12, height: 12, borderRadius: 3 },
