@@ -1,5 +1,6 @@
-// 目标屏：建立长期目标 → 加任务/习惯 → 勾选完成（喂今日/连续天数）→ 完成目标。
-// 全部数据走共享领域核心；可选「AI 建议目标」走后端（离线则提示无后端）。
+// 目标屏（手机精简版）：只有「目标」和「任务」两个概念。
+// 一个目标 = 标题 + 进度 + 到期日(可选) + 一条任务清单(任务 + 重复任务)。
+// 习惯并进"重复任务"(加任务可选 无/每天/每周)；短期目标已从手机端拿掉(数据仍在,网页可用)。
 import React, { useState } from "react";
 import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,6 +16,14 @@ import { hasBackend, type GoalSuggestion } from "../lib/api";
 import { Button, Card, Checkbox, Dot, Input, Muted, Progress, SectionTitle, Skeleton } from "../ui";
 import { colors, AREA_COLORS, radii, space } from "../theme";
 
+type Repeat = "none" | "daily" | "weekly";
+const REPEATS: { k: Repeat; l: string }[] = [
+  { k: "none", l: "无" },
+  { k: "daily", l: "每天" },
+  { k: "weekly", l: "每周" },
+];
+const NEW = "__new__"; // 到期日选择器的特殊目标 id:建新目标时
+
 const pad2 = (n: number) => String(n).padStart(2, "0");
 const ymd = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 const fmtMD = (date: string) => {
@@ -27,50 +36,51 @@ export default function GoalsScreen() {
   const insets = useSafeAreaInsets();
   const [area, setArea] = useState<GoalArea>("career");
   const [title, setTitle] = useState("");
+  const [newDue, setNewDue] = useState("");
   const [taskInputs, setTaskInputs] = useState<Record<string, string>>({});
-  const [shortInputs, setShortInputs] = useState<Record<string, string>>({});
-  const [shortDue, setShortDue] = useState<Record<string, string>>({});
-  const [duePicker, setDuePicker] = useState<string | null>(null); // 哪个长期目标的到期日选择器开着
+  const [taskRepeat, setTaskRepeat] = useState<Record<string, Repeat>>({});
+  const [duePicker, setDuePicker] = useState<string | null>(null); // 目标 id 或 NEW
   const [suggestions, setSuggestions] = useState<GoalSuggestion[] | null>(null);
   const [suggesting, setSuggesting] = useState(false);
 
-  const setTaskInput = (key: string, v: string) =>
-    setTaskInputs((m) => ({ ...m, [key]: v }));
-  const setShortInput = (key: string, v: string) =>
-    setShortInputs((m) => ({ ...m, [key]: v }));
-  const submitShort = (longId: string) => {
-    const t = shortInputs[longId] ?? "";
-    if (!t.trim()) return;
-    app.addShortGoalToLong(longId, t, shortDue[longId]);
-    setShortInput(longId, "");
-    setShortDue((m) => {
-      const n = { ...m };
-      delete n[longId];
-      return n;
-    });
-  };
-  // 到期日选择:Android 选完即关;iOS 滚轮实时更新,点完成关。
+  const setTaskInput = (key: string, v: string) => setTaskInputs((m) => ({ ...m, [key]: v }));
+  const setRepeatFor = (key: string, v: Repeat) => setTaskRepeat((m) => ({ ...m, [key]: v }));
+
+  // 到期日选择:Android 选完即关;iOS 滚轮实时更新,点完成关。写到"新目标"或某目标。
   const onPickDue = (e: { type: string }, dt?: Date) => {
-    const gid = duePicker;
+    const target = duePicker;
+    const apply = (d: Date) => {
+      if (target === NEW) setNewDue(ymd(d));
+      else if (target) app.setGoalDueDate(target, ymd(d));
+    };
     if (Platform.OS === "android") {
       setDuePicker(null);
-      if (e.type !== "set" || !dt || !gid) return;
-      setShortDue((m) => ({ ...m, [gid]: ymd(dt) }));
-    } else if (dt && gid) {
-      setShortDue((m) => ({ ...m, [gid]: ymd(dt) }));
+      if (e.type !== "set" || !dt || !target) return;
+      apply(dt);
+    } else if (dt) {
+      apply(dt);
     }
   };
+  const activeDue =
+    duePicker === NEW
+      ? newDue
+      : duePicker
+        ? app.longGoals.find((g) => g.id === duePicker)?.endDate ?? ""
+        : "";
 
   const submitGoal = () => {
     if (!title.trim()) return;
-    app.addLongGoal(area, title, undefined);
+    app.addLongGoal(area, title, undefined, newDue || undefined);
     setTitle("");
+    setNewDue("");
   };
 
   const submitTask = (goalId: string) => {
-    const text = taskInputs[goalId] ?? "";
-    if (!text.trim()) return;
-    app.addTaskToGoal(goalId, text);
+    const text = (taskInputs[goalId] ?? "").trim();
+    if (!text) return;
+    const rep = taskRepeat[goalId] ?? "none";
+    if (rep === "none") app.addTaskToGoal(goalId, text);
+    else app.addHabitToGoal(goalId, text, rep);
     setTaskInput(goalId, "");
   };
 
@@ -102,7 +112,7 @@ export default function GoalsScreen() {
 
       {/* 建立目标 */}
       <Card>
-        <SectionTitle>建立长期目标</SectionTitle>
+        <SectionTitle>建立目标</SectionTitle>
         <View style={styles.chipRow}>
           {GOAL_AREAS.map((a) => {
             const active = a === area;
@@ -132,6 +142,21 @@ export default function GoalsScreen() {
           onSubmitEditing={submitGoal}
           returnKeyType="done"
         />
+        <View style={styles.newDueRow}>
+          <Pressable
+            onPress={() => setDuePicker(NEW)}
+            style={({ pressed }) => [styles.dueBtn, newDue && styles.dueBtnOn, pressed && { opacity: 0.7 }]}
+          >
+            <Text style={[styles.dueBtnText, newDue && { color: "#fff" }]}>
+              {newDue ? `到期 ${fmtMD(newDue)}` : "到期日（可选）"}
+            </Text>
+          </Pressable>
+          {newDue ? (
+            <Pressable onPress={() => setNewDue("")} hitSlop={6}>
+              <Text style={styles.clearLink}>清除</Text>
+            </Pressable>
+          ) : null}
+        </View>
         <View style={{ height: 10 }} />
         <Button label="建立目标" onPress={submitGoal} disabled={!title.trim()} />
         <View style={{ height: 8 }} />
@@ -173,13 +198,14 @@ export default function GoalsScreen() {
       {app.longGoals.length === 0 ? (
         <Card>
           <Text style={styles.emptyTitle}>还没有目标</Text>
-          <Muted>建立第一个长期目标，开始把人生方向拆成可执行的任务。</Muted>
+          <Muted>建立第一个目标，开始把人生方向拆成可执行的任务。</Muted>
         </Card>
       ) : (
         app.longGoals.map((goal) => {
           const ac = AREA_COLORS[goal.area];
           const progress = app.progressOf(goal);
-          const shorts = app.shortGoalsOf(goal.id);
+          const overdue = !!goal.endDate && goal.endDate < app.today;
+          const rep = taskRepeat[goal.id] ?? "none";
           return (
             <Card key={goal.id}>
               <View style={styles.goalHead}>
@@ -192,15 +218,21 @@ export default function GoalsScreen() {
               </View>
               {goal.why ? <Muted style={{ marginBottom: 8 }}>{goal.why}</Muted> : null}
 
-              {/* 任务 */}
+              {/* 到期日 */}
+              <Pressable
+                onPress={() => setDuePicker(goal.id)}
+                style={({ pressed }) => [styles.goalDueRow, pressed && { opacity: 0.6 }]}
+              >
+                <Text style={[styles.goalDueText, overdue && { color: colors.danger }]}>
+                  {goal.endDate ? `到期 ${fmtMD(goal.endDate)}${overdue ? " · 已逾期" : ""}` : "设到期日"}
+                </Text>
+              </Pressable>
+
+              {/* 任务清单（任务 + 重复任务） */}
               {goal.tasks.map((task) => (
                 <View key={task.id} style={styles.taskRow}>
-                  <Checkbox
-                    checked={task.done}
-                    accent={ac}
-                    onPress={() => app.toggleTaskDone(task.id)}
-                  />
-                  <Text style={[styles.taskText, task.done && styles.taskTextDone]}>
+                  <Checkbox checked={task.done} accent={ac} onPress={() => app.toggleTaskDone(task.id)} />
+                  <Text style={[styles.taskText, task.done && styles.taskTextDone]} numberOfLines={2}>
                     {task.text}
                   </Text>
                   {!task.done ? (
@@ -213,68 +245,22 @@ export default function GoalsScreen() {
                   </Pressable>
                 </View>
               ))}
-
-              {/* 习惯（只读展示） */}
               {goal.habits.map((habit) => (
                 <View key={habit.id} style={styles.taskRow}>
-                  <View style={[styles.habitTick, { borderColor: ac }]} />
-                  <Text style={styles.taskText}>
+                  <View style={[styles.repDot, { backgroundColor: ac }]} />
+                  <Text style={styles.taskText} numberOfLines={2}>
                     {habit.text}
-                    <Text style={styles.habitTag}>
-                      {"  "}
-                      {habit.repeat === "daily" ? "每日" : "每周"}
-                    </Text>
                   </Text>
+                  <View style={styles.repTag}>
+                    <Text style={styles.repTagText}>{habit.repeat === "daily" ? "每天" : "每周"}</Text>
+                  </View>
                   <Pressable onPress={() => app.removeItem(habit.id)} hitSlop={6}>
                     <Text style={styles.removeLink}>删</Text>
                   </Pressable>
                 </View>
               ))}
 
-              {/* 阶段目标（短期目标）：可加、可删 */}
-              <View style={styles.shortsWrap}>
-                <Text style={styles.shortsLabel}>阶段目标</Text>
-                {shorts.map((s) => (
-                  <View key={s.id} style={styles.shortRow}>
-                    <Dot color={AREA_COLORS[s.area]} />
-                    <Text style={styles.shortText} numberOfLines={1}>{s.title}</Text>
-                    {s.endDate ? <Text style={styles.shortDueText}>到期 {fmtMD(s.endDate)}</Text> : null}
-                    <Pressable onPress={() => confirmRemoveGoal(s)} hitSlop={6}>
-                      <Text style={styles.removeLink}>删</Text>
-                    </Pressable>
-                  </View>
-                ))}
-                <View style={styles.addRow}>
-                  <Input
-                    value={shortInputs[goal.id] ?? ""}
-                    onChangeText={(v) => setShortInput(goal.id, v)}
-                    placeholder="加阶段目标…（如 先把简历改好）"
-                    onSubmitEditing={() => submitShort(goal.id)}
-                    returnKeyType="done"
-                    style={{ flex: 1 }}
-                  />
-                  <Pressable
-                    onPress={() => setDuePicker(goal.id)}
-                    style={({ pressed }) => [
-                      styles.dueBtn,
-                      shortDue[goal.id] && styles.dueBtnOn,
-                      pressed && { opacity: 0.7 },
-                    ]}
-                  >
-                    <Text style={[styles.dueBtnText, shortDue[goal.id] && { color: "#fff" }]}>
-                      {shortDue[goal.id] ? fmtMD(shortDue[goal.id]) : "到期日"}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => submitShort(goal.id)}
-                    style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }]}
-                  >
-                    <Text style={styles.addBtnText}>＋</Text>
-                  </Pressable>
-                </View>
-              </View>
-
-              {/* 加任务 */}
+              {/* 加任务 + 重复选择 */}
               <View style={styles.addRow}>
                 <Input
                   value={taskInputs[goal.id] ?? ""}
@@ -284,9 +270,27 @@ export default function GoalsScreen() {
                   returnKeyType="done"
                   style={{ flex: 1 }}
                 />
-                <Pressable onPress={() => submitTask(goal.id)} style={styles.addBtn}>
+                <Pressable
+                  onPress={() => submitTask(goal.id)}
+                  style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }]}
+                >
                   <Text style={styles.addBtnText}>＋</Text>
                 </Pressable>
+              </View>
+              <View style={styles.repRow}>
+                <Text style={styles.repLabel}>重复</Text>
+                {REPEATS.map((o) => {
+                  const on = rep === o.k;
+                  return (
+                    <Pressable
+                      key={o.k}
+                      onPress={() => setRepeatFor(goal.id, o.k)}
+                      style={({ pressed }) => [styles.repPill, on && styles.repPillOn, pressed && { opacity: 0.7 }]}
+                    >
+                      <Text style={[styles.repPillText, on && { color: "#fff" }]}>{o.l}</Text>
+                    </Pressable>
+                  );
+                })}
               </View>
 
               {/* 目标操作 */}
@@ -311,10 +315,10 @@ export default function GoalsScreen() {
         临时、不属于目标的事，去「安排」直接加到时间轴。
       </Muted>
 
-      {/* 阶段目标到期日选择 */}
+      {/* 到期日选择 */}
       {duePicker && Platform.OS === "android" ? (
         <DateTimePicker
-          value={shortDue[duePicker] ? new Date(shortDue[duePicker]) : new Date()}
+          value={activeDue ? new Date(activeDue) : new Date()}
           mode="date"
           onChange={onPickDue}
         />
@@ -326,7 +330,7 @@ export default function GoalsScreen() {
             <View style={styles.pickerSheet}>
               <Text style={styles.pickerTitle}>选到期日</Text>
               <DateTimePicker
-                value={shortDue[duePicker] ? new Date(shortDue[duePicker]) : new Date()}
+                value={activeDue ? new Date(activeDue) : new Date()}
                 mode="date"
                 display="spinner"
                 onChange={onPickDue}
@@ -345,19 +349,16 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: space, paddingBottom: 48 },
   h1: { fontSize: 30, fontWeight: "700", color: colors.fg, marginBottom: 14 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radii.pill, borderWidth: 1 },
   chipText: { fontSize: 13, fontWeight: "600", color: colors.fg },
+  newDueRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10 },
+  clearLink: { fontSize: 13, color: colors.fgMuted },
   suggestion: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     backgroundColor: colors.bg,
-    borderRadius: 10,
+    borderRadius: radii.sm,
     paddingHorizontal: 10,
     paddingVertical: 9,
   },
@@ -367,41 +368,44 @@ const styles = StyleSheet.create({
   goalHead: { flexDirection: "row", alignItems: "center", gap: 8 },
   goalTitle: { flex: 1, fontSize: 17, fontWeight: "700", color: colors.fg },
   goalPct: { fontSize: 14, fontWeight: "600", color: colors.fgMuted },
-  taskRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 7,
-  },
+  goalDueRow: { paddingVertical: 4, marginBottom: 4 },
+  goalDueText: { fontSize: 13, fontWeight: "600", color: "#c77600" },
+  taskRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 7 },
   taskText: { flex: 1, fontSize: 15, color: colors.fg },
   taskTextDone: { textDecorationLine: "line-through", color: colors.fgMuted },
-  habitTick: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderStyle: "dashed",
-  },
-  habitTag: { fontSize: 12, color: colors.fgMuted },
+  repDot: { width: 10, height: 10, borderRadius: 5, marginLeft: 7, marginRight: 4 },
+  repTag: { borderRadius: radii.pill, backgroundColor: colors.bg, paddingHorizontal: 8, paddingVertical: 2 },
+  repTagText: { fontSize: 11, color: colors.fgMuted, fontWeight: "600" },
   todayLink: { fontSize: 13, fontWeight: "600", color: colors.accent },
   removeLink: { fontSize: 13, color: colors.danger },
-  shortsWrap: {
-    marginTop: 10,
-    marginLeft: 4,
-    borderLeftWidth: 2,
-    borderLeftColor: colors.line,
-    paddingLeft: 10,
+  addRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
+  addBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.sm,
+    backgroundColor: colors.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  shortsLabel: { fontSize: 12, fontWeight: "600", color: colors.fgMuted, marginBottom: 4 },
-  shortRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 5 },
-  shortText: { flex: 1, fontSize: 14, color: colors.fg },
-  shortDueText: { fontSize: 12, color: "#c77600", fontWeight: "600" },
+  addBtnText: { fontSize: 22, color: colors.accent, fontWeight: "600", lineHeight: 24 },
+  repRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+  repLabel: { fontSize: 13, color: colors.fgMuted },
+  repPill: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    borderRadius: radii.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: "#fff",
+  },
+  repPillOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  repPillText: { fontSize: 13, fontWeight: "600", color: colors.fg },
   dueBtn: {
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.line,
     borderRadius: radii.sm,
-    paddingHorizontal: 10,
-    justifyContent: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     backgroundColor: "#fff",
   },
   dueBtnOn: { backgroundColor: "#c77600", borderColor: "#c77600" },
@@ -417,16 +421,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   pickerTitle: { fontSize: 16, fontWeight: "700", color: colors.fg, textAlign: "center" },
-  addRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
-  addBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 11,
-    backgroundColor: colors.accentSoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addBtnText: { fontSize: 22, color: colors.accent, fontWeight: "600", lineHeight: 24 },
   goalActions: {
     flexDirection: "row",
     justifyContent: "space-between",
