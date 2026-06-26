@@ -1,44 +1,56 @@
-// 人生树（只读预测视图）—— 路线 A 的核心差异化屏。
-// 把每条人生路径画成「综合人生指数」随年龄变化的曲线：维持现状=灰色虚线，
-// 选择路径=彩色实线，终点标注现实可行度 %。曲线由各领域指标按年龄平均得到（真实数据，非编造）。
-//
-// 这里是只读视图：加分支需要 AI 推演（predictAndCommit），那条链路在 Phase 3 后续/网页端。
-import React, { useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+// 人生树（只读预测地图）—— 与网页端 LifeMap 一致：从「现在」原点分叉出的彩色曲线树。
+// 复用 web 同一套 mapLayout 几何（曲线形状/分叉/节点完全相同），用 react-native-svg 渲染。
+// 动画：曲线自绘入场（staggered）+ 原点呼吸；横向可滚动看更远的年龄。点曲线 → 和未来的自己聊。
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  AccessibilityInfo,
+  Alert,
+  Animated,
+  Easing,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import Svg, {
   Path,
-  Line,
   Circle,
+  Line,
   Text as SvgText,
   Rect,
   Defs,
   LinearGradient,
   RadialGradient,
   Stop,
-  G,
 } from "react-native-svg";
-import { LIFE_AREAS, type LifePath } from "@lifeplanner/core/types";
+import type { LifePath } from "@lifeplanner/core/types";
+import { layoutMap } from "../lib/mapLayout";
 import { useApp } from "../state/store";
 import { Button, Card, Input, Muted, SkeletonCard } from "../ui";
 import { colors, space } from "../theme";
 
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
 // 暗色「媒体面板」配色（对应 web 的 .lp-media-dark）。
 const DARK = {
   bg: "#0e0e12",
-  bgGlow: "#15131c", // 顶部细微暖晕，避免死黑
+  bgGlow: "#15131c",
   grid: "#23232c",
-  gridMid: "#2c2c37",
   axis: "#33333d",
-  statusQuo: "#6f6f7e",
+  statusQuo: "#7681a3",
   text: "#f2f2f5",
   textMuted: "#9a9aa6",
   textFaint: "#6b6b78",
 };
 
-// 把 #rrggbb 转成 rgba()，用于渐变填充与光晕（react-native-svg 用 stopOpacity 也行，
-// 但显式 rgba 更直观且跨平台一致）。
+const DASH = 3000; // 自绘用的 dash 长度（> 任一曲线长度，保证不重复）
+const PANEL_H = 360; // 面板固定高度；宽度按布局比例算，横向滚动
+
 function hexToRgba(hex: string, alpha: number): string {
   const h = hex.replace("#", "");
   const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
@@ -48,288 +60,267 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// 一条路径的综合指数随年龄序列：对 5 个领域在同一年龄点求平均。
-function compositePoints(path: LifePath): { age: number; value: number }[] {
-  const ref = path.metrics?.[LIFE_AREAS[0]] ?? [];
-  return ref.map((_, i) => {
-    let sum = 0;
-    let n = 0;
-    let age = ref[i]?.age ?? 0;
-    for (const a of LIFE_AREAS) {
-      const mp = path.metrics?.[a]?.[i];
-      if (mp) {
-        sum += mp.value;
-        n += 1;
-        age = mp.age;
-      }
-    }
-    return { age, value: n ? sum / n : 50 };
-  });
+function truncate(s: string, max: number): string {
+  return s.length > max ? s.slice(0, max - 1) + "…" : s;
+}
+function roundFeasibility(x: number): number {
+  return Math.round(x / 5) * 5;
 }
 
-// Catmull-Rom → 三次贝塞尔：把离散点连成顺滑曲线（确定性，无随机）。
-// tension 控制弯曲程度；0.16 给出温和、不过冲的弧度。
-function smoothPath(pts: { px: number; py: number }[], tension = 0.16): string {
-  if (pts.length === 0) return "";
-  if (pts.length === 1) return `M ${pts[0].px.toFixed(2)} ${pts[0].py.toFixed(2)}`;
-  let d = `M ${pts[0].px.toFixed(2)} ${pts[0].py.toFixed(2)}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] ?? pts[i];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[i + 2] ?? p2;
-    const c1x = p1.px + (p2.px - p0.px) * tension;
-    const c1y = p1.py + (p2.py - p0.py) * tension;
-    const c2x = p2.px - (p3.px - p1.px) * tension;
-    const c2y = p2.py - (p3.py - p1.py) * tension;
-    d += ` C ${c1x.toFixed(2)} ${c1y.toFixed(2)}, ${c2x.toFixed(2)} ${c2y.toFixed(2)}, ${p2.px.toFixed(2)} ${p2.py.toFixed(2)}`;
-  }
-  return d;
+function useReduceMotion(): boolean {
+  const [reduce, setReduce] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((v) => {
+      if (alive) setReduce(v);
+    });
+    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduce);
+    return () => {
+      alive = false;
+      sub.remove();
+    };
+  }, []);
+  return reduce;
 }
 
 export default function TreeScreen() {
   const { tree, addChoiceBranch, removeBranch, enriching } = useApp();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const reduce = useReduceMotion();
+  const { width } = useWindowDimensions();
   const [label, setLabel] = useState("");
+  const [anim] = useState(() => new Animated.Value(0)); // 曲线自绘进度 0→1
+  const [pulse] = useState(() => new Animated.Value(0)); // 原点呼吸
+
+  // 几何布局（与 web 完全一致；tree 为空时 null，hooks 仍无条件调用）。
+  const layout = useMemo(
+    () => (tree ? layoutMap(tree.paths, tree.profile.age, tree.horizonYears, {}) : null),
+    [tree],
+  );
+  const itemCount = layout?.items.length ?? 0;
+
+  // 自绘入场：路径数变化时重跑。
+  useEffect(() => {
+    if (reduce) {
+      anim.setValue(1);
+      return;
+    }
+    anim.setValue(0);
+    const a = Animated.timing(anim, {
+      toValue: 1,
+      duration: 1500,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false, // strokeDashoffset 非 transform，须走 JS 驱动
+    });
+    a.start();
+    return () => a.stop();
+  }, [anim, reduce, itemCount]);
+
+  // 原点呼吸（reduced motion 时静止）。
+  useEffect(() => {
+    if (reduce) {
+      pulse.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(pulse, { toValue: 0, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse, reduce]);
 
   const submitBranch = () => {
     if (!label.trim()) return;
     addChoiceBranch(label);
     setLabel("");
   };
-
   const confirmRemove = (p: LifePath) =>
     Alert.alert("删除这条路", `删除「${p.choiceLabel}」分支？`, [
       { text: "取消", style: "cancel" },
       { text: "删除", style: "destructive", onPress: () => removeBranch(p.id) },
     ]);
 
-  const { width } = useWindowDimensions();
+  if (!tree || !layout) return null;
 
-  if (!tree) return null;
+  const choices = tree.paths.filter((p) => p.kind === "choice");
+  const name = tree.profile.name || "你";
 
-  const paths = tree.paths;
-  const statusQuo = paths.find((p) => p.kind === "status-quo");
-  const choices = paths.filter((p) => p.kind === "choice");
+  // 渲染尺寸：固定高度，宽度按布局宽高比，横向滚动看更远年龄。
+  const renderH = PANEL_H;
+  const renderW = Math.max(width - space * 2, renderH * (layout.width / layout.height));
+  const { origin } = layout;
 
-  const minAge = tree.profile.age;
-  const maxAge = tree.profile.age + tree.horizonYears;
+  const pulseR = pulse.interpolate({ inputRange: [0, 1], outputRange: [10, 20] });
+  const pulseO = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0.05] });
 
-  // 画布尺寸（面板内）。
-  const W = Math.max(280, width - space * 2 - 2); // 减去外边距 + 卡片描边
-  const H = 280;
-  const padL = 18;
-  const padR = 22;
-  const padT = 22;
-  const padB = 34;
-  const plotW = W - padL - padR;
-  const plotH = H - padT - padB;
-  const baselineY = padT + plotH; // 面积填充的底边
-
-  const x = (age: number) =>
-    padL + ((age - minAge) / Math.max(1, maxAge - minAge)) * plotW;
-  const y = (v: number) => padT + (1 - Math.max(0, Math.min(100, v)) / 100) * plotH;
-
-  // 把数据点映射到像素坐标。
-  const toPx = (pts: { age: number; value: number }[]) =>
-    pts.map((p) => ({ px: x(p.age), py: y(p.value) }));
-
-  // 平滑曲线 d。
-  const lineD = (pts: { age: number; value: number }[]) => smoothPath(toPx(pts));
-
-  // 曲线下方面积 d：沿平滑线 → 落到底边 → 回到起点。
-  const areaD = (pts: { age: number; value: number }[]) => {
-    const px = toPx(pts);
-    if (px.length < 2) return "";
-    const top = smoothPath(px);
-    const first = px[0];
-    const last = px[px.length - 1];
-    return `${top} L ${last.px.toFixed(2)} ${baselineY.toFixed(2)} L ${first.px.toFixed(2)} ${baselineY.toFixed(2)} Z`;
-  };
-
-  const ageTicks = [minAge, Math.round((minAge + maxAge) / 2), maxAge];
-  const gridLines = [25, 50, 75, 100];
-
-  const statusPts = statusQuo ? compositePoints(statusQuo) : [];
-  const statusStart = statusPts[0];
+  // 年龄刻度（每 ~5 年）。
+  const ticks: number[] = [];
+  {
+    const stepYears =
+      layout.maxAge - layout.minAge > 24 ? 5 : layout.maxAge - layout.minAge > 10 ? 3 : 2;
+    for (let a = layout.minAge; a <= layout.maxAge + 0.001; a += stepYears) ticks.push(a);
+  }
 
   return (
     <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + space }]}>
       <Text style={styles.h1}>人生树</Text>
       <Muted style={{ marginBottom: 14 }}>
-        每条线是一种可能的人生走向 · 纵轴为综合人生指数，横轴为年龄
+        从「现在」分叉出的每条路 · 点曲线和那个未来的自己聊聊 · 左右滑看更远
       </Muted>
 
-      {/* 暗色媒体面板 + SVG 曲线 */}
+      {/* 暗色媒体面板 + 分支地图（横向可滚动） */}
       <View style={styles.panel}>
-        <Svg width={W} height={H}>
-          <Defs>
-            {/* 面板背景：自上而下极淡的暖晕 → 死黑，给画面纵深 */}
-            <LinearGradient id="lp-panel" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={DARK.bgGlow} />
-              <Stop offset="0.55" stopColor={DARK.bg} />
-              <Stop offset="1" stopColor={DARK.bg} />
-            </LinearGradient>
-            {/* 维持现状面积：极淡灰 */}
-            <LinearGradient id="lp-area-sq" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={hexToRgba(DARK.statusQuo, 0.1)} />
-              <Stop offset="1" stopColor={hexToRgba(DARK.statusQuo, 0)} />
-            </LinearGradient>
-            {/* 每条选择路径一套渐变（面积填充 + 终点光晕） */}
-            {choices.map((p) => (
-              <React.Fragment key={`def-${p.id}`}>
-                <LinearGradient id={`lp-area-${p.id}`} x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0" stopColor={hexToRgba(p.color, 0.32)} />
-                  <Stop offset="0.7" stopColor={hexToRgba(p.color, 0.06)} />
-                  <Stop offset="1" stopColor={hexToRgba(p.color, 0)} />
-                </LinearGradient>
-                <RadialGradient id={`lp-glow-${p.id}`} cx="0.5" cy="0.5" r="0.5">
-                  <Stop offset="0" stopColor={hexToRgba(p.color, 0.55)} />
-                  <Stop offset="1" stopColor={hexToRgba(p.color, 0)} />
-                </RadialGradient>
-              </React.Fragment>
-            ))}
-          </Defs>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <Svg width={renderW} height={renderH} viewBox={`0 0 ${layout.width} ${layout.height}`}>
+            <Defs>
+              <LinearGradient id="lm-panel" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor={DARK.bgGlow} />
+                <Stop offset="0.6" stopColor={DARK.bg} />
+                <Stop offset="1" stopColor={DARK.bg} />
+              </LinearGradient>
+              {layout.items.map((p) =>
+                p.kind === "status-quo" ? null : (
+                  <RadialGradient key={`g-${p.id}`} id={`lm-glow-${p.id}`} cx="0.5" cy="0.5" r="0.5">
+                    <Stop offset="0" stopColor={hexToRgba(p.color, 0.6)} />
+                    <Stop offset="1" stopColor={hexToRgba(p.color, 0)} />
+                  </RadialGradient>
+                ),
+              )}
+            </Defs>
 
-          {/* 面板底 */}
-          <Rect x={0} y={0} width={W} height={H} rx={14} fill="url(#lp-panel)" />
+            <Rect x={0} y={0} width={layout.width} height={layout.height} fill="url(#lm-panel)" />
 
-          {/* 横向网格（很淡，50 处略亮作为「中位」参考） */}
-          {gridLines.map((v) => (
-            <Line
-              key={v}
-              x1={padL}
-              y1={y(v)}
-              x2={W - padR}
-              y2={y(v)}
-              stroke={v === 50 ? DARK.gridMid : DARK.grid}
-              strokeWidth={1}
-              strokeDasharray={v === 50 ? "2 6" : undefined}
-            />
-          ))}
+            {/* 年龄刻度（极淡竖虚线 + 标签） */}
+            {ticks.map((age) => {
+              const tx = layout.xFor(age);
+              return (
+                <React.Fragment key={`t-${age}`}>
+                  <Line
+                    x1={tx}
+                    y1={origin.y - layout.height * 0.4}
+                    x2={tx}
+                    y2={origin.y + layout.height * 0.4}
+                    stroke={DARK.grid}
+                    strokeWidth={1}
+                    strokeDasharray="2 10"
+                  />
+                  <SvgText x={tx} y={layout.height - 24} fill={DARK.textFaint} fontSize={17} textAnchor="middle">
+                    {age}岁
+                  </SvgText>
+                </React.Fragment>
+              );
+            })}
 
-          {/* 纵向引导（年龄刻度处的极淡竖线） */}
-          {ageTicks.map((a) => (
-            <Line
-              key={`v-${a}`}
-              x1={x(a)}
-              y1={padT}
-              x2={x(a)}
-              y2={baselineY}
-              stroke={DARK.grid}
-              strokeWidth={1}
-              strokeOpacity={0.5}
-            />
-          ))}
+            {/* 路径：先 halo 后主线，choice 自绘入场；status-quo 灰色虚线静态 */}
+            {layout.items.map((p, i) => {
+              const isSq = p.kind === "status-quo";
+              const color = isSq ? DARK.statusQuo : p.color;
+              const slot = itemCount > 1 ? i / itemCount : 0;
+              const offset = anim.interpolate({
+                inputRange: [slot * 0.55, Math.min(1, slot * 0.55 + 0.45)],
+                outputRange: [DASH, 0],
+                extrapolate: "clamp",
+              });
+              return (
+                <React.Fragment key={p.id}>
+                  {/* 透明加粗命中区：点曲线 → 聊未来 */}
+                  <Path
+                    d={p.dPath}
+                    stroke="transparent"
+                    strokeWidth={34}
+                    fill="none"
+                    onPress={() => router.push(`/chat/${p.id}`)}
+                  />
+                  {isSq ? (
+                    <Path
+                      d={p.dPath}
+                      stroke={color}
+                      strokeWidth={3}
+                      strokeDasharray="9 9"
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                  ) : (
+                    <>
+                      {/* 光晕 halo */}
+                      <AnimatedPath
+                        d={p.dPath}
+                        stroke={hexToRgba(p.color, 0.22)}
+                        strokeWidth={11}
+                        strokeLinecap="round"
+                        fill="none"
+                        strokeDasharray={DASH}
+                        strokeDashoffset={offset}
+                      />
+                      {/* 主线 */}
+                      <AnimatedPath
+                        d={p.dPath}
+                        stroke={color}
+                        strokeWidth={4}
+                        strokeLinecap="round"
+                        fill="none"
+                        strokeDasharray={DASH}
+                        strokeDashoffset={offset}
+                      />
+                    </>
+                  )}
 
-          {/* 基线（年龄轴） */}
-          <Line x1={padL} y1={baselineY} x2={W - padR} y2={baselineY} stroke={DARK.axis} strokeWidth={1} />
-          {ageTicks.map((a) => (
-            <SvgText
-              key={a}
-              x={x(a)}
-              y={baselineY + 18}
-              fill={DARK.textFaint}
-              fontSize={10.5}
-              fontWeight="500"
-              textAnchor={a === minAge ? "start" : a === maxAge ? "end" : "middle"}
-            >
-              {a}岁
+                  {/* 节点（沿曲线的小点） */}
+                  {p.nodes.map((n, ni) =>
+                    ni === 0 ? null : (
+                      <Circle
+                        key={`${p.id}-n-${n.age}`}
+                        cx={n.x}
+                        cy={n.y}
+                        r={4}
+                        fill={DARK.bg}
+                        stroke={color}
+                        strokeWidth={2}
+                      />
+                    ),
+                  )}
+
+                  {/* 终点：光晕 + 实心点 + 标签（choice 带可行度） */}
+                  {!isSq && (
+                    <Circle cx={p.end.x} cy={p.end.y} r={16} fill={`url(#lm-glow-${p.id})`} />
+                  )}
+                  <Circle cx={p.end.x} cy={p.end.y} r={isSq ? 5 : 6} fill={color} />
+                  <SvgText
+                    x={p.end.x + 16}
+                    y={p.end.y - 2}
+                    fill={isSq ? DARK.textMuted : DARK.text}
+                    fontSize={19}
+                    fontWeight="700"
+                  >
+                    {truncate(p.choiceLabel, 10)}
+                  </SvgText>
+                  <SvgText x={p.end.x + 16} y={p.end.y + 20} fill={DARK.textMuted} fontSize={15}>
+                    {truncate(p.summary, 16)}
+                  </SvgText>
+                  {!isSq && typeof p.feasibility === "number" && (
+                    <SvgText x={p.end.x + 16} y={p.end.y + 40} fill={DARK.textFaint} fontSize={14}>
+                      约 {roundFeasibility(p.feasibility)}%
+                    </SvgText>
+                  )}
+                </React.Fragment>
+              );
+            })}
+
+            {/* 原点：呼吸光晕 + 「现在 · 名字」 */}
+            <AnimatedCircle cx={origin.x} cy={origin.y} r={pulseR} fill="#ffffff" opacity={pulseO} />
+            <Circle cx={origin.x} cy={origin.y} r={9} fill={DARK.bg} stroke="#fff" strokeWidth={2.5} />
+            <SvgText x={origin.x} y={origin.y - 22} fill={DARK.text} fontSize={17} fontWeight="700" textAnchor="middle">
+              现在
             </SvgText>
-          ))}
-
-          {/* 维持现状：面积 + 灰色虚线 */}
-          {statusQuo && statusPts.length > 1 ? (
-            <>
-              <Path d={areaD(statusPts)} fill="url(#lp-area-sq)" />
-              <Path
-                d={lineD(statusPts)}
-                stroke={DARK.statusQuo}
-                strokeWidth={1.75}
-                strokeDasharray="2 6"
-                strokeLinecap="round"
-                fill="none"
-              />
-            </>
-          ) : null}
-
-          {/* 选择路径：面积渐变 + 彩色平滑实线 + 终点光晕节点 */}
-          {choices.map((p) => {
-            const pts = compositePoints(p);
-            if (pts.length === 0) return null;
-            const last = pts[pts.length - 1];
-            const ex = x(last.age);
-            const ey = y(last.value);
-            return (
-              <React.Fragment key={p.id}>
-                <Path d={areaD(pts)} fill={`url(#lp-area-${p.id})`} />
-                <Path
-                  d={lineD(pts)}
-                  stroke={p.color}
-                  strokeWidth={2.75}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-                {/* 终点：外层柔和光晕 → 同色实心点 → 白色高光内环 */}
-                <Circle cx={ex} cy={ey} r={16} fill={`url(#lp-glow-${p.id})`} />
-                <Circle cx={ex} cy={ey} r={5.5} fill={p.color} />
-                <Circle cx={ex} cy={ey} r={2.2} fill="#ffffff" fillOpacity={0.92} />
-              </React.Fragment>
-            );
-          })}
-
-          {/* 「现在」起点标记：所有路径同一起点（用维持现状的起点） */}
-          {statusStart ? (
-            <G>
-              <Circle cx={x(statusStart.age)} cy={y(statusStart.value)} r={9} fill={hexToRgba(DARK.text, 0.08)} />
-              <Circle
-                cx={x(statusStart.age)}
-                cy={y(statusStart.value)}
-                r={3.4}
-                fill={DARK.bg}
-                stroke={DARK.text}
-                strokeWidth={1.6}
-              />
-              <SvgText
-                x={x(statusStart.age)}
-                y={y(statusStart.value) - 14}
-                fill={DARK.textMuted}
-                fontSize={10}
-                fontWeight="600"
-                textAnchor="start"
-              >
-                现在
-              </SvgText>
-            </G>
-          ) : null}
-        </Svg>
-
-        {/* 面板内图例：色块 + 路径名 + 约X%（横向滚动避免拥挤） */}
-        {(choices.length > 0 || statusQuo) ? (
-          <View style={styles.legend}>
-            {statusQuo ? (
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDash, { backgroundColor: DARK.statusQuo }]} />
-                <Text style={styles.legendLabel} numberOfLines={1}>
-                  维持现状
-                </Text>
-              </View>
-            ) : null}
-            {choices.map((p) => (
-              <View key={`lg-${p.id}`} style={styles.legendItem}>
-                <View style={[styles.legendSwatch, { backgroundColor: p.color }]} />
-                <Text style={styles.legendLabel} numberOfLines={1}>
-                  {p.choiceLabel}
-                </Text>
-                {typeof p.feasibility === "number" ? (
-                  <Text style={styles.legendPct}>约{p.feasibility}%</Text>
-                ) : null}
-              </View>
-            ))}
-          </View>
-        ) : null}
+            <SvgText x={origin.x} y={origin.y + 32} fill={DARK.textMuted} fontSize={15} textAnchor="middle">
+              {truncate(name, 8)}
+            </SvgText>
+          </Svg>
+        </ScrollView>
       </View>
 
       {/* 加人生选择 */}
@@ -350,7 +341,6 @@ export default function TreeScreen() {
         {enriching ? <Muted style={{ marginTop: 8, textAlign: "center" }}>AI 推演中…</Muted> : null}
       </Card>
 
-      {/* AI 推演中：骨架占位（匹配下方路径卡形状） */}
       {enriching ? <SkeletonCard /> : null}
 
       {/* 路径清单 */}
@@ -358,7 +348,7 @@ export default function TreeScreen() {
         <Card>
           <Text style={styles.emptyTitle}>暂时只有「维持现状」</Text>
           <Muted>
-            上面加一条人生选择，这里就会长出不同的彩色分支。（离线即时推演；接入后端后会换成更贴近你的 AI 预测 + 现实可行度。）
+            上面加一条人生选择，地图上就会长出不同的彩色分支。（离线即时推演；接入后端后会换成更贴近你的 AI 预测 + 现实可行度。）
           </Muted>
         </Card>
       ) : (
@@ -390,7 +380,6 @@ export default function TreeScreen() {
       {choices.length > 0 ? (
         <Text style={styles.disclaimer}>可行度为 AI 粗估，非精确概率；随你的实际进度上升。</Text>
       ) : null}
-
     </ScrollView>
   );
 }
@@ -399,37 +388,13 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: space, paddingBottom: 48 },
   h1: { fontSize: 30, fontWeight: "700", color: colors.fg, marginBottom: 6 },
   panel: {
-    borderRadius: 14,
+    height: PANEL_H,
+    borderRadius: 16,
     borderCurve: "continuous",
     overflow: "hidden",
     marginBottom: 16,
     backgroundColor: DARK.bg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#26262f",
-    boxShadow: "0 8px 24px rgba(0,0,0,0.28)",
   },
-  legend: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingTop: 4,
-    paddingBottom: 14,
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 9,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    maxWidth: "100%",
-  },
-  legendSwatch: { width: 9, height: 9, borderRadius: 5 },
-  legendDash: { width: 12, height: 2.5, borderRadius: 2 },
-  legendLabel: { fontSize: 12, color: DARK.text, fontWeight: "500", flexShrink: 1 },
-  legendPct: { fontSize: 12, color: DARK.textMuted, fontWeight: "600" },
   emptyTitle: { fontSize: 16, fontWeight: "600", color: colors.fg, marginBottom: 4 },
   composerTitle: { fontSize: 16, fontWeight: "700", color: colors.fg, marginBottom: 4 },
   cardActions: {
@@ -449,6 +414,4 @@ const styles = StyleSheet.create({
   feasibility: { fontSize: 14, fontWeight: "700", color: colors.accent },
   feasNote: { fontSize: 12, color: colors.fgMuted, marginTop: 6 },
   disclaimer: { fontSize: 12, color: colors.fgMuted, marginTop: 4, textAlign: "center" },
-  resetBtn: { marginTop: 32, alignItems: "center", paddingVertical: 8 },
-  resetText: { fontSize: 13, color: colors.danger },
 });
