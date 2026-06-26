@@ -49,12 +49,19 @@ export default function ChatScreen() {
     setMessages(next);
     setInput("");
     setLoading(true);
-    const reply = await chatReply(tree, path, next);
+    let reply: string | null = null;
+    try {
+      reply = await chatReply(tree, path, next);
+    } catch {
+      // 网络 / AI 失败：下面用兜底文案，绝不让 loading 卡死。
+      reply = null;
+    } finally {
+      setLoading(false);
+    }
     setMessages([
       ...next,
       { role: "assistant", content: reply ?? "（暂时连不上未来的自己，稍后再试）" },
     ]);
-    setLoading(false);
   };
 
   return (

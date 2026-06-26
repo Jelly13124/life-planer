@@ -452,6 +452,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               ),
             });
           })
+          .catch(() => {
+            // 网络 / AI 失败：保留本地即时推演结果，不打扰用户、不崩。
+          })
           .finally(() => setEnriching(false));
       }
     },
@@ -477,7 +480,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         snapshot: buildSnapshot(inputs),
       };
       let tree = createTree(profile, localGenerator, nowISO());
-      if (win) tree = setDayWindow(tree, win.start, win.end);
+      // 作息窗兜底：睡觉必须晚于起床（"HH:MM" 零填充 → 字符串比较即时间比较）。
+      // 退化输入（睡<=醒）忽略，保留默认窗，避免时间轴/排程算出负区间。
+      if (win && win.end > win.start) tree = setDayWindow(tree, win.start, win.end);
       commit(tree);
     },
     [commit],
@@ -502,7 +507,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const choices = Array.from(
       new Set(cur.paths.filter((p) => p.kind === "choice").map((p) => p.choiceLabel)),
     );
-    return fetchGoalSuggestions(cur.profile.snapshot || "", choices, "zh");
+    try {
+      return await fetchGoalSuggestions(cur.profile.snapshot || "", choices, "zh");
+    } catch {
+      // 网络 / AI 失败：返回空列表，调用方显示「暂无建议」，绝不抛到 UI。
+      return [];
+    }
   }, []);
 
   const value = useMemo<AppValue>(() => {
