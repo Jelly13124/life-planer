@@ -139,3 +139,14 @@ Continued the Expo mobile port to a shippable state on TestFlight (ASC App ID 67
 
 ### Optimization round 1 (overnight, user picked: UI polish + stability/edge)
 Commits `066d474` (mobile AI-failure catches, onboard day-window guard, chat-hang fix), `22bb789` (press-feedback on goal/chat chips), `456dd91` (core `dayWindow` normalizes degenerate window + test → 455 tests; TimePickSheet wheel never empty), `1c99987` (a11y labels on FAB + picker close). Verified boot/load + saveTree already catch (no crash on corrupt storage). Web `/green` all green; mobile tsc clean. → **build 11** (auto-submit). Morning review: docs/MORNING-2026-06-26.md. Deferred: cloud login (see memory cloud-sync-status). Not yet done: web mobile-responsive, mobile feature parity (habits mgmt / insights / 我-settings).
+
+### Depth pass (brainstorm→spec→plan→build, 2026-06-26) → build 13
+Spec docs/superpowers/specs/2026-06-26-mobile-tree-depth-calendar-design.md, plan docs/superpowers/plans/2026-06-26-mobile-tree-depth-calendar.md. Shipped (commits 9b1a84a…efe830b):
+- core: scenarioOdds (3 scenarios sum 100, 中性 base 60 + split by feasibility; TDD) + goalsDueOn (TDD). web /green = 459 tests.
+- store: addScenario / addChoiceBranchAt(parent,forkAge,label) / addShortGoalToLong(…endDate).
+- F1 path detail page app/path/[pathId]: header + 综合人生指数 + 现实可行度 + 乐观/中性/保守 toggle w/ odds + 5 MetricCharts + 关键时刻 timeline + chat. Reliable entry = tap path card (curve/endpoint also, finicky in horizontal ScrollView on Android emu — card is the guaranteed path). VERIFIED on emulator (header+odds+charts+timeline render).
+- F2 tap tree node → fork sheet → addChoiceBranchAt at node age.
+- F3 duration slider in TimePickSheet (@react-native-community/slider 5.2.0).
+- F4 MonthScreen lists selected-day schedule + due-goal markers (MonthView dueOf).
+- F5 short-goal due date (GoalsScreen native date picker → endDate; shows on calendar + card).
+- mobile tsc clean throughout; build 13 (auto-submit). Open follow-up: confirm on-curve/node SVG taps on real iOS (card-tap is the reliable fallback either way).
