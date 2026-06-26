@@ -72,6 +72,7 @@ export default function OnboardingScreen() {
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [education, setEducation] = useState<EducationLevel>("bachelor");
+  const [major, setMajor] = useState("");
   const [occupation, setOccupation] = useState("");
   const [salary, setSalary] = useState<SalaryBand>("5to10");
   const [relationship, setRelationship] = useState<RelationshipStatus>("single");
@@ -107,7 +108,7 @@ export default function OnboardingScreen() {
       name: name.trim(),
       age: ageNum,
       education,
-      major: "",
+      major: major.trim(),
       occupation: occupation.trim(),
       salary,
       hasSideHustle: false,
@@ -137,8 +138,16 @@ export default function OnboardingScreen() {
       ),
     },
     {
-      title: "你的学历",
-      body: <ChipGroup options={EDUCATION_OPTIONS} value={education} onChange={setEducation} />,
+      title: "学历与专业",
+      body: (
+        <>
+          <SubLabel>学历</SubLabel>
+          <ChipGroup options={EDUCATION_OPTIONS} value={education} onChange={setEducation} />
+          <View style={{ height: 18 }} />
+          <SubLabel>专业 / 方向</SubLabel>
+          <Input value={major} onChangeText={setMajor} placeholder="如 计算机 / 金融 / 设计（可空）" />
+        </>
+      ),
     },
     {
       title: "现在做什么",

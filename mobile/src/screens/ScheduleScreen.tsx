@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GOAL_AREA_LABELS, type GoalArea, type Task, type Habit } from "@lifeplanner/core/types";
 import { weekdayOf } from "@lifeplanner/core/calendar";
@@ -76,6 +77,7 @@ export default function ScheduleScreen() {
     else if (ts.mode === "add") {
       setAddTime(start);
       setAddDur(dur);
+      setAddOpen(true); // 选完时间回到「添加任务」弹窗（不嵌套两层 Modal）
     }
   };
 
@@ -110,7 +112,8 @@ export default function ScheduleScreen() {
     const text = addText.trim();
     if (!text) return;
     if (!addTime) {
-      // 时间必填：没选时间就直接弹出选时间面板，不允许无时间任务。
+      // 时间必填：没选时间就直接弹出选时间面板，不允许无时间任务。先收起添加弹窗避免两层 Modal。
+      setAddOpen(false);
       setTimeSheet({
         mode: "add",
         title: text || "新任务",
@@ -217,28 +220,42 @@ export default function ScheduleScreen() {
               const habit = isHabit(a);
               const last = i === timed.length - 1;
               return (
-                <View key={a.item.id} style={styles.tlRow}>
-                  <View style={styles.tlLeft}>
-                    <Text style={styles.tlTime}>{a.item.startTime}</Text>
-                    <AreaTile area={a.goal ? a.goal.area : null} size={40} outline={habit} />
-                    {!last ? <View style={styles.tlSpine} /> : null}
+                <Swipeable
+                  key={a.item.id}
+                  overshootRight={false}
+                  renderRightActions={() => (
+                    <Pressable
+                      style={styles.swipeDelete}
+                      onPress={() => app.removeItem(a.item.id)}
+                    >
+                      <Icon name="trash-can-outline" size={20} color="#fff" />
+                      <Text style={styles.swipeDeleteText}>删除</Text>
+                    </Pressable>
+                  )}
+                >
+                  <View style={styles.tlRow}>
+                    <View style={styles.tlLeft}>
+                      <Text style={styles.tlTime}>{a.item.startTime}</Text>
+                      <AreaTile area={a.goal ? a.goal.area : null} size={40} outline={habit} />
+                      {!last ? <View style={styles.tlSpine} /> : null}
+                    </View>
+                    <Pressable style={styles.tlContent} onPress={() => blockPressed(a)}>
+                      <Text style={[styles.tlTitle, a.done && styles.tlDone]} numberOfLines={2}>
+                        {a.item.text}
+                      </Text>
+                      <Text style={styles.tlMeta}>
+                        {rangeLabel(a.item.startTime!, a.item.durationMin)}
+                        {habit ? " · 习惯" : ""}
+                        {a.goal ? ` · ${GOAL_AREA_LABELS[a.goal.area]}` : ""}
+                      </Text>
+                    </Pressable>
+                    <Checkbox
+                      checked={a.done}
+                      accent={c}
+                      onPress={() => app.toggleDoneOn(a.item.id, app.viewDate, a.done)}
+                    />
                   </View>
-                  <Pressable style={styles.tlContent} onPress={() => blockPressed(a)}>
-                    <Text style={[styles.tlTitle, a.done && styles.tlDone]} numberOfLines={2}>
-                      {a.item.text}
-                    </Text>
-                    <Text style={styles.tlMeta}>
-                      {rangeLabel(a.item.startTime!, a.item.durationMin)}
-                      {habit ? " · 习惯" : ""}
-                      {a.goal ? ` · ${GOAL_AREA_LABELS[a.goal.area]}` : ""}
-                    </Text>
-                  </Pressable>
-                  <Checkbox
-                    checked={a.done}
-                    accent={c}
-                    onPress={() => app.toggleDoneOn(a.item.id, app.viewDate, a.done)}
-                  />
-                </View>
+                </Swipeable>
               );
             })}
           </View>
@@ -304,7 +321,10 @@ export default function ScheduleScreen() {
           dayStart={app.dayWin.start}
           dayEnd={app.dayWin.end}
           onConfirm={onTimeConfirm}
-          onClose={() => setTimeSheet(null)}
+          onClose={() => {
+            if (timeSheet?.mode === "add") setAddOpen(true); // 取消选时间也回到添加弹窗
+            setTimeSheet(null);
+          }}
         />
       ) : null}
 
@@ -324,15 +344,16 @@ export default function ScheduleScreen() {
 
             <Text style={styles.modalLabel}>时间（必填）</Text>
             <Pressable
-              onPress={() =>
+              onPress={() => {
+                setAddOpen(false); // 收起添加弹窗，避免在 Modal 上再叠 Modal（iOS 会无反应）
                 setTimeSheet({
                   mode: "add",
                   title: addText.trim() || "新任务",
                   area: addGoalId ? activeGoals.find((g) => g.id === addGoalId)?.area : null,
                   start: addTime ?? undefined,
                   duration: addDur,
-                })
-              }
+                });
+              }}
               style={({ pressed }) => [
                 styles.timeBtn,
                 addTime ? styles.timeBtnOn : styles.timeBtnReq,
@@ -421,7 +442,17 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 13, color: colors.fg, maxWidth: 160 },
   emptyTitle: { fontSize: 16, fontWeight: "600", color: colors.fg, marginBottom: 4 },
   timeline: { marginTop: 4 },
-  tlRow: { flexDirection: "row", alignItems: "stretch", minHeight: 66 },
+  tlRow: { flexDirection: "row", alignItems: "stretch", minHeight: 66, backgroundColor: colors.bg },
+  swipeDelete: {
+    backgroundColor: colors.danger,
+    width: 88,
+    flexDirection: "row",
+    gap: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 0,
+  },
+  swipeDeleteText: { color: "#fff", fontSize: 13, fontWeight: "700" },
   tlLeft: { width: 56, alignItems: "center" },
   tlTime: { fontSize: 12, color: colors.fgMuted, marginBottom: 4 },
   tlSpine: { width: 2, flex: 1, backgroundColor: colors.line, marginTop: 4 },
