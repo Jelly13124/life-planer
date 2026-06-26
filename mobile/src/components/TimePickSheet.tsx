@@ -103,6 +103,8 @@ export function TimePickSheet({
             <Pressable
               onPress={onClose}
               hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="关闭"
               style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.6 }]}
             >
               <Icon name="close" size={20} color={colors.fg} />

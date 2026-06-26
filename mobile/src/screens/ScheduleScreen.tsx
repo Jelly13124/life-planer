@@ -299,6 +299,8 @@ export default function ScheduleScreen() {
       <Pressable
         style={({ pressed }) => [styles.fab, pressed && { opacity: 0.92, transform: [{ scale: 0.95 }] }]}
         onPress={openAdd}
+        accessibilityRole="button"
+        accessibilityLabel="添加任务"
       >
         <Icon name="plus" size={28} color="#fff" />
       </Pressable>
