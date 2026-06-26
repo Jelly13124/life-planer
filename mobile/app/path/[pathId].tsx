@@ -1,0 +1,268 @@
+// 岔路详情(完整预测展示)—— 对齐网页 PathDetail 的预测部分:
+// 头部 + 现实可行度 + 乐观/中性/保守三情景(带可能性比率)+ 五领域指标曲线 + 关键时刻时间线 + 聊天入口。
+// 不含:把这条路变成计划/复盘、补充信息重推(本轮不做)。
+import React, { useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  AREA_LABELS,
+  DIMENSION_LABELS,
+  LIFE_AREAS,
+  type Mood,
+  type Scenario,
+} from "@lifeplanner/core/types";
+import { effectiveFeasibility } from "@lifeplanner/core/feasibility";
+import { scenarioOdds } from "@lifeplanner/core/scenarioOdds";
+import { useApp } from "../../src/state/store";
+import { futureAgeOf } from "../../src/lib/api";
+import { MetricChart } from "../../src/components/MetricChart";
+import { colors, space, radii } from "../../src/theme";
+
+const SCENARIOS: { value: Scenario; label: string }[] = [
+  { value: "optimistic", label: "乐观" },
+  { value: "likely", label: "中性" },
+  { value: "conservative", label: "保守" },
+];
+const MOOD_COLOR: Record<Mood, string> = { high: "#0f9d6a", mid: "#c77600", low: "#e84a6f" };
+const MOOD_LABEL: Record<Mood, string> = { high: "高光", mid: "平稳", low: "低谷" };
+const round5 = (n: number) => Math.round(n / 5) * 5;
+
+export default function PathDetailScreen() {
+  const { pathId } = useLocalSearchParams<{ pathId: string }>();
+  const { tree, addScenario } = useApp();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { width } = useWindowDimensions();
+
+  const path = tree?.paths.find((p) => p.id === pathId) ?? null;
+
+  if (!tree || !path) {
+    return (
+      <View style={[styles.center, { paddingTop: insets.top }]}>
+        <Text style={styles.muted}>这条路找不到了。</Text>
+        <Pressable onPress={() => router.back()} hitSlop={8} style={{ marginTop: 12 }}>
+          <Text style={styles.back}>‹ 返回人生树</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const isChoice = path.kind === "choice";
+  const eff = isChoice ? effectiveFeasibility(tree, path) : null;
+  const odds = scenarioOdds(eff?.value ?? path.feasibility);
+
+  const variantFor = (s: Scenario) =>
+    tree.paths.find(
+      (p) =>
+        p.kind === "choice" &&
+        p.choiceLabel === path.choiceLabel &&
+        p.parentId === path.parentId &&
+        p.scenario === s,
+    );
+  const pickScenario = (s: Scenario) => {
+    if (s === path.scenario) return;
+    const v = variantFor(s);
+    if (v) router.replace(`/path/${v.id}`);
+    else addScenario(path.id, s);
+  };
+
+  const chartW = Math.min(170, (width - space * 2 - 12) / 2);
+
+  return (
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 8 }]}>
+      <Pressable onPress={() => router.back()} hitSlop={8}>
+        <Text style={styles.back}>‹ 返回人生树</Text>
+      </Pressable>
+
+      {/* 头部 */}
+      <View style={styles.headRow}>
+        <View style={[styles.dot, { backgroundColor: path.color }]} />
+        <Text style={styles.title}>{path.choiceLabel}</Text>
+      </View>
+      {path.summary ? <Text style={styles.summary}>{path.summary}</Text> : null}
+      <View style={styles.indexPill}>
+        <Text style={styles.indexLabel}>{tree.profile.name || "你"} 的综合人生指数 · </Text>
+        <Text style={[styles.indexVal, { color: path.color }]}>{path.endValue}</Text>
+        <Text style={styles.indexLabel}>/100</Text>
+      </View>
+      <Text style={styles.disclaimer}>这是一种可能的人生,不是预测。数字代表综合状态感受,仅供想象参考。</Text>
+
+      {/* 现实可行度 */}
+      {isChoice && eff ? (
+        <View style={styles.feasBox}>
+          <Text style={styles.feasLine}>
+            现实可行度 <Text style={styles.feasVal}>约 {round5(eff.value)}%</Text>
+            {path.feasibilityNote ? <Text style={styles.feasNote}> — {path.feasibilityNote}</Text> : null}
+          </Text>
+          {eff.bump > 0 ? (
+            <Text style={styles.feasSub}>
+              起步 {round5(eff.baseline)}% · <Text style={{ color: colors.success, fontWeight: "700" }}>你的行动 +{eff.bump}%</Text>
+            </Text>
+          ) : null}
+          <Text style={styles.feasFaint}>AI 粗估,非精确概率</Text>
+        </View>
+      ) : null}
+
+      {/* 三情景切换(带可能性比率) */}
+      {isChoice ? (
+        <View style={{ marginTop: 18 }}>
+          <Text style={styles.sectionLabel}>换个走向看看</Text>
+          <View style={styles.segRow}>
+            {SCENARIOS.map((s) => {
+              const active = path.scenario === s.value;
+              return (
+                <Pressable
+                  key={s.value}
+                  onPress={() => pickScenario(s.value)}
+                  style={({ pressed }) => [
+                    styles.seg,
+                    active && styles.segOn,
+                    pressed && !active && { opacity: 0.7 },
+                  ]}
+                >
+                  <Text style={[styles.segLabel, active && { color: "#fff" }]}>{s.label}</Text>
+                  <Text style={[styles.segPct, active && { color: "#fff" }]}>{odds[s.value]}%</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={styles.feasFaint}>概率为 AI 粗估,非精确;三者相加 = 100%。</Text>
+        </View>
+      ) : null}
+
+      {/* 五领域指标曲线 */}
+      <Text style={[styles.sectionLabel, { marginTop: 22 }]}>各方面随时间的变化</Text>
+      <View style={styles.chartGrid}>
+        {LIFE_AREAS.map((a) => (
+          <MetricChart key={a} label={AREA_LABELS[a]} points={path.metrics[a] ?? []} color={path.color} width={chartW} />
+        ))}
+      </View>
+
+      {/* 关键时刻时间线 */}
+      <Text style={[styles.sectionLabel, { marginTop: 24 }]}>这条路上的关键时刻</Text>
+      <View style={styles.timeline}>
+        {path.nodes.map((n, i) => (
+          <View key={`${n.age}-${i}`} style={styles.tlRow}>
+            <View style={styles.tlLeft}>
+              <View style={[styles.tlDot, { backgroundColor: MOOD_COLOR[n.mood] }]} />
+              {i < path.nodes.length - 1 ? <View style={styles.tlSpine} /> : null}
+            </View>
+            <View style={styles.tlBody}>
+              <View style={styles.tlHead}>
+                <Text style={styles.tlAge}>{n.age} 岁</Text>
+                <View style={[styles.moodTag, { backgroundColor: `${MOOD_COLOR[n.mood]}22` }]}>
+                  <Text style={[styles.moodText, { color: MOOD_COLOR[n.mood] }]}>{MOOD_LABEL[n.mood]}</Text>
+                </View>
+              </View>
+              <Text style={styles.tlTitle}>{n.title}</Text>
+              {n.story ? <Text style={styles.tlStory}>{n.story}</Text> : null}
+              {n.dimensions?.length ? (
+                <View style={styles.dimRow}>
+                  {n.dimensions.map((d) => (
+                    <View key={d} style={styles.dimChip}>
+                      <Text style={styles.dimText}>{DIMENSION_LABELS[d]}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          </View>
+        ))}
+      </View>
+
+      {/* 聊天入口 */}
+      <Pressable
+        onPress={() => router.push(`/chat/${path.id}`)}
+        style={({ pressed }) => [styles.chatBtn, pressed && { opacity: 0.9 }]}
+      >
+        <Text style={styles.chatBtnText}>和 {futureAgeOf(path)} 岁的你聊聊</Text>
+      </Pressable>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  content: { paddingHorizontal: space, paddingBottom: 48 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
+  muted: { color: colors.fgMuted, fontSize: 15 },
+  back: { color: colors.accent, fontSize: 15, fontWeight: "600" },
+  headRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 12 },
+  dot: { width: 12, height: 12, borderRadius: 6 },
+  title: { flex: 1, fontSize: 24, fontWeight: "700", color: colors.fg },
+  summary: { fontSize: 15, color: colors.fgMuted, marginTop: 8, lineHeight: 21 },
+  indexPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    marginTop: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    borderRadius: radii.pill,
+    backgroundColor: "#fff",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  indexLabel: { fontSize: 13, color: colors.fgMuted },
+  indexVal: { fontSize: 15, fontWeight: "700" },
+  disclaimer: { fontSize: 12, color: colors.fgMuted, marginTop: 8, lineHeight: 18 },
+  feasBox: {
+    marginTop: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    borderRadius: radii.md,
+    backgroundColor: "#fff",
+    padding: 12,
+  },
+  feasLine: { fontSize: 14, color: colors.fg, lineHeight: 20 },
+  feasVal: { fontWeight: "700", color: colors.fg },
+  feasNote: { color: colors.fgMuted },
+  feasSub: { fontSize: 12, color: colors.fgMuted, marginTop: 5 },
+  feasFaint: { fontSize: 11, color: colors.fgMuted, marginTop: 6 },
+  sectionLabel: { fontSize: 13, fontWeight: "600", color: colors.fgMuted, marginBottom: 8 },
+  segRow: { flexDirection: "row", gap: 8 },
+  seg: {
+    flex: 1,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.sm,
+    backgroundColor: "#fff",
+    paddingVertical: 10,
+  },
+  segOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  segLabel: { fontSize: 14, fontWeight: "600", color: colors.fg },
+  segPct: { fontSize: 12, color: colors.fgMuted, marginTop: 2 },
+  chartGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  timeline: { marginTop: 4 },
+  tlRow: { flexDirection: "row", gap: 12 },
+  tlLeft: { width: 16, alignItems: "center" },
+  tlDot: { width: 14, height: 14, borderRadius: 7, marginTop: 3 },
+  tlSpine: { width: 2, flex: 1, backgroundColor: colors.line, marginTop: 3 },
+  tlBody: { flex: 1, paddingBottom: 22 },
+  tlHead: { flexDirection: "row", alignItems: "center", gap: 8 },
+  tlAge: { fontSize: 14, fontWeight: "700", color: colors.fg },
+  moodTag: { borderRadius: radii.pill, paddingHorizontal: 8, paddingVertical: 2 },
+  moodText: { fontSize: 11, fontWeight: "600" },
+  tlTitle: { fontSize: 15, fontWeight: "600", color: colors.fg, marginTop: 4 },
+  tlStory: { fontSize: 14, color: colors.fgMuted, marginTop: 4, lineHeight: 20 },
+  dimRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
+  dimChip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+    borderRadius: radii.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    backgroundColor: "#fff",
+  },
+  dimText: { fontSize: 10, color: colors.fgMuted },
+  chatBtn: {
+    backgroundColor: colors.accent,
+    borderRadius: radii.sm,
+    borderCurve: "continuous",
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 24,
+  },
+  chatBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+});

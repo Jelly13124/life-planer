@@ -7,6 +7,7 @@ import {
   Alert,
   Animated,
   Easing,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -84,12 +85,14 @@ function useReduceMotion(): boolean {
 }
 
 export default function TreeScreen() {
-  const { tree, addChoiceBranch, removeBranch, enriching } = useApp();
+  const { tree, addChoiceBranch, addChoiceBranchAt, removeBranch, enriching } = useApp();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const reduce = useReduceMotion();
   const { width } = useWindowDimensions();
   const [label, setLabel] = useState("");
+  const [forkSheet, setForkSheet] = useState<{ parentId: string; age: number } | null>(null);
+  const [forkText, setForkText] = useState("");
   const [anim] = useState(() => new Animated.Value(0)); // 曲线自绘进度 0→1
   const [pulse] = useState(() => new Animated.Value(0)); // 原点呼吸
 
@@ -137,6 +140,13 @@ export default function TreeScreen() {
     if (!label.trim()) return;
     addChoiceBranch(label);
     setLabel("");
+  };
+
+  const submitFork = () => {
+    if (!forkSheet || !forkText.trim()) return;
+    addChoiceBranchAt(forkSheet.parentId, forkSheet.age, forkText);
+    setForkText("");
+    setForkSheet(null);
   };
   const confirmRemove = (p: LifePath) =>
     Alert.alert("删除这条路", `删除「${p.choiceLabel}」分支？`, [
@@ -233,7 +243,7 @@ export default function TreeScreen() {
                     stroke="transparent"
                     strokeWidth={34}
                     fill="none"
-                    onPress={() => router.push(`/chat/${p.id}`)}
+                    onPress={() => router.push(`/path/${p.id}`)}
                   />
                   {isSq ? (
                     <Path
@@ -269,18 +279,19 @@ export default function TreeScreen() {
                     </>
                   )}
 
-                  {/* 节点（沿曲线的小点） */}
+                  {/* 节点（沿曲线的小点）：点它 = 在这一年加一条岔路 */}
                   {p.nodes.map((n, ni) =>
                     ni === 0 ? null : (
-                      <Circle
-                        key={`${p.id}-n-${n.age}`}
-                        cx={n.x}
-                        cy={n.y}
-                        r={4}
-                        fill={DARK.bg}
-                        stroke={color}
-                        strokeWidth={2}
-                      />
+                      <React.Fragment key={`${p.id}-n-${n.age}`}>
+                        <Circle
+                          cx={n.x}
+                          cy={n.y}
+                          r={18}
+                          fill="transparent"
+                          onPress={() => setForkSheet({ parentId: p.id, age: n.age })}
+                        />
+                        <Circle cx={n.x} cy={n.y} r={4} fill={DARK.bg} stroke={color} strokeWidth={2} />
+                      </React.Fragment>
                     ),
                   )}
 
@@ -380,6 +391,28 @@ export default function TreeScreen() {
       {choices.length > 0 ? (
         <Text style={styles.disclaimer}>可行度为 AI 粗估，非精确概率；随你的实际进度上升。</Text>
       ) : null}
+
+      {/* 点节点 → 在那一年加岔路 */}
+      <Modal visible={!!forkSheet} transparent animationType="fade" onRequestClose={() => setForkSheet(null)}>
+        <Pressable style={styles.forkBg} onPress={() => setForkSheet(null)}>
+          <Pressable style={styles.forkCard} onPress={() => {}}>
+            <Text style={styles.composerTitle}>
+              在这里加一条岔路{forkSheet ? `（${forkSheet.age} 岁）` : ""}
+            </Text>
+            <Muted style={{ marginBottom: 10 }}>从这一年分出一条新的人生路。</Muted>
+            <Input
+              value={forkText}
+              onChangeText={setForkText}
+              placeholder="这条路是…"
+              autoFocus
+              onSubmitEditing={submitFork}
+              returnKeyType="done"
+            />
+            <View style={{ height: 10 }} />
+            <Button label="推演这条路" onPress={submitFork} disabled={!forkText.trim()} />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
@@ -414,4 +447,6 @@ const styles = StyleSheet.create({
   feasibility: { fontSize: 14, fontWeight: "700", color: colors.accent },
   feasNote: { fontSize: 12, color: colors.fgMuted, marginTop: 6 },
   disclaimer: { fontSize: 12, color: colors.fgMuted, marginTop: 4, textAlign: "center" },
+  forkBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "center", paddingHorizontal: 28 },
+  forkCard: { backgroundColor: "#fff", borderRadius: 16, borderCurve: "continuous", padding: 18 },
 });
