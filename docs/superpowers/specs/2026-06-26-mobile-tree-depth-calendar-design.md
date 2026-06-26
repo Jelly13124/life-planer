@@ -40,13 +40,14 @@ New: each scenario shows a likelihood % and the three sum to 100. Deterministic 
 
 **Source formula** (pure helper, e.g. add to core `feasibility.ts` or a new pure module `scenarioOdds.ts`, TDD'd):
 - `f = clamp(effectiveFeasibility.value ?? path.feasibility ?? 50, 0, 100) / 100`
-- raw: 中性 = 50, 乐观 = 50·f, 保守 = 50·(1−f)
+- raw: **中性 = 60**(占大头), 乐观 = 40·f, 保守 = 40·(1−f)
 - round each to nearest 5; adjust 中性 by the rounding remainder so the three sum to exactly 100.
-- Returns `{ optimistic, likely, conservative }` integers summing to 100.
+- Returns `{ optimistic, likely, conservative }` integers summing to 100. 中性 is always the largest.
+- Examples: f=.5 → 乐观20·中性60·保守20; f=.8 → 乐观30·中性60·保守10; f=.2 → 乐观10·中性60·保守30.
 
 **UI**: the scenario toggle (segmented 乐观/中性/保守) shows each label with its % under it. A line「概率为 AI 粗估,非精确」. Switching: if a variant for that scenario exists (match by choiceLabel+parentId+scenario) → open it; else generate via `addScenarioVariant` (store method, local-instant).
 
-> Tunable: 中性 fixed at 50 is the v1 choice (most-likely ≈ half; the other half splits by feasibility). Easy to change later.
+> Tunable: 中性 base = 60 (most-likely dominates; the other 40 splits by feasibility). Easy to change later.
 
 ## F2 — 点关键节点加岔路
 
