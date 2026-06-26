@@ -1,5 +1,5 @@
 // 自定义"选时间"面板（仿 Structured）：图标 + 任务名 + 时间滚轮(显示 开始–结束 区间)
-// + 持续时间快捷胶囊 + 确定。纯 RN ScrollView 吸附,不依赖 reanimated。
+// + 持续时间滑块 + 确定。滚轮纯 RN ScrollView 吸附,不依赖 reanimated。
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
@@ -11,6 +11,7 @@ import {
   type NativeSyntheticEvent,
   type NativeScrollEvent,
 } from "react-native";
+import Slider from "@react-native-community/slider";
 import type { GoalArea } from "@lifeplanner/core/types";
 import { toMinutes, toHHMM } from "@lifeplanner/core/schedule";
 import { colors, radii } from "../theme";
@@ -21,14 +22,12 @@ const VISIBLE = 5; // 奇数：中间为选中
 const PAD = ROW * Math.floor(VISIBLE / 2);
 const STEP = 15; // 每 15 分钟一档
 
-const DURATIONS: { m: number; label: string }[] = [
-  { m: 15, label: "15分" },
-  { m: 30, label: "30分" },
-  { m: 45, label: "45分" },
-  { m: 60, label: "1小时" },
-  { m: 90, label: "1.5小时" },
-  { m: 120, label: "2小时" },
-];
+// 时长 → 中文（15 分步进:整小时说"X小时",含半说"X.5小时",不足 60 说"X分钟"）。
+function fmtDur(m: number): string {
+  if (m < 60) return `${m} 分钟`;
+  const h = m / 60;
+  return `${Number.isInteger(h) ? h : h.toFixed(1)} 小时`;
+}
 
 // 就近档位（纯函数；供 useState 初始化用）。
 function nearestIndex(times: string[], target: string, dayStart: string): number {
@@ -151,22 +150,22 @@ export function TimePickSheet({
             </ScrollView>
           </View>
 
-          {/* 持续时间 */}
-          <Text style={styles.durLabel}>持续时间</Text>
-          <View style={styles.durRow}>
-            {DURATIONS.map((d) => {
-              const on = d.m === dur;
-              return (
-                <Pressable
-                  key={d.m}
-                  onPress={() => setDur(d.m)}
-                  style={({ pressed }) => [styles.durChip, on && styles.durChipOn, pressed && { opacity: 0.7 }]}
-                >
-                  <Text style={[styles.durChipText, on && { color: "#fff" }]}>{d.label}</Text>
-                </Pressable>
-              );
-            })}
+          {/* 持续时间（滑块,15 分钟 – 4 小时,15 分步进） */}
+          <View style={styles.durHead}>
+            <Text style={styles.durLabel}>持续时间</Text>
+            <Text style={styles.durValue}>{fmtDur(dur)}</Text>
           </View>
+          <Slider
+            minimumValue={15}
+            maximumValue={240}
+            step={15}
+            value={dur}
+            onValueChange={setDur}
+            minimumTrackTintColor={colors.accent}
+            maximumTrackTintColor={colors.line}
+            thumbTintColor={colors.accent}
+            style={styles.slider}
+          />
 
           <Pressable
             style={({ pressed }) => [styles.confirm, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}
@@ -226,18 +225,10 @@ const styles = StyleSheet.create({
   },
   selText: { color: "#fff", fontSize: 17, fontWeight: "700" },
   dimText: { color: colors.fgMuted, fontSize: 15 },
-  durLabel: { fontSize: 16, fontWeight: "700", color: colors.fg, marginBottom: 10 },
-  durRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
-  durChip: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.line,
-    borderRadius: radii.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    backgroundColor: "#fff",
-  },
-  durChipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
-  durChipText: { fontSize: 14, fontWeight: "600", color: colors.fg },
+  durHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 2 },
+  durLabel: { fontSize: 16, fontWeight: "700", color: colors.fg },
+  durValue: { fontSize: 15, fontWeight: "700", color: colors.accent },
+  slider: { width: "100%", height: 40, marginBottom: 12 },
   confirm: {
     backgroundColor: colors.accent,
     borderRadius: radii.sm,
