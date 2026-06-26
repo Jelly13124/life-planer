@@ -115,3 +115,27 @@ Brainstorm → spec (`docs/superpowers/specs/2026-06-24-mobile-complete-design.m
 - `dda9bef` P6 notifications.ts local scheduled reminders (next 7d scheduled task/habit times); **Expo Go-safe**: expo-notifications throws on import in Expo Go (SDK 53+ removed remote push) → guarded with Constants Expo-Go check + dynamic import = full no-op in Expo Go (verified app loads clean), real notifs only dev build/TestFlight. store debounced sync on commit + load.
 - **P7 drag DEFERRED** (honest): gesture-handler 3.0.2 + transitive reanimated 4.5.0 (no babel worklets plugin) → drag gestures would crash in Expo Go; adb can't verify long-press-drag; tap-to-schedule is the working fallback. Belongs with EAS dev-build (where reanimated/notifications/TestFlight all get set up). Pre-agreed in spec as the risky last piece with fallback.
 - Morning review: `docs/MORNING-2026-06-24.md`.
+
+## Session — 2026-06-26 mobile overhaul → TestFlight (builds 4–9), web/mobile parity
+Continued the Expo mobile port to a shippable state on TestFlight (ASC App ID 6784142722; auto-submit wired in eas.json). Branch `feat/goal-planning-mainline`, master fast-forwarded each commit.
+
+### Shipped (in order)
+- Custom Structured-style time picker (`TimePickSheet`, wheel + duration chips) + **time required** on add-task.
+- **Brand re-theme**: violet → burnt-orange `#c2410c` (web `--accent` + mobile `colors.accent`, same hex); violet demoted to `growth` area; area colors unified web↔mobile; later wealth→green `#0a7d33`, health→teal `#0b8a8a` (all area colors cool, distinct from accent). Radius scale `radii {sm12,md16,lg24,pill999}`. Loading skeletons + press feedback.
+- **Dep root-cause fix** (`05e3e36`): gesture-handler 3.0.2→2.31.x, reanimated 4.5→4.3.1, worklets 0.10→0.8.3; dropped root overrides. Expo Go masked the mismatch; the compiled build had broken touch (tabs/modals "no response"). See memory `expo-dep-alignment`. ALWAYS `expo install --check` before EAS builds.
+- Short-goals UI (阶段目标 under each long goal; store `addShortGoalToLong` → domain `addShortGoal`). Step-by-step onboarding wizard (7 steps, progress bar) + asks 专业/major. Native iOS time popup for wake/sleep. De-nested add→选时间 (was nested Modals, fails on iOS). Swipe-to-delete timeline tasks (gesture-handler Swipeable).
+- **Life-tree parity**: mobile tree was a line chart; replaced with the web branching MAP. `mobile/src/lib/mapLayout.ts` is a verbatim mirror of `src/components/mapLayout.ts` (identical geometry). RN render: self-drawing curves (Animated strokeDashoffset), glow halo, pulsing origin, status-quo dashed, endpoint labels + 约X%, horizontal scroll = pan, tap curve → chat. (Note: an interim line-chart "redesign" `1a37ff1` was the WRONG direction; superseded by the map port `269ea8d`.)
+
+### State
+- TestFlight: **build 9** is the current good one (builds 4/5 had the bad deps; 6/7/8 superseded). Backend live at life-planer-opal.vercel.app (real DeepSeek).
+- mobile `npx tsc --noEmit` clean. Web: tsc clean (full `/green` re-run pending this session).
+- Emulator: AVD `trippin`, Expo Go, flaky (ANRs/drops) — verify via screenshots; Metro restarts with `--clear` after dep/babel changes.
+
+### Deferred (user decision 2026-06-26)
+- **Cloud login + sync: NOT now.** Web cloud sync is fully built but flag-gated off (needs Supabase project + the 2 NEXT_PUBLIC_SUPABASE_* env). Mobile cloud is NOT built. User will create the Supabase project later. Chosen auth (when resumed): magic link on web (built) + email OTP code on mobile (to build).
+
+### Now
+- Focus: optimize/polish BOTH clients (web + mobile) to a consistent solid state. No login work.
+
+### Optimization round 1 (overnight, user picked: UI polish + stability/edge)
+Commits `066d474` (mobile AI-failure catches, onboard day-window guard, chat-hang fix), `22bb789` (press-feedback on goal/chat chips), `456dd91` (core `dayWindow` normalizes degenerate window + test → 455 tests; TimePickSheet wheel never empty), `1c99987` (a11y labels on FAB + picker close). Verified boot/load + saveTree already catch (no crash on corrupt storage). Web `/green` all green; mobile tsc clean. → **build 11** (auto-submit). Morning review: docs/MORNING-2026-06-26.md. Deferred: cloud login (see memory cloud-sync-status). Not yet done: web mobile-responsive, mobile feature parity (habits mgmt / insights / 我-settings).
