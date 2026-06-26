@@ -14,8 +14,8 @@ import React, {
 } from "react";
 import { AppState } from "react-native";
 
-import type { GoalArea, Goal, LifeTree, Profile, Task, Habit } from "@lifeplanner/core/types";
-import { createTree, addPath, removePath } from "@lifeplanner/core/tree";
+import type { GoalArea, Goal, LifeTree, Profile, Task, Habit, Scenario } from "@lifeplanner/core/types";
+import { createTree, addPath, addScenarioVariant, removePath } from "@lifeplanner/core/tree";
 import { localGenerator } from "@lifeplanner/core/generator/localGenerator";
 import {
   longGoals,
@@ -112,7 +112,7 @@ interface AppValue {
   goToday: () => void;
   // 写入（复用领域核心）
   addLongGoal: (area: GoalArea, title: string, why?: string) => void;
-  addShortGoalToLong: (longId: string, title: string) => void;
+  addShortGoalToLong: (longId: string, title: string, endDate?: string) => void;
   addTaskToGoal: (goalId: string, text: string) => void;
   addHabitToGoal: (goalId: string, text: string, repeat: "daily" | "weekly") => void;
   addLooseTask: (text: string) => void;
@@ -130,6 +130,8 @@ interface AppValue {
   removeGoal: (goalId: string) => void;
   completeGoal: (goalId: string) => void;
   addChoiceBranch: (label: string) => void;
+  addChoiceBranchAt: (parentPathId: string, forkAge: number, label: string) => void;
+  addScenario: (basePathId: string, scenario: Scenario) => void;
   removeBranch: (pathId: string) => void;
   enriching: boolean;
   onboard: (inputs: ProfileInputs, win?: { start: string; end: string }) => void;
@@ -225,14 +227,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addShortGoalToLong = useCallback(
-    (longId: string, title: string) => {
+    (longId: string, title: string, endDate?: string) => {
       const cur = treeRef.current;
       if (!cur || !title.trim()) return;
       const parent = longGoals(cur).find((g) => g.id === longId);
       const { tree: next } = domainAddShortGoal(
         cur,
         longId,
-        { area: parent ? parent.area : "other", title: title.trim() },
+        { area: parent ? parent.area : "other", title: title.trim(), endDate },
         nowISO(),
       );
       commit(next);
@@ -461,6 +463,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [commit],
   );
 
+  // 在某条路的某个节点处加岔路（点树上的节点）：从该节点年龄分叉。
+  const addChoiceBranchAt = useCallback(
+    (parentPathId: string, forkAge: number, label: string) => {
+      const cur = treeRef.current;
+      if (!cur || !label.trim()) return;
+      const next = addPath(cur, label.trim(), localGenerator, nowISO(), {
+        parentId: parentPathId,
+        forkAge,
+      });
+      const np = next.paths[next.paths.length - 1];
+      commit(next);
+      if (hasBackend()) {
+        setEnriching(true);
+        void enrichPath(next, np)
+          .then((result) => {
+            if (!result) return;
+            const t = treeRef.current;
+            if (!t) return;
+            commit({
+              ...t,
+              paths: t.paths.map((p) => (p.id === np.id ? applyEnrichToPath(p, result) : p)),
+            });
+          })
+          .catch(() => {})
+          .finally(() => setEnriching(false));
+      }
+    },
+    [commit],
+  );
+
+  // 切换情景（乐观/中性/保守）：没有该走向变体时本地即时生成一条。
+  const addScenario = useCallback(
+    (basePathId: string, scenario: Scenario) => {
+      const cur = treeRef.current;
+      if (!cur) return;
+      commit(addScenarioVariant(cur, basePathId, scenario, localGenerator, nowISO()));
+    },
+    [commit],
+  );
+
   // 删除一条分支（级联删其后代；维持现状不可删，由领域层保证）。
   const removeBranch = useCallback(
     (pathId: string) => {
@@ -557,6 +599,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       removeGoal,
       completeGoal,
       addChoiceBranch,
+      addChoiceBranchAt,
+      addScenario,
       removeBranch,
       enriching,
       onboard,
@@ -591,6 +635,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     removeGoal,
     completeGoal,
     addChoiceBranch,
+    addChoiceBranchAt,
+    addScenario,
     removeBranch,
     enriching,
     onboard,
