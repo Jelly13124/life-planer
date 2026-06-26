@@ -105,6 +105,11 @@ export function childGoals(tree: LifeTree, longGoalId: string): Goal[] {
   return shortGoalsOf(tree, longGoalId);
 }
 
+// 某天到期的目标（endDate === date，本地 YYYY-MM-DD）。用于日历标记 + 当日列表。纯函数。
+export function goalsDueOn(tree: LifeTree, date: string): Goal[] {
+  return goals(tree).filter((g) => g.endDate === date);
+}
+
 // 已达成的目标对应的分支 id 集合（供人生树高亮里程碑）。
 export function achievedPathIds(tree: LifeTree): Set<string> {
   const ids = goals(tree)

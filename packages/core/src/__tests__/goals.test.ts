@@ -14,6 +14,7 @@ import {
   addGoalTag,
   removeGoalTag,
   allTags,
+  goalsDueOn,
 } from "@/domain/goals";
 import {
   addHabit,
@@ -443,6 +444,16 @@ describe("goals domain", () => {
 
     it("allTags returns empty array when no goals have tags", () => {
       expect(allTags(base())).toEqual([]);
+    });
+  });
+
+  describe("goalsDueOn", () => {
+    it("returns goals whose endDate matches; ignores undated / other days", () => {
+      const long = addLongGoal(base(), { area: "growth", title: "学英语" }, NOW);
+      const s1 = addShortGoal(long.tree, long.id, { area: "growth", title: "7月冲刺", endDate: "2026-07-26" }, NOW);
+      const s2 = addShortGoal(s1.tree, long.id, { area: "growth", title: "无期限" }, `${NOW}-b`);
+      expect(goalsDueOn(s2.tree, "2026-07-26").map((g) => g.id)).toEqual([s1.id]);
+      expect(goalsDueOn(s2.tree, "2026-07-25")).toEqual([]);
     });
   });
 });
