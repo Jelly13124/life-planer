@@ -123,7 +123,8 @@ export function CalendarPlannerScreen() {
         subtitle={
           <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="inline-flex items-center gap-1.5 text-[var(--c-amber)]"><IconFlame className="h-3.5 w-3.5" /> {t("连续 {n} 天", { n: streak })}</span>
-            <HeatStrip days={hm} t={t} />
+            {/* 近 30 天热力条：全为 0 时（新用户）不渲染，避免一排灰条像加载占位。有一天活跃后才出现。 */}
+            {hm.some((d) => d.count > 0) && <HeatStrip days={hm} t={t} />}
           </span>
         }
         actions={<Button variant="subtle" onClick={() => setWeeklyOpen(true)}><span className="inline-flex items-center gap-1.5"><IconCalendar className="h-4 w-4" />{t("本周回顾")}</span></Button>}

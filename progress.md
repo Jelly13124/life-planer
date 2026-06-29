@@ -171,3 +171,12 @@ User: "3,4一起做了" (do visual polish + perf/onboarding together). Audit fou
 - **③ Loaders**: replaced bare "载入中…" with BootLoader (品牌标记 + 轻旋转环) for the !hydrated gate; shared ScreenLoader (min-h-screen spinner) as the dynamic-import fallback so view swaps don't jump.
 - **Verified live** (Preview MCP): boots to calendar home instantly; navigated 目标/人生树/洞察/选择面板 — all code-split views resolve & render, no console errors. /green: tsc 0 / 469 vitest / next build ok (.next cleared).
 - Still optional next: broader visual sweep (空状态/信息密度/骨架统一); measure actual first-load JS delta (Turbopack build output omits the size column here).
+
+### Web optimization round 3 — real-screenshot visual pass (③)
+User: "做" → deeper visual sweep. First attempted staggered list entrance (`.lp-stagger`) but **reverted**: that utility was authored-but-never-used and has an invisible-content failure mode (opacity:0 `both`-fill when the animation doesn't run), AND the Preview MCP browser is headless → doesn't tick CSS animations, so opacity-anim visuals can't be verified there (confirmed: `.animate-fade` probes read opacity 0 too). Don't ship motion blind.
+- **Screenshot channel that works**: `.claude/launch.json` gained a `web-prod` config (`npm run start`). Against a **production** server (no HMR/RSC stream) `preview_screenshot` no longer times out; inject `*{animation:none!important} .lp-path{stroke-dashoffset:0!important}` via eval first so faded-in content renders visible in the static capture. This is the repeatable way to actually SEE the web app.
+- **Saw for real** (desktop + mobile): calendar home, 人生树, onboarding. Verdict: genuinely clean + consistent; round-1 touch targets visibly correct on mobile. No significant visual defect — confirms the code-level audit.
+- **One real nit fixed**: calendar home heat strip rendered 30 faint gray bars for a zero-activity new user (read like a loading placeholder). Now gated: `hm.some(d=>d.count>0)` — hidden until there's ≥1 active day (progressive disclosure). CalendarPlannerScreen.
+- /green: tsc 0 / 469 vitest / build ok / .next cleared.
+- Honest conclusion: web visual polish is DONE for now; further churn is diminishing-returns + risk. Higher-leverage next: cloud login/sync, or measure/trim first-load JS, or new features.
+- Note: cloud sync entry ("云同步") shows in the sidebar even in this prod preview — worth confirming whether NEXT_PUBLIC_SUPABASE_* are set in the deploy or if CloudAuth shows when unconfigured (functional, deferred — not visual).
