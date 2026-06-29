@@ -180,3 +180,12 @@ User: "做" → deeper visual sweep. First attempted staggered list entrance (`.
 - /green: tsc 0 / 469 vitest / build ok / .next cleared.
 - Honest conclusion: web visual polish is DONE for now; further churn is diminishing-returns + risk. Higher-leverage next: cloud login/sync, or measure/trim first-load JS, or new features.
 - Note: cloud sync entry ("云同步") shows in the sidebar even in this prod preview — worth confirming whether NEXT_PUBLIC_SUPABASE_* are set in the deploy or if CloudAuth shows when unconfigured (functional, deferred — not visual).
+
+## Session — 2026-06-29 (cont.) Prediction copy polish (enrich.ts, eval-driven)
+User: "预测文案打磨". Followed the rule (surgical edit + re-eval; don't gut constraints). Ran live /api/enrich (real DeepSeek, dev :3000) against 2 profiles — a US-visa SWE (小雨) and a CN-domestic self-media bet (林然) — before/after.
+- **Baseline finding**: AI output is already strong (real anchors: Meta E4/总包breakdown/PERM审计/EB2排期; 索尼A7M4/B站/年营收30→80万; real friction; multi-dim; causal). Two genuine weak spots: (1) **summary contradicted the nodes** — fabricated ages/labels (e.g. "27岁拿到绿卡" while nodes put 绿卡 at 31; "升Staff" that doesn't exist); (2) stories were **fact-dense but feeling-thin** (the required "内心或细节" was just another fact).
+- **Two surgical edits to src/lib/enrich.ts** (buildUserPrompt only; SYSTEM + all hard constraints untouched):
+  1. Story rule: "一处内心或细节" → require a real inner beat (情绪/犹豫/疲惫/欣慰/不甘 or a body/sensory detail like 手在抖/整夜没睡/松了口气), explicitly "not just one more fact".
+  2. Summary rule: ≤25 字, final-state only (贴最后一两个 node), **forbid any age/year numbers** and milestone-list "X岁…Y岁…" format (that's where it contradicted nodes).
+- **Re-eval (after)**: summaries now age-free, final-state, consistent with nodes (visa "小雨在Meta做到E5后回国创业，公司被收购。" 23字; dom "自媒体未能盈利，回归职场做市场经理，副业接单" 21字). Interiority now genuine in nearly every node ("整夜没睡，既兴奋又焦虑"; "胃痛到整夜睡不着"; "苦笑，这比上班还累"; "至少社保有人交了"). No regression: anchors/friction/multi-dim/causal/feasibility all retained.
+- /green: tsc 0 / 469 vitest / build ok / .next cleared. Offline fallback templates (packages/core/src/archetypes.ts) left as-is (already warm, only used when no key).
