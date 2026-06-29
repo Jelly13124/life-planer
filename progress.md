@@ -163,3 +163,11 @@ User asked to optimize the web (picked all 4 dims: responsive / goal-model-align
 - Gotcha: Turbopack on Windows missed the first globals.css edit (stale compiled CSS — served had lp-card but not lp-tap); a trivial re-save nudged the watcher to rebuild. Same Windows-watcher flakiness noted for Metro/mobile.
 - Added `.claude/launch.json` (web dev-server config for the Preview MCP).
 - Next round candidates (④): 首屏/加载性能, 上手引导流畅度, 报错边界; plus optional broader visual pass (空状态/密度一致性).
+
+### Web optimization round 2 — error boundaries + first-load perf + loaders (③+④)
+User: "3,4一起做了" (do visual polish + perf/onboarding together). Audit found: NO error boundary (any crash → white screen) and page.tsx statically imports ~24 components into one client bundle.
+- **④ Error boundaries**: added `src/app/error.tsx` (route segment boundary — on-brand recovery card, 重试/刷新, console.error logging) + `src/app/global-error.tsx` (root-layout fallback, self-contained inline styles, own <html>/<body>). Both bilingual-static (read lp.locale from localStorage; NO context dependency so they can't re-crash). Reassure "数据安全存在本地".
+- **④ First-load perf (code-split)**: page.tsx now `next/dynamic` (ssr:false) for all non-initial screens — TreeScreen, PathDetail, PlanScreen, Habits/Areas/Insights/Today/Upcoming/AllTasks/Completed/Tag/Choices + PlanningAssistant. Kept STATIC: Onboarding + CalendarPlannerScreen (home, 回访即见) + AppShell + small overlays → instant first paint, the other 12 chunks load on demand.
+- **③ Loaders**: replaced bare "载入中…" with BootLoader (品牌标记 + 轻旋转环) for the !hydrated gate; shared ScreenLoader (min-h-screen spinner) as the dynamic-import fallback so view swaps don't jump.
+- **Verified live** (Preview MCP): boots to calendar home instantly; navigated 目标/人生树/洞察/选择面板 — all code-split views resolve & render, no console errors. /green: tsc 0 / 469 vitest / next build ok (.next cleared).
+- Still optional next: broader visual sweep (空状态/信息密度/骨架统一); measure actual first-load JS delta (Turbopack build output omits the size column here).
