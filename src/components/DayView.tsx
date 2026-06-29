@@ -147,7 +147,7 @@ export function DayView({
           <button
             onClick={onPrevDay}
             aria-label={t("前一天")}
-            className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--line)] text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--fg)]"
+            className="lp-tap-sq flex h-7 w-7 items-center justify-center rounded-full border border-[var(--line)] text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--fg)]"
           >
             ‹
           </button>
@@ -157,14 +157,14 @@ export function DayView({
           <button
             onClick={onNextDay}
             aria-label={t("后一天")}
-            className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--line)] text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--fg)]"
+            className="lp-tap-sq flex h-7 w-7 items-center justify-center rounded-full border border-[var(--line)] text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--fg)]"
           >
             ›
           </button>
         </div>
         <button
           onClick={onToday}
-          className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[11px] text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--fg)]"
+          className="lp-tap inline-flex items-center justify-center rounded-full border border-[var(--line)] px-3 py-1 text-[11px] text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--fg)]"
         >
           {t("回到今天")}
         </button>
@@ -195,7 +195,7 @@ export function DayView({
             variant="primary"
             onClick={runArrange}
             disabled={arranging || items.length === 0}
-            className="ml-auto !px-4 !py-2 text-xs"
+            className="lp-tap ml-auto !px-4 !py-2 text-xs"
           >
             {arranging ? (
               t("正在排…")
@@ -231,7 +231,7 @@ export function DayView({
               type="button"
               onClick={() => setComposing("task")}
               aria-label={t("新任务")}
-              className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-[var(--line)] px-3 py-1.5 text-xs text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--accent)]"
+              className="lp-tap inline-flex items-center gap-1.5 rounded-full border border-dashed border-[var(--line)] px-3 py-1.5 text-xs text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--accent)]"
             >
               <IconPlus className="h-3.5 w-3.5" />
               {t("＋ 任务")}
@@ -240,7 +240,7 @@ export function DayView({
               type="button"
               onClick={() => setComposing("routine")}
               aria-label={t("新日常（每天重复）")}
-              className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-[var(--line)] px-3 py-1.5 text-xs text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--accent)]"
+              className="lp-tap inline-flex items-center gap-1.5 rounded-full border border-dashed border-[var(--line)] px-3 py-1.5 text-xs text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--accent)]"
             >
               <IconRepeat className="h-3.5 w-3.5" />
               {t("＋ 日常")}

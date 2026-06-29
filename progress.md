@@ -150,3 +150,16 @@ Spec docs/superpowers/specs/2026-06-26-mobile-tree-depth-calendar-design.md, pla
 - F4 MonthScreen lists selected-day schedule + due-goal markers (MonthView dueOf).
 - F5 short-goal due date (GoalsScreen native date picker → endDate; shows on calendar + card).
 - mobile tsc clean throughout; build 13 (auto-submit). Open follow-up: confirm on-curve/node SVG taps on real iOS (card-tap is the reliable fallback either way).
+
+## Session — 2026-06-29 EAS Update (OTA) + web optimization round 1
+### Mobile OTA setup (commit 21e016b)
+Set up EAS Update so future JS/UI/文案/逻辑 changes ship via `eas update` (秒推, no build quota) instead of a full EAS Build each time. Added expo-updates ~56.0.19; app.json runtimeVersion {policy:"fingerprint"} + updates.url (u.expo.dev/<projectId>); eas.json channel "production"/"preview" per profile. Activates once the next native build (build 14) is cut WITH expo-updates embedded — build 14 is blocked on EAS free quota (resets Wed Jul 01 2026) or a plan upgrade. mobile tsc clean. master fast-forwarded + pushed.
+
+### Web optimization round 1 — mobile touch ergonomics + visual polish
+User asked to optimize the web (picked all 4 dims: responsive / goal-model-align / visual / perf). **Decision: keep web full goal model** (don't flatten to mobile's 目标→任务 — desktop has space, 447-test rewrite risk, mobile-lite+web-full is a valid pattern, data layer already shared). This round = ①mobile touch ergonomics + ③visual polish; ④perf/onboarding deferred to next round.
+- **Live audit method**: drove the app via Preview MCP dev server (`:3000`), completed onboarding programmatically (real DeepSeek enrich), measured every main view at 375px via preview_eval. Finding: **NO horizontal overflow anywhere** (AppShell already responsive: sidebar→hamburger drawer @ md:). Real gap = **touch targets** (年/月/日 toggle 26px, 去做 26px, ✕ 28px, EN 32px, etc — 18 sub-40px controls on calendar/day view). (preview_screenshot times out vs Next dev — HMR/RSC keeps network stream open; eval/inspect/snapshot work.)
+- **Fix**: added `.lp-tap` / `.lp-tap-sq` utilities in globals.css scoped to `@media (max-width:767px)` (the app's md: drawer breakpoint) → min-height/min-width 40px on phones, **zero desktop change**. Applied to the bespoke small controls in CalendarPlannerScreen (年/月/日 toggle, 去规划, ＋任务, 快速添加按钮), GettingStarted (✕, 去做), PrefControls (EN/中), CalendarImportCard (折叠头/添加/上传), DayView (前后一天, 回到今天, ＋任务/＋日常, AI 帮我排今天). Plain text buttons also got inline-flex centering so text stays centered when taller.
+- **Verified live**: at 375px all primary calendar/day controls now ≥40px, no overflow; at 800px `.lp-tap` inert (toggle back to 26px) — confirms desktop untouched. /green all pass (tsc 0 / 469 vitest / build ok / .next cleared).
+- Gotcha: Turbopack on Windows missed the first globals.css edit (stale compiled CSS — served had lp-card but not lp-tap); a trivial re-save nudged the watcher to rebuild. Same Windows-watcher flakiness noted for Metro/mobile.
+- Added `.claude/launch.json` (web dev-server config for the Preview MCP).
+- Next round candidates (④): 首屏/加载性能, 上手引导流畅度, 报错边界; plus optional broader visual pass (空状态/密度一致性).

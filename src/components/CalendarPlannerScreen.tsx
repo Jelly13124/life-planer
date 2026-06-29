@@ -156,7 +156,7 @@ export function CalendarPlannerScreen() {
             onClick={submitQuick}
             disabled={!quickText.trim()}
             aria-label={t("添加")}
-            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3.5 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+            className="lp-tap inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3.5 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
           >
             <IconPlus className="h-4 w-4" />
             {t("添加")}
@@ -208,7 +208,7 @@ export function CalendarPlannerScreen() {
                 <button
                   key={v}
                   onClick={() => setCalView(v)}
-                  className={`rounded-full px-3.5 py-1 text-[12px] font-medium transition ${
+                  className={`lp-tap inline-flex items-center justify-center rounded-full px-4 py-1 text-[12px] font-medium transition ${
                     calView === v
                       ? "bg-[var(--accent)] text-white"
                       : "text-[var(--fg-dim)] hover:text-[var(--fg)]"
@@ -286,7 +286,7 @@ export function CalendarPlannerScreen() {
                 icon={<IconTarget className="h-6 w-6" />}
                 description={t("还没有目标。去「我的规划」加一个。")}
                 action={
-                  <button onClick={openPlan} className="rounded-full border border-[var(--accent)]/50 px-3 py-1.5 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/15">
+                  <button onClick={openPlan} className="lp-tap inline-flex items-center justify-center rounded-full border border-[var(--accent)]/50 px-3.5 py-1.5 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/15">
                     {t("去规划")}
                   </button>
                 }
@@ -369,7 +369,7 @@ export function CalendarPlannerScreen() {
                 type="button"
                 onClick={() => setAddingTask((v) => !v)}
                 aria-label={t("新任务")}
-                className="inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--line)] px-2.5 py-1 text-[11px] text-[var(--fg-faint)] transition hover:border-[var(--accent)]/60 hover:text-[var(--accent)]"
+                className="lp-tap inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--line)] px-2.5 py-1 text-[11px] text-[var(--fg-faint)] transition hover:border-[var(--accent)]/60 hover:text-[var(--accent)]"
               >
                 {t("＋ 任务")}
               </button>

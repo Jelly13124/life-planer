@@ -40,7 +40,7 @@ export function GettingStarted({ tree }: { tree: LifeTree }) {
         <button
           onClick={dismissGuide}
           aria-label={t("关闭引导")}
-          className="-mr-1 -mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[var(--fg-faint)] transition hover:bg-black/[0.06] hover:text-[var(--fg)]"
+          className="lp-tap-sq -mr-1 -mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[var(--fg-faint)] transition hover:bg-black/[0.06] hover:text-[var(--fg)]"
         >
           ✕
         </button>
@@ -69,7 +69,7 @@ export function GettingStarted({ tree }: { tree: LifeTree }) {
             {!row.done && (
               <button
                 onClick={row.onClick}
-                className="flex-shrink-0 rounded-full border border-[var(--accent)]/50 px-3 py-1 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/15"
+                className="lp-tap inline-flex flex-shrink-0 items-center justify-center rounded-full border border-[var(--accent)]/50 px-3.5 py-1 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/15"
               >
                 {t("去做")}
               </button>

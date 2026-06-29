@@ -352,6 +352,23 @@ button:focus-visible,
   border-radius: 12px;
 }
 
+/* ---------- 移动端舒适触控目标 ----------
+   桌面端（≥768px，显示常驻侧栏）控件保持紧凑；窄屏（<768px，汉堡抽屉布局）下
+   把显式标记的小控件抬到至少 40px，便于手指点按（iOS HIG ≈44px / Android ≈48dp）。
+   仅作用于加了 .lp-tap / .lp-tap-sq 的元素——不全局改写，避免挤坏日历格/时间块等紧凑布局。
+   .lp-tap = 仅抬高；.lp-tap-sq = 同时保证最小宽度（方形图标按钮）。
+   注：纯文本 <button> 需另加 inline-flex items-center justify-center 让文字在抬高后居中。 */
+@media (max-width: 767px) {
+  .lp-tap {
+    min-height: 40px;
+  }
+  .lp-tap-sq {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}
+/* (touch-target utilities above; bump to force Turbopack CSS rebuild on Windows) */
+
 /* ---------- 无障碍：尊重"减少动态效果" ---------- */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -60,7 +60,7 @@ export function CalendarImportCard({ tree }: { tree: LifeTree }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2 text-left"
+        className="lp-tap flex w-full items-center gap-2 text-left"
       >
         <IconCalendar className="h-4 w-4 flex-shrink-0 text-[var(--fg-faint)]" />
         <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--fg-faint)]">{t("导入日历")}</span>
@@ -96,7 +96,7 @@ export function CalendarImportCard({ tree }: { tree: LifeTree }) {
               onClick={addUrl}
               disabled={!url.trim()}
               aria-label={t("添加")}
-              className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3.5 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+              className="lp-tap inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3.5 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
             >
               <IconPlus className="h-4 w-4" />
               {t("添加")}
@@ -119,7 +119,7 @@ export function CalendarImportCard({ tree }: { tree: LifeTree }) {
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-[var(--line)] px-3 py-1.5 text-xs text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--accent)]"
+              className="lp-tap inline-flex items-center gap-1.5 rounded-full border border-dashed border-[var(--line)] px-3 py-1.5 text-xs text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--accent)]"
             >
               <IconPlus className="h-3.5 w-3.5" />
               {t("上传 .ics 文件")}

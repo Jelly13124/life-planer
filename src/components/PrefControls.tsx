@@ -13,7 +13,7 @@ export function PrefControls() {
         onClick={toggleLocale}
         aria-label={t("切换语言")}
         title={t("切换语言")}
-        className="flex h-8 min-w-8 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--bg-1)]/80 px-2.5 text-xs font-semibold text-[var(--fg-dim)] backdrop-blur transition hover:border-[var(--accent)] hover:text-[var(--fg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+        className="lp-tap-sq flex h-8 min-w-8 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--bg-1)]/80 px-2.5 text-xs font-semibold text-[var(--fg-dim)] backdrop-blur transition hover:border-[var(--accent)] hover:text-[var(--fg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
       >
         {locale === "zh" ? "EN" : "中"}
       </button>
