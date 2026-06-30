@@ -1,5 +1,14 @@
 # Progress Log — Life Planner
 
+## Session — 2026-06-30 职场版 MBTI 人生路径码 viral funnel (P1 shipped, subagent-driven)
+Brainstormed (→ spec v2 `docs/superpowers/specs/2026-06-29-life-path-code-viral-test-design.md`) + planned (`.../plans/2026-06-29-life-path-code-viral-test.md`), then executed subagent-driven (Haiku implementers for new isolated files, Opus for enrich/onboarding integration + per-chunk review). Goal: acquisition-first viral layer — a career-MBTI test → 4-letter 人生路径码 + 中文昵称 on a shareable card, whose answers also feed the real prediction. Honest (光+影, soft-not-destiny, 约X% disclaimer), not 算命.
+- **Domain (pure, TDD, packages/core/src/lifePathCode/)**: axes (F/S·D/W·B/L·G/V) + 16 types (code/nickname/光/影/职场打法/feasibility/color/teaser) + 28 statements (7/axis, mixed-keyed, 5-pt slider) + weighted `scoreQuiz` (tie→SDLG) + `riskAppetiteFromAxes` + `styleHintForCode`. +13 tests (469→482).
+- **Web**: `/test` 28-slider quiz → sessionStorage → `/t/[code]` public result (OG metadata) + `LifePathCard` + SVG image export (mirrors treeShareImage). Entry links on onboarding + tree screen.
+- **C integration (test feeds prediction)**: onboarding reads sessionStorage result → sets `riskAppetite` (already → enrich via financialFacts) + persists `Profile.lifePathCode`/`lifePathAnswers` (new optional fields, backfilled). `enrich.ts` injects ONE soft career-tendency line when `profile.lifePathCode` set, with "不得凌驾事实/不写必然" guardrail.
+- **Gotchas handled**: f3 statement ASCII quotes → 「」; Next 16 `params` is a Promise (await); onboarding read moved out of effect into a lazy `useState` initializer (the repo's react-hooks/set-state-in-effect lint blocked the effect version).
+- **Verified**: /green (tsc 0 / 482 vitest / next build ok / .next cleared); live route smoke (/t/FDBV 200 + 孤勇拓荒者, /test 200 + slider, /t/zzzz 404).
+- **P2 deferred**: §5.3 pre-seeded "最可能的路" branch; compare/CP mode; mobile /test; AI-personalized teaser; funnel analytics. Share domain is a config const (`SHARE_DOMAIN`, defaults Vercel) — set the real one later.
+
 ## Session — 2026-06-19 (planning files initialized)
 Set up planning-with-files working memory. The project build is complete through Phase 9; branch `feat/goal-planning-mainline` @ `92a603d`, unmerged.
 
