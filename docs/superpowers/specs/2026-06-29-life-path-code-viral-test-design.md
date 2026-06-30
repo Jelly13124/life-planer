@@ -162,9 +162,9 @@ No persistence needed for the viral path (code is in the URL). The real tree per
 
 ---
 
-## 11. Open questions for the user
+## 11. Decisions (resolved 2026-06-29)
 
-1. **16 types vs 8 for MVP:** the 4-letter code = 16 types (true MBTI). Writing all 16 nicknames/光/影 is just copy work — recommend **shipping all 16** (the code wouldn't feel "MBTI" with only 8). OK?
-2. **Domain name on the card:** mockup used `renshengshu.app` — what's the real share domain? (affects card + OG.)
-3. **EN at launch:** zh-only first, add EN later? (recommend zh-only P1.)
-4. **Compare mode:** confirm deferring to P2.
+1. **16 types** — ship all 16 (full 4-letter code, true MBTI feel). Confirmed by user.
+2. **Share domain** — use a single config constant `SHARE_DOMAIN` (in a small `src/lib/shareConfig.ts` or env `NEXT_PUBLIC_SHARE_DOMAIN`), defaulting to the current Vercel domain (`life-planer-opal.vercel.app`); swap to the real domain later with one change. Card + OG read from this constant.
+3. **Language** — P1 zh-only; EN strings additive later.
+4. **Compare / CP mode** — deferred to P2.
