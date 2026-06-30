@@ -79,6 +79,12 @@ export function TreeScreen() {
           }}><IconShare className="h-4 w-4" />{t("分享")}</Button>
           <Button variant="primary" onClick={() => setAdding(true)}>{t("＋ 添加岔路")}</Button>
           <Button variant="ghost" onClick={reset} title={t("清空并重新开始")}>{t("↺ 重置")}</Button>
+          <a
+            href="/test"
+            className="lp-tap inline-flex items-center justify-center rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--fg-dim)] transition hover:border-[var(--accent)]/60 hover:text-[var(--fg)]"
+          >
+            {t("看看你是哪型")}
+          </a>
         </div>
       </header>
 
