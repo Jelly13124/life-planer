@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { AXES, codeOf, type Axes } from "../lifePathCode/axes";
 import { LIFE_PATH_TYPES, typeByCode, allTypes } from "../lifePathCode/types";
+import { STATEMENTS } from "../lifePathCode/statements";
 
 describe("lifePathCode/axes", () => {
   it("has 4 axes in fixed order with 8 distinct letters", () => {
@@ -33,5 +34,23 @@ describe("lifePathCode/types", () => {
   it("typeByCode resolves or returns undefined", () => {
     expect(typeByCode("FDBV")?.nickname).toBe("孤勇拓荒者");
     expect(typeByCode("ZZZZ")).toBeUndefined();
+  });
+});
+
+describe("lifePathCode/statements", () => {
+  it("has 28 statements, 7 per axis, each leaning a valid pole of its axis", () => {
+    expect(STATEMENTS.length).toBe(28);
+    for (const def of AXES) {
+      const forAxis = STATEMENTS.filter((s) => s.axis === def.axis);
+      expect(forAxis.length).toBe(7);
+      for (const s of forAxis) expect([def.a, def.b]).toContain(s.pole);
+      // mixed-keyed: each axis has at least one of each pole (reduces acquiescence bias)
+      expect(forAxis.some((s) => s.pole === def.a)).toBe(true);
+      expect(forAxis.some((s) => s.pole === def.b)).toBe(true);
+    }
+  });
+  it("statement ids are unique and non-empty text", () => {
+    expect(new Set(STATEMENTS.map((s) => s.id)).size).toBe(28);
+    for (const s of STATEMENTS) expect(s.text.length).toBeGreaterThan(0);
   });
 });
