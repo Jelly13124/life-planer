@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   DebtBand,
   EducationLevel,
@@ -22,6 +22,7 @@ import {
   SALARY_OPTIONS,
   SAVINGS_OPTIONS,
 } from "@/domain/profile";
+import { scoreQuiz, riskAppetiteFromAxes, type QuizAnswer } from "@/domain/lifePathCode";
 import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { Button } from "./ui/Button";
@@ -42,6 +43,21 @@ export function Onboarding() {
   const { t } = useT();
   const [step, setStep] = useState(0);
 
+  // 职场人格测试结果（从 /test 跳来时由 sessionStorage 一次性带入；纯读取，无 effect-setState）。
+  const [pendingLifePath] = useState<{ code: string; answers: QuizAnswer[] } | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = sessionStorage.getItem("lp.lifePath");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { code: string; answers: QuizAnswer[] };
+      return parsed?.code ? parsed : null;
+    } catch {
+      return null;
+    }
+  });
+  const lifePathCode = pendingLifePath?.code;
+  const lifePathAnswers = pendingLifePath?.answers;
+
   const [name, setName] = useState("");
   const [age, setAge] = useState(28);
   const [education, setEducation] = useState<EducationLevel>("bachelor");
@@ -59,12 +75,24 @@ export function Onboarding() {
   const [debt, setDebt] = useState<DebtBand | "">("");
   const [assets, setAssets] = useState("");
   const [family, setFamily] = useState<FamilyResponsibility | "">("");
-  const [riskAppetite, setRiskAppetite] = useState<RiskAppetite | "">("");
+  const [riskAppetite, setRiskAppetite] = useState<RiskAppetite | "">(
+    pendingLifePath ? riskAppetiteFromAxes(scoreQuiz(pendingLifePath.answers).axes) : "",
+  );
 
   const [relationship, setRelationship] = useState<RelationshipStatus>("single");
   const [hobbies, setHobbies] = useState("");
   const [status, setStatus] = useState("");
   const [crossroad, setCrossroad] = useState("");
+
+  // 读取后清掉一次性载荷（仅清外部存储，effect 不调用 setState）。
+  useEffect(() => {
+    if (!pendingLifePath) return;
+    try {
+      sessionStorage.removeItem("lp.lifePath");
+    } catch {
+      /* 忽略 */
+    }
+  }, [pendingLifePath]);
 
   const step0Valid = name.trim().length > 0 && age >= 10 && age <= 100;
   // 单线起手：岔路改为可选——不再要求填、也不再自动分叉（之后能在「我的规划」里变成目标）。
@@ -91,6 +119,8 @@ export function Onboarding() {
       assets: assets.trim() || undefined,
       family: family || undefined,
       riskAppetite: riskAppetite || undefined,
+      lifePathCode,
+      lifePathAnswers,
     };
     const profile: Profile = {
       ...inputs,
@@ -113,6 +143,12 @@ export function Onboarding() {
         <p className="mt-2 text-sm text-[var(--fg-dim)]">
           {t("填得越具体，AI 推演的人生越像你。这些信息只存在你自己的浏览器里。")}
         </p>
+        <a
+          href="/test"
+          className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[var(--accent)] transition hover:underline"
+        >
+          {t("先 28 题测你的职场人格 →")}
+        </a>
       </div>
 
       {/* 进度 */}
