@@ -1,4 +1,5 @@
-// 底部 5 Tab：首页 / 月历 / 目标 / 人生树 / 我。真线性图标（MaterialCommunityIcons）。
+// 底部 4 Tab：首页 / 目标 / 人生树 / 我。真线性图标（MaterialCommunityIcons）。
+// 「月历」已并入首页（周/月切换）——不再是独立 Tab。
 import { Tabs } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { ColorValue } from "react-native";
@@ -28,7 +29,6 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: "首页", tabBarIcon: icon("calendar-today") }} />
-      <Tabs.Screen name="month" options={{ title: "月历", tabBarIcon: icon("calendar-month-outline") }} />
       <Tabs.Screen name="goals" options={{ title: "目标", tabBarIcon: icon("target") }} />
       <Tabs.Screen name="tree" options={{ title: "人生树", tabBarIcon: icon("sitemap-outline") }} />
       <Tabs.Screen name="me" options={{ title: "我", tabBarIcon: icon("account-circle-outline") }} />

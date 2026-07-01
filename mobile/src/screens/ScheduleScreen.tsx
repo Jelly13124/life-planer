@@ -14,11 +14,12 @@ import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GOAL_AREA_LABELS, type GoalArea, type Task, type Habit } from "@lifeplanner/core/types";
 import { weekdayOf } from "@lifeplanner/core/calendar";
+import { goalsDueOn } from "@lifeplanner/core/goals";
 import { toMinutes, toHHMM } from "@lifeplanner/core/schedule";
 import { useApp, type DayAction } from "../state/store";
 import { Button, Card, Checkbox, Input, Muted, Progress, SectionTitle } from "../ui";
 import { colors, AREA_COLORS, radii, space } from "../theme";
-import { WeekStrip } from "../components/calendar";
+import { WeekStrip, MonthView } from "../components/calendar";
 import { AreaTile, Icon } from "../components/icons";
 import { TimePickSheet } from "../components/TimePickSheet";
 
@@ -50,6 +51,7 @@ export default function ScheduleScreen() {
   const [addTime, setAddTime] = useState<string | null>(null);
   const [addDur, setAddDur] = useState(60);
   const [timeSheet, setTimeSheet] = useState<TimeSheetState | null>(null);
+  const [calMode, setCalMode] = useState<"week" | "month">("week"); // 周条 / 月网格（合并了原「月历」Tab）
 
   const timed = app.dayActions
     .filter((a) => a.item.startTime)
@@ -150,12 +152,46 @@ export default function ScheduleScreen() {
           ) : null}
         </View>
 
-        <WeekStrip
-          viewDate={app.viewDate}
-          today={app.today}
-          densityOf={(d) => app.actionsOn(d).length}
-          onPickDay={app.setViewDate}
-        />
+        {/* 周/月 切换：原「月历」Tab 折进首页——选天即看当天日程，不再需要单独的日历页。 */}
+        <View style={styles.calToggleRow}>
+          {(["week", "month"] as const).map((m) => (
+            <Pressable
+              key={m}
+              onPress={() => setCalMode(m)}
+              style={({ pressed }) => [
+                styles.calToggle,
+                calMode === m && styles.calToggleOn,
+                pressed && calMode !== m && { opacity: 0.7 },
+              ]}
+            >
+              <Text style={[styles.calToggleText, calMode === m && styles.calToggleTextOn]}>
+                {m === "week" ? "周" : "月"}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {calMode === "week" ? (
+          <WeekStrip
+            viewDate={app.viewDate}
+            today={app.today}
+            densityOf={(d) => app.actionsOn(d).length}
+            onPickDay={app.setViewDate}
+          />
+        ) : (
+          <View style={{ marginBottom: 12 }}>
+            <MonthView
+              year={Number(app.viewDate.slice(0, 4))}
+              month={Number(app.viewDate.slice(5, 7))}
+              today={app.today}
+              viewDate={app.viewDate}
+              densityOf={(d) => app.actionsOn(d).length}
+              dueOf={(d) => (app.tree ? goalsDueOn(app.tree, d).length > 0 : false)}
+              onPickDay={app.setViewDate}
+              onShiftMonth={app.setViewDate}
+            />
+          </View>
+        )}
 
         {activeGoals.length > 0 ? (
           <ScrollView
@@ -418,6 +454,18 @@ const styles = StyleSheet.create({
   headRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   h1: { fontSize: 24, fontWeight: "700", color: colors.fg },
   todayBtn: { fontSize: 14, fontWeight: "600", color: colors.accent },
+  calToggleRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
+  calToggle: {
+    paddingHorizontal: 18,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: "#fff",
+  },
+  calToggleOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  calToggleText: { fontSize: 13, fontWeight: "600", color: colors.fgMuted },
+  calToggleTextOn: { color: "#fff" },
   goalStrip: { marginBottom: 12 },
   goalChip: {
     width: 150,
