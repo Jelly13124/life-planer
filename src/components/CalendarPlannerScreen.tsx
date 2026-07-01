@@ -7,22 +7,20 @@ import { Button } from "./ui/Button";
 import { Card } from "./ui/Card";
 import { SectionHeader } from "./ui/SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
-import { LifeMap } from "./LifeMap";
 import { GettingStarted } from "./GettingStarted";
 import { WeeklyReviewSheet } from "./WeeklyReviewSheet";
 import { MonthCalendar } from "./MonthCalendar";
 import { YearView } from "./YearView";
 import { DayView } from "./DayView";
-import { TodayReminders } from "./TodayReminders";
 import { CalendarImportCard } from "./CalendarImportCard";
-import { addDays, branchPositionAge, currentStreak, heatmap } from "@/domain/daily";
+import { addDays, currentStreak, heatmap } from "@/domain/daily";
 import { unscheduledActions } from "@/domain/calendar";
 import { goalProgress } from "@/domain/goals";
 import { effectiveFeasibility } from "@/domain/feasibility";
 import { longGoals, shortGoalsOf } from "@/domain/goalTree";
 import { localTodayStr } from "@/lib/dailyClient";
 import { parseQuickInput } from "@/domain/quickParse";
-import { IconFlame, IconCalendar, IconTrophy, IconTarget, IconTree, IconPlus } from "./ui/icons";
+import { IconFlame, IconCalendar, IconTrophy, IconTarget, IconPlus } from "./ui/icons";
 
 const _bootToday = localTodayStr();
 
@@ -35,7 +33,7 @@ function roundFeasibility(x: number): number {
 const WEEKDAY_FULL = ["每周日", "每周一", "每周二", "每周三", "每周四", "每周五", "每周六"];
 
 export function CalendarPlannerScreen() {
-  const { tree, openTree, openPath, openPlan, openUpcoming, scheduleAction, updateGoal, markDueGoalsReviewed, addBranch, addLooseTask, quickAdd, eventsOnDay } = useApp();
+  const { tree, openPath, openPlan, scheduleAction, updateGoal, markDueGoalsReviewed, addBranch, addLooseTask, quickAdd, eventsOnDay } = useApp();
   const { t } = useT();
 
   const [today, setToday] = useState(_bootToday);
@@ -68,19 +66,8 @@ export function CalendarPlannerScreen() {
   const hm = useMemo(() => (tree ? heatmap(tree, 30, today) : []), [tree, today]);
   const doneGoals = useMemo(() => (tree ? tree.goals.filter((g) => g.status === "done") : []), [tree]);
   const unsched = useMemo(() => (tree ? unscheduledActions(tree) : []), [tree]);
-  const markers = useMemo(() => {
-    if (!tree) return [];
-    return tree.goals
-      .filter((g) => g.status === "active" && g.pathId)
-      .map((g) => {
-        const age = branchPositionAge(tree, g);
-        return age == null ? null : { pathId: g.pathId as string, age, label: g.title };
-      })
-      .filter((m): m is { pathId: string; age: number; label: string } => m !== null);
-  }, [tree]);
 
   if (!tree) return null;
-  const hasChoicePaths = tree.paths.some((p) => p.kind === "choice");
 
   function prevMonth() {
     setView((v) => (v.month === 1 ? { year: v.year - 1, month: 12 } : { ...v, month: v.month - 1 }));
@@ -167,16 +154,6 @@ export function CalendarPlannerScreen() {
           <div className="mt-2 text-[11px] text-[var(--c-emerald)]">{quickEcho}</div>
         )}
       </Card>
-
-      {/* 今日提醒：今天/逾期/即将开始 + 开启通知（无任何到期项时自动隐藏） */}
-      <TodayReminders
-        tree={tree}
-        onOpenDay={() => {
-          setSelectedDay(today);
-          setCalView("day");
-        }}
-        onOpenUpcoming={openUpcoming}
-      />
 
       {/* 导入日历（只读 ICS）：粘贴订阅链接 / 上传 .ics，叠加到月/日视图 */}
       <CalendarImportCard tree={tree} />
@@ -338,29 +315,6 @@ export function CalendarPlannerScreen() {
               </div>
             )}
           </Card>
-
-          {/* 未来预测 — 日视图下隐藏 */}
-          {calView !== "day" && (
-            <Card pad="sm" sunken>
-              <div className="mb-2 px-1 text-[11px] text-[var(--fg-faint)]">{t("未来预测 ·「你在这里」随里程碑前进")}</div>
-              {hasChoicePaths ? (
-                <div className="lp-media-dark overflow-hidden rounded-2xl p-2">
-                  <LifeMap tree={tree} compact markers={markers} onSelectPath={openPath} onForkAtNode={() => openTree()} />
-                </div>
-              ) : (
-                <EmptyState
-                  size="inline"
-                  icon={<IconTree className="h-6 w-6" />}
-                  description={t("还没有路。去「我的规划」加一个长期目标，它会在树上长出一条路。")}
-                  action={
-                    <button onClick={openPlan} className="rounded-full border border-[var(--accent)]/50 px-3 py-1.5 text-xs text-[var(--accent)] transition hover:bg-[var(--accent)]/15">
-                      {t("去规划")}
-                    </button>
-                  }
-                />
-              )}
-            </Card>
-          )}
 
           {/* 待安排 backlog — drag source, persistent across year/month/day */}
           <Card pad="md">

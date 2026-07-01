@@ -151,7 +151,8 @@ function reducer(state: State, action: Action): State {
         ...state,
         hydrated: true,
         tree: action.tree,
-        view: action.tree ? "dashboard" : "onboarding",
+        // 老用户(已有树)落地到人生树——产品主角是方向/预测,不是任务网格。
+        view: action.tree ? "tree" : "onboarding",
       };
     case "setTree":
       return { ...state, tree: action.tree, view: "tree" };
