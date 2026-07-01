@@ -300,13 +300,8 @@ export default function TreeScreen() {
                     <Circle cx={p.end.x} cy={p.end.y} r={16} fill={`url(#lm-glow-${p.id})`} />
                   )}
                   <Circle cx={p.end.x} cy={p.end.y} r={isSq ? 5 : 6} fill={color} />
-                  <Circle
-                    cx={p.end.x}
-                    cy={p.end.y}
-                    r={22}
-                    fill="transparent"
-                    onPress={() => router.push(`/path/${p.id}`)}
-                  />
+                  {/* 终点命中区不在这里画：统一挪到最上层(见下方 endpoint hit layer)，
+                      否则先渲染的「维持现状」末端会被后画的彩色路命中层盖住、点不动。 */}
                   <SvgText
                     x={p.end.x + 16}
                     y={p.end.y - 2}
@@ -337,6 +332,29 @@ export default function TreeScreen() {
             <SvgText x={origin.x} y={origin.y + 32} fill={DARK.textMuted} fontSize={15} textAnchor="middle">
               {truncate(name, 8)}
             </SvgText>
+
+            {/* 终点命中层(最上层)：每条路的末端圆点 + 文字标签都做成触控区，
+                统一画在所有路径之上，保证「维持现状」的末端也点得中(它先渲染，
+                否则会被后画的彩色路命中区盖住)。全透明，不改变观感。 */}
+            {layout.items.map((p) => (
+              <React.Fragment key={`hit-${p.id}`}>
+                <Circle
+                  cx={p.end.x}
+                  cy={p.end.y}
+                  r={26}
+                  fill="transparent"
+                  onPress={() => router.push(`/path/${p.id}`)}
+                />
+                <Rect
+                  x={p.end.x + 6}
+                  y={p.end.y - 22}
+                  width={168}
+                  height={48}
+                  fill="transparent"
+                  onPress={() => router.push(`/path/${p.id}`)}
+                />
+              </React.Fragment>
+            ))}
           </Svg>
         </ScrollView>
       </View>
