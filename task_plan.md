@@ -1,20 +1,19 @@
 # Task Plan — Life Planner (人生树 / decision + planning app)
 
-## ▶ CURRENT — 手机端完整功能（过夜自主 /goal，2026-06-24）
-Goal: "好的你今晚去做我验收" — 把 Expo 手机端做成完整可用 app，早上验收。
-Spec: docs/superpowers/specs/2026-06-24-mobile-complete-design.md · Plan: docs/superpowers/plans/2026-06-24-mobile-complete-plan.md
-每阶段：实现 → mobile tsc + 模拟器截图 → 提交 → master 跟进 + 推备份。
-- [x] 依赖：expo-notifications + gesture-handler + datetimepicker（reanimated 因 peer 冲突弃用，拖拽改 gesture-handler）`87b4658`
-- [x] P1 日视图时间轴渲染 `ed7a46b`
-- [x] P2 未排托盘 + 轻点排期 + +任务 + AI 排今天 `ed7a46b`
-- [x] P3 月/年日历 + 日/月/年 切换 `3bdf205`
-- [x] P4 目标进度小条 + 完成动力提示；目标屏去散任务 `7e38ea6`
-- [x] P5 人生树 AI 增强分支 + 和未来的自己对话屏 `e2b04e3`
-- [x] P6 本地定时通知（Expo Go 安全 no-op；dev build 真用）`dda9bef`
-- [x] P7 拖拽排期 —— **弃用**（2026-06-24 用户拍板"不要拖拽"）。排期方式 = 轻点未排任务→选时间→落时间轴（已是现状）；已排块点击可改时间/完成/移回未排。gesture-handler 仍装着但暂不用于自定义拖拽。
-全部已提交并推到备份（master + feat @ dda9bef）。web 全绿（tsc 0 / 464 / build）。
-护栏：core 纯净不破；web 全绿；只改 mobile/；中文串规范；无 emoji；苹果白。
-摩擦点（靠后+兜底）：拖拽落点算时间、RN 读 SSE（先非流式）、通知权限。后端相关需用户设 EXPO_PUBLIC_API_BASE_URL；没设离线降级。
+## ▶ CURRENT — 2026-07-01 状态快照（承接一路优化 + 上云 + 上 TestFlight）
+Branch `feat/goal-planning-mainline`, master fast-forwarded each commit. web 全绿（tsc 0 / 482 vitest / build ok）。full session log in `progress.md` (top entries), gotcha log in there too.
+
+**刚完成（本轮）**
+- **职场版 MBTI「人生路径码」病毒漏斗 P1**（网页端，已上线 Vercel）：纯域模块 `packages/core/src/lifePathCode/`（4轴8字母·16型·28题滑块·确定性算分）+ `/test` 测试页 + `/t/[code]` 公开结果页(OG) + 可晒卡 SVG + onboarding 一体化(测试答案喂进预测:riskAppetite + enrich 软性倾向行)。spec/plan: `docs/superpowers/*/2026-06-29-life-path-code-viral-test*`. 型文案已过 humanizer-zh。
+- **网页优化 3 轮**：①手机触控目标 ≥40px(lp-tap)②error/global-error 边界 + 代码分割(next/dynamic)+ 加载态 ③预测提示词打磨(summary 不再和 nodes 矛盾 + 故事有内心戏)。
+- **Web 云同步已接通**（memory `cloud-sync-status`）：Supabase 项目 `ucwgdgiymxfvuryzgevi` 建了 `trees` 表+RLS(via MCP)；Vercel 设了 `NEXT_PUBLIC_SUPABASE_*`(Prod+Preview)+ 重新部署 → 线上云同步开。
+- **手机 build 17 → TestFlight**：修了 `runtimeVersion` fingerprint→appVersion(monorepo 指纹不一致导致 build 16 挂在 Configure expo-updates)。build 17 成功、auto-submit 已排，**首个带 OTA 的包** → 以后 JS 改动 `eas update` 秒推。
+
+**待用户/待确认**
+- Supabase 后台 Auth → URL Configuration 设 Site URL + Redirect URLs（GoTrue 配置,无 MCP/API,只能用户点）→ 然后首登实测云同步(未对过真 Supabase)。
+- 确认 build 17 在 TestFlight 处理完(Apple 侧 ~5–15min)。
+
+护栏：core 纯净(无 Date.now/Math.random)；web 全绿；中文串规范(无 ASCII 引号)；无 emoji；苹果白。
 
 ---
 
@@ -49,7 +48,11 @@ A life-planning web app whose centerpiece is an animated branching prediction tr
 | 17 | Six core-gap overnight fixes: P1 quick-capture+NL parse (`70324b0`), P2 AI plan-short-in-window (`27b6242`), P3 reminders+notifications+SW/PWA (`8adfe9d`), P4 ICS calendar import read-only (`7e63ddd`), P5 Supabase sync+auth behind flag — off by default (`a7e6b81`). 447 tests green. See docs/MORNING-2026-06-23.md. | complete |
 | 18 | Route A (方向/决策+预测): prediction believability v2 (nationality + field/country anchors, eval-verified `bf5783a`); feasibility % per choice path (`2070201`); dynamic feasibility = AI baseline + progress bump (`01d6ed0`); instant feedback toast (`c52ed63`); AI option analysis + side-by-side futures (`8cefbc0`). 464 tests green. | complete |
 | 19 | Expo/RN migration (Next-as-API, mobile/ app, shared pure src/domain). Plan docs/superpowers/plans/2026-06-23-expo-migration.md. Phase 1 scaffold + domain pipeline done (`78d2a34`, .shared junction for Windows Metro). Phases 2+ (state→AsyncStorage, screen-by-screen RN rebuild, Supabase auth, deploy+EAS) pending — multi-week. | in_progress |
-| — | BLOCKED ON USER: Supabase cloud sync — user reconnecting Supabase MCP to a NEW account (current MCP is global/shared, authed to a different account). Then I create 「life-planner」(Tokyo) + schema + give env lines. Code ready behind flag. | pending |
+| 20 | Web optimization (3 rounds): mobile touch targets ≥40px (lp-tap util); error.tsx + global-error.tsx + next/dynamic code-split + loaders; prediction-prompt polish (summary-vs-nodes consistency + interiority). All /green. | complete |
+| 21 | 职场版 MBTI「人生路径码」viral funnel P1: pure-domain lifePathCode (16 types + 28-statement slider + deterministic scoring) + /test + /t/[code] (OG) + share card + onboarding integration (answers → riskAppetite + enrich soft line). humanized copy. spec/plan 2026-06-29. | complete |
+| 22 | Cloud sync turned ON (web): Supabase `trees` table + RLS (via MCP) on project ucwgdgiymxfvuryzgevi; NEXT_PUBLIC_SUPABASE_* on Vercel + redeploy. Only Auth URL-config (user, dashboard) + first real login test remain. | complete |
+| 23 | Mobile build 17 → TestFlight: runtimeVersion fingerprint→appVersion fix (monorepo mismatch killed build 16); build 17 succeeded + auto-submit; first TestFlight build WITH OTA embedded. | complete |
+| — | Supabase cloud sync (mobile): NOT built — AsyncStorage only (sync-ready jsonb shape). Needs Supabase client + auth screen (email OTP) + sync wiring in mobile/src/state/store.tsx. | pending |
 
 ## Needs the user (morning of 2026-06-23) — code ready, see docs/MORNING-2026-06-23.md
 - **Enable Supabase cloud sync**: create project + run schema SQL (docs/supabase-setup.md) + add NEXT_PUBLIC_SUPABASE_URL/ANON_KEY to .env.local. Cloud path UNTESTED against real Supabase — verify login + cross-device. Flag off = unchanged local app.
@@ -58,6 +61,9 @@ A life-planning web app whose centerpiece is an animated branching prediction tr
 - **Route decision A (direction/decision tool) vs B (daily planner)** still open — tonight's geo-base serves both.
 
 ## Backlog (next steps — not blocking; user-driven or optional)
+- **Career-MBTI P2** (spec §9): compare/CP mode ("你俩路径合不合"); pre-seed "最可能的路" branch after onboarding (§5.3); mobile `/test` screen; AI-personalized teaser; funnel analytics; optional richer share-card visual (user preferred the plain card for now).
+- **Cloud sync finish**: user sets Supabase Auth Site URL + Redirect URLs → then verify first real magic-link login + cross-device pull (untested vs real Supabase). Then optionally build mobile cloud sync (email OTP).
+- **Real custom domain** later → set `NEXT_PUBLIC_SHARE_DOMAIN` (card + OG currently show the Vercel domain).
 - **Verify on real machine** (esp. calendar drag + mobile) then **merge `feat/goal-planning-mainline` → main** (big branch: all the above).
 - Deferred refinements: Supabase async wiring (AppContext) + auth UI; fold AI "suggest today" into calendar home; per-habit on the calendar grid; `nationality` field + structured-anchor validation for prediction realism; richer local-archetype fallback text; PNG export (currently SVG only). (DashboardScreen.tsx deleted in Phase 13.)
 - Phase 13 follow-ups (non-blocking): degenerate 作息 window (睡觉<起床) guard; per-occurrence habit times (habit startTime is a global daily time); a recurring habit re-timed by AI-arrange affects all days.
