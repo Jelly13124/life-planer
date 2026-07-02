@@ -534,12 +534,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [commit],
   );
 
-  // 切换情景（乐观/中性/保守）：没有该走向变体时本地即时生成一条。
+  // 切换情景（乐观/中性/保守）：没有该走向变体时本地即时生成一条，
+  // 再和 addChoiceBranch 一样异步 AI 推演覆盖 summary/可行度/节点。
   const addScenario = useCallback(
     (basePathId: string, scenario: Scenario) => {
       const cur = treeRef.current;
       if (!cur) return;
-      commit(addScenarioVariant(cur, basePathId, scenario, localGenerator, nowISO()));
+      const next = addScenarioVariant(cur, basePathId, scenario, localGenerator, nowISO());
+      if (next === cur) return; // 变体已存在，addScenarioVariant 原样返回 → 不重复推演
+      const variant = next.paths[next.paths.length - 1];
+      commit(next);
+      if (hasBackend()) {
+        setEnriching(true);
+        void enrichPath(next, variant)
+          .then((result) => {
+            if (!result) return;
+            const t = treeRef.current;
+            if (!t) return;
+            commit({
+              ...t,
+              paths: t.paths.map((p) => (p.id === variant.id ? applyEnrichToPath(p, result) : p)),
+            });
+          })
+          .catch(() => {})
+          .finally(() => setEnriching(false));
+      }
     },
     [commit],
   );

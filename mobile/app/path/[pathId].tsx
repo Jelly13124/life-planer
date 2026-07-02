@@ -18,6 +18,7 @@ import { isEnriched } from "@lifeplanner/core/pathEnriched";
 import { useApp } from "../../src/state/store";
 import { futureAgeOf } from "../../src/lib/api";
 import { MetricChart } from "../../src/components/MetricChart";
+import PredictingOverlay from "../../src/components/PredictingOverlay";
 import { colors, space, radii } from "../../src/theme";
 
 const SCENARIOS: { value: Scenario; label: string }[] = [
@@ -59,16 +60,6 @@ export default function PathDetailScreen() {
         )
       : undefined;
 
-  // 预取:首次进入时若基础路径已推演完成,提前把另外两种情景生成好,
-  // 让三个 tab 切换时都能立刻显示,不用等一次生成。
-  useEffect(() => {
-    if (!path || !isEnriched(path)) return;
-    (["optimistic", "conservative"] as const).forEach((s) => {
-      if (!variantFor(s)) addScenario(path.id, s);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path?.id, path?.enriched]);
-
   if (!tree || !path) {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
@@ -94,6 +85,7 @@ export default function PathDetailScreen() {
   const chartW = Math.min(170, (width - space * 2 - 12) / 2);
 
   return (
+    <>
     <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 8 }]}>
       <Pressable onPress={() => router.back()} hitSlop={8}>
         <Text style={styles.back}>‹ 返回人生树</Text>
@@ -301,6 +293,8 @@ export default function PathDetailScreen() {
         <Text style={styles.chatBtnText}>和 {futureAgeOf(path)} 岁的你聊聊</Text>
       </Pressable>
     </ScrollView>
+    <PredictingOverlay visible={enriching} label={path.choiceLabel} />
+    </>
   );
 }
 
