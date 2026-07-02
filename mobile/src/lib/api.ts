@@ -154,8 +154,9 @@ export function applyEnrichToPath(path: LifePath, result: EnrichResult): LifePat
       dimensions: dims.length ? dims.slice(0, 3) : fallback,
     });
   });
+  // 可行度对「维持现状」同样适用（它也是一条可选人生路线），不再只给 choice。
   const feas: Partial<LifePath> =
-    path.kind === "choice" && Number.isFinite(result.feasibility)
+    Number.isFinite(result.feasibility)
       ? {
           feasibility: Math.round(Math.max(0, Math.min(100, result.feasibility!))),
           feasibilityNote: (result.feasibilityNote ?? "").trim() || undefined,

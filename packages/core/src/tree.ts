@@ -136,10 +136,10 @@ export function removePath(tree: LifeTree, pathId: string, now: string): LifeTre
   };
 }
 
-// 选定「我要走的这条路」：只允许选存在的 choice 路（status-quo / 未知 id 忽略）。
+// 选定「我要走的这条路」：任何存在的路都能选，包括「维持现状」基线（也是一种人生选择）。未知 id 忽略。
 export function choosePath(tree: LifeTree, pathId: string, now: string): LifeTree {
   const p = tree.paths.find((x) => x.id === pathId);
-  if (!p || p.kind !== "choice") return tree;
+  if (!p) return tree;
   return { ...tree, chosenPathId: pathId, updatedAt: now };
 }
 

@@ -48,13 +48,11 @@ export default function PathDetailScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path?.id]);
 
-  const isChoice = path?.kind === "choice";
-
   const variantFor = (s: Scenario) =>
     path
       ? tree?.paths.find(
           (p) =>
-            p.kind === "choice" &&
+            p.kind === path.kind &&
             p.choiceLabel === path.choiceLabel &&
             p.parentId === path.parentId &&
             p.scenario === s,
@@ -64,7 +62,7 @@ export default function PathDetailScreen() {
   // 预取:首次进入时若基础路径已推演完成,提前把另外两种情景生成好,
   // 让三个 tab 切换时都能立刻显示,不用等一次生成。
   useEffect(() => {
-    if (!path || !isChoice || !isEnriched(path)) return;
+    if (!path || !isEnriched(path)) return;
     (["optimistic", "conservative"] as const).forEach((s) => {
       if (!variantFor(s)) addScenario(path.id, s);
     });
@@ -82,7 +80,9 @@ export default function PathDetailScreen() {
     );
   }
 
-  const eff = isChoice ? effectiveFeasibility(tree, path) : null;
+  // 「维持现状」也是一条可选人生路线：和 choice 一样能选定、看三种可能、拆计划。
+  const isRoute = path.kind === "choice" || path.kind === "status-quo";
+  const eff = effectiveFeasibility(tree, path);
   const odds = scenarioOdds(eff?.value ?? path.feasibility);
   const shownPath = (scenario ? variantFor(scenario) : undefined) ?? path;
 
@@ -112,7 +112,7 @@ export default function PathDetailScreen() {
       </View>
       <Text style={styles.disclaimer}>这是一种可能的人生,不是预测。数字代表综合状态感受,仅供想象参考。</Text>
 
-      {isChoice ? (
+      {isRoute ? (
         <View style={styles.commitBox}>
           {isChosen ? (
             <>
@@ -143,7 +143,7 @@ export default function PathDetailScreen() {
 
       {/* 现实可行度 + 三种可能的未来：仅在 AI 已确认基线（isEnriched）后展示——
           本地占位可行度只是粗估，展示出来会误导用户，所以先不展示可能性。 */}
-      {isChoice && eff && isEnriched(path) ? (
+      {isRoute && eff && isEnriched(path) ? (
         <View style={styles.feasBox}>
           <Text style={styles.feasLine}>
             现实可行度 <Text style={styles.feasVal}>约 {round5(eff.value)}%</Text>
@@ -174,7 +174,7 @@ export default function PathDetailScreen() {
         )
       ) : null}
 
-      {isChoice && isEnriched(path) ? (
+      {isRoute && isEnriched(path) ? (
         <View style={styles.climbBox}>
           <Text style={styles.climbTitle}>三种可能的未来</Text>
           {([
@@ -201,7 +201,7 @@ export default function PathDetailScreen() {
       ) : null}
 
       {/* 三情景切换(带可能性比率——比率仅在 AI 已确认基线后展示) */}
-      {isChoice ? (
+      {isRoute ? (
         <View style={{ marginTop: 18 }}>
           <Text style={styles.sectionLabel}>换个走向看看</Text>
           <View style={styles.segRow}>

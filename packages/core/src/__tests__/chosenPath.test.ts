@@ -25,10 +25,10 @@ describe("chosenPath", () => {
     expect(chosenPath(next)?.id).toBe(choiceId);
   });
 
-  it("choosePath ignores status-quo and unknown ids", () => {
+  it("choosePath accepts status-quo (a valid life route), ignores unknown ids", () => {
     const { t } = treeWithPath();
     const sq = t.paths.find((p) => p.kind === "status-quo")!;
-    expect(choosePath(t, sq.id, NOW).chosenPathId).toBeUndefined();
+    expect(choosePath(t, sq.id, NOW).chosenPathId).toBe(sq.id);
     expect(choosePath(t, "nope", NOW).chosenPathId).toBeUndefined();
   });
 

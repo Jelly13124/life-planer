@@ -567,7 +567,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const cur = treeRef.current;
       if (!cur) return;
       const path = cur.paths.find((p) => p.id === pathId);
-      if (!path || path.kind !== "choice") return;
+      if (!path) return; // 「维持现状」也可拆计划（它也是一条可选路线）
       if (!hasBackend()) return;
 
       let drafts: { area: LifeArea; title: string; why: string }[] = [];
