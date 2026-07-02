@@ -84,7 +84,6 @@ describe("sidebar.favoriteTimeLabel", () => {
     createdAt: NOW,
     metrics: [],
     tasks: [],
-    habits: [],
     ...over,
   });
 

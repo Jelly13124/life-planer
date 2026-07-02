@@ -54,7 +54,7 @@ describe("migrateActions", () => {
 // ──────────────────────────────────────────────────────────────────────────
 
 describe("migrateGoals — legacy 扁平 → 两级", () => {
-  it("turns a long legacy goal into a flat long Goal, repeat→habit non-repeat→task", () => {
+  it("turns a long legacy goal into a flat long Goal, repeat→habit non-repeat→task (both land in tasks[])", () => {
     const out = migrateGoals([
       legacyGoal({
         actions: [
@@ -67,8 +67,8 @@ describe("migrateGoals — legacy 扁平 → 两级", () => {
     const g = out[0];
     expect(g.kind).toBe("long");
     expect(g.parentGoalId).toBeNull();
-    expect(g.tasks.map((t) => t.id)).toEqual(["a1"]);
-    expect(g.habits.map((h) => h.id)).toEqual(["a2"]);
+    expect(g.tasks.map((t) => t.id)).toEqual(["a1", "a2"]);
+    expect(g.tasks.find((t) => t.id === "a2")?.repeat).toBe("daily");
     expect(g.metrics).toEqual([]);
   });
 
@@ -125,8 +125,8 @@ describe("migrateGoals — legacy 扁平 → 两级", () => {
     expect(short.kind).toBe("short");
     expect(short.parentGoalId).toBe("long1");
     expect(short.title).toBe("本季冲刺");
-    expect(short.tasks.map((t) => t.id)).toEqual(["s-a1"]);
-    expect(short.habits.map((h) => h.id)).toEqual(["s-a2"]);
+    expect(short.tasks.map((t) => t.id)).toEqual(["s-a1", "s-a2"]);
+    expect(short.tasks.find((t) => t.id === "s-a2")?.repeat).toBe("weekly");
     // short 不上树。
     expect(short.pathId).toBeNull();
   });
@@ -231,10 +231,10 @@ describe("migrateGoals — nested 嵌套 → 两级", () => {
     const long = out.find((g) => g.id === "G")!;
     expect(long.kind).toBe("long");
     expect(long.parentGoalId).toBeNull();
-    // long 保留自身 metrics/tasks/habits/pathId/dates/id；不再带 subgoals。
+    // long 保留自身 metrics/tasks/pathId/dates/id；不再带 subgoals；habits 无损并入 tasks（带 repeat）。
     expect(long.metrics.map((m) => m.id)).toEqual(["gm1"]);
-    expect(long.tasks.map((t) => t.id)).toEqual(["gt1"]);
-    expect(long.habits.map((h) => h.id)).toEqual(["gh1"]);
+    expect(long.tasks.map((t) => t.id)).toEqual(["gt1", "gh1"]);
+    expect(long.tasks.find((t) => t.id === "gh1")?.repeat).toBe("daily");
     expect(long.pathId).toBe("path-9");
     expect(long.startDate).toBe("2026-01-01");
     expect(long.endDate).toBe("2026-12-31");
@@ -251,17 +251,18 @@ describe("migrateGoals — nested 嵌套 → 两级", () => {
     expect(s1.startDate).toBe("2026-01-01"); // 继承父窗口
     expect(s1.endDate).toBe("2026-12-31");
     expect(s1.pathId).toBeNull(); // 短期不上树
-    // 每个 short 自带其 metrics/tasks/habits（id 保留）。
+    // 每个 short 自带其 metrics/tasks（id 保留）；habits 无损并入 tasks（带 repeat）。
     expect(s1.metrics.map((m) => m.id)).toEqual(["sm1"]);
-    expect(s1.tasks.map((t) => t.id)).toEqual(["st1"]);
-    expect(s1.habits.map((h) => h.id)).toEqual(["sh1"]);
+    expect(s1.tasks.map((t) => t.id)).toEqual(["st1", "sh1"]);
+    expect(s1.tasks.find((t) => t.id === "sh1")?.repeat).toBe("weekly");
+    expect(s1.tasks.find((t) => t.id === "sh1")?.repeatWeekday).toBe(3);
 
     const s2 = out.find((g) => g.id === "S2")!;
     expect(s2.kind).toBe("short");
     expect(s2.parentGoalId).toBe("G");
     expect(s2.metrics).toEqual([]);
-    expect(s2.tasks).toEqual([]);
-    expect(s2.habits.map((h) => h.id)).toEqual(["sh2"]);
+    expect(s2.tasks.map((t) => t.id)).toEqual(["sh2"]);
+    expect(s2.tasks.find((t) => t.id === "sh2")?.repeat).toBe("daily");
   });
 
   it("nested subgoal with missing metrics/tasks/habits arrays defaults to []", () => {
@@ -279,7 +280,6 @@ describe("migrateGoals — nested 嵌套 → 两级", () => {
     const sx = out.find((g) => g.id === "Sx")!;
     expect(sx.metrics).toEqual([]);
     expect(sx.tasks).toEqual([]);
-    expect(sx.habits).toEqual([]);
   });
 });
 
@@ -288,14 +288,16 @@ describe("migrateGoals — 已是两级（幂等透传）", () => {
     id: "L", kind: "long", parentGoalId: null, area: "career", title: "长期", why: "",
     status: "active", createdAt: "2026-01-01T00:00:00.000Z", pathId: "p1", tags: ["x"],
     metrics: [{ id: "m1", label: "存款", current: 1, target: 10, unit: "k" }],
-    tasks: [{ id: "lt1", text: "目标级任务", done: true }],
-    habits: [{ id: "lh1", text: "每天", repeat: "daily" }],
+    tasks: [
+      { id: "lt1", text: "目标级任务", done: true },
+      { id: "lh1", text: "每天", done: false, repeat: "daily" },
+    ],
   };
   const short: Goal = {
     id: "S", kind: "short", parentGoalId: "L", area: "career", title: "短期", why: "",
     status: "active", createdAt: "2026-01-01T00:00:00.000Z", startDate: "2026-01-01",
     endDate: "2026-03-31", pathId: null,
-    metrics: [], tasks: [{ id: "st1", text: "做事", done: false }], habits: [],
+    metrics: [], tasks: [{ id: "st1", text: "做事", done: false }],
   };
 
   it("passes already-two-tier goals through byte-for-byte (not rebuilt)", () => {
@@ -375,7 +377,7 @@ describe("migrateGoals — 无损不变量 + 边界", () => {
       {
         id: "two", kind: "long", parentGoalId: null, area: "career", title: "已两级", why: "",
         status: "active", createdAt: "2026-01-01T00:00:00.000Z",
-        metrics: [], tasks: [], habits: [],
+        metrics: [], tasks: [],
       } as Goal,
     ];
 

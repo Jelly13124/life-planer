@@ -1,11 +1,11 @@
-import type { Goal, Habit, LifeTree, Task } from "./types";
+import type { Goal, LifeTree, Task } from "./types";
 import { addDays, habitInWindow, isActionDoneToday } from "./daily";
 import { allHabits, allTasks, updateTask } from "./goalTree";
 
 // ───────────────────────────────────────────────────────────────────────────
 // calendar —— 月历排程的纯函数。日期一律 "YYYY-MM-DD"，用 UTC 解析避免时区漂移
 // （与 daily.ts 一致）。不用 Date.now/Math.random：年月/日期由 state/组件注入。
-// 模型：两级目标 —— 排期落在一次性 Task.scheduledDate；重复 Habit 按 repeat 显示，
+// 模型：两级目标 —— 排期落在一次性 Task.scheduledDate；重复习惯（Task.repeat 有值）按 repeat 显示，
 //   且只在所属目标的时间窗（startDate..endDate）内出现。
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -36,13 +36,13 @@ export function monthGrid(year: number, month: number): { date: string; inMonth:
 export type DayActionKind = "scheduled" | "daily" | "weekly";
 
 // 某天要在月历上显示的行动（仅 active 目标）：
-// 排到该日的一次性 Task（scheduled）+ 该日该做的重复 Habit（daily 永远；weekly 锚定星期几）。
+// 排到该日的一次性 Task（scheduled）+ 该日该做的重复习惯（daily 永远；weekly 锚定星期几）。
 export function actionsOnDay(
   tree: LifeTree,
   date: string,
-): { goal: Goal | null; item: Task | Habit; kind: DayActionKind; done: boolean }[] {
+): { goal: Goal | null; item: Task; kind: DayActionKind; done: boolean }[] {
   const wd = weekdayOf(date);
-  const out: { goal: Goal | null; item: Task | Habit; kind: DayActionKind; done: boolean }[] = [];
+  const out: { goal: Goal | null; item: Task; kind: DayActionKind; done: boolean }[] = [];
   for (const { goal, task } of allTasks(tree)) {
     if (goal && goal.status !== "active") continue; // 散任务（goal=null）无 active 概念，恒计入
     if (task.scheduledDate === date) {

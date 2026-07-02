@@ -148,7 +148,6 @@ describe("tree operations", () => {
       pathId: choice.id,
       metrics: [],
       tasks: [],
-      habits: [],
     };
     t = { ...t, goals: [goal] };
     const t2 = removePath(t, choice.id, NOW);

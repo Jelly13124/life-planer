@@ -4,7 +4,7 @@ import { findItem, updateHabit, updateTask } from "./goalTree";
 // ───────────────────────────────────────────────────────────────────────────
 // schedule —— 日视图时间块排程的纯函数。时刻一律本地 HH:MM 24h；分钟自午夜起算。
 // 不用 Date.now/Math.random：确定性、可测。
-// 模型：嵌套目标 —— startTime/durationMin 落在一次性 Task 或重复 Habit（按 id 定位）。
+// 模型：两级目标 —— startTime/durationMin 落在一次性 Task 或重复习惯（Task.repeat 有值，按 id 定位）。
 // ───────────────────────────────────────────────────────────────────────────
 
 export const DEFAULT_DURATION_MIN = 60;
@@ -42,7 +42,7 @@ export function arrangeDay(
   return out;
 }
 
-// 设/清 某行动（一次性 Task 或重复 Habit，按 id 定位）的开始时间(+可选时长)。
+// 设/清 某行动（一次性 Task 或重复习惯，按 id 定位）的开始时间(+可选时长)。
 // startTime=null 清掉(连带不强制清 duration)；durationMin 不传则保留旧值。
 export function setActionTime(
   tree: LifeTree,

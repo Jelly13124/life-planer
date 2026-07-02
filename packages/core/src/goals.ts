@@ -38,9 +38,10 @@ function metricAchieved(m: { current: number; target: number }): boolean {
   return m.current >= m.target;
 }
 
-// 一个目标自身直挂里程碑（Task + Metric）的 {完成数, 总数}。习惯不计入。
+// 一个目标自身直挂里程碑（一次性 Task + Metric）的 {完成数, 总数}。
+// 习惯（Task.repeat 有值）不计入 —— 重复项没有永久 done，混进里程碑单元会把进度算错。
 function ownUnits(goal: Goal): { done: number; total: number } {
-  const tasks = goal.tasks ?? [];
+  const tasks = (goal.tasks ?? []).filter((t) => t.repeat == null);
   const metrics = goal.metrics ?? [];
   const done = tasks.filter((t) => t.done).length + metrics.filter(metricAchieved).length;
   return { done, total: tasks.length + metrics.length };

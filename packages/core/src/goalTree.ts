@@ -1,16 +1,20 @@
-import type { Goal, Habit, LifeTree, Metric, Task } from "./types";
+import type { Goal, LifeTree, Metric, Task } from "./types";
 import { hashSeed } from "./seed";
 import { removePath } from "./tree";
 
 // ───────────────────────────────────────────────────────────────────────────
 // goalTree —— 两级目标（扁平 Goal[]，靠 kind/parentGoalId 区分）的纯访问器 / 写入器。
-// 读：遍历每个 goal 的 metrics/tasks/habits（不再有 subgoal 层）。写：按 id 在 goals 里定位，返回新 tree。
+// 读：遍历每个 goal 的 metrics/tasks（不再有 subgoal 层，也不再有独立 habits 数组）。
+// Habit 已并入 Task：Task.repeat 有值 = 重复项（旧称"习惯"）；无值 = 一次性任务。
+// 写：按 id 在 goals 里定位，返回新 tree。
 // 一律纯函数：不读 Date.now/Math.random；id 由 hashSeed 生成，时间 now 注入。
 // ───────────────────────────────────────────────────────────────────────────
 
 const goalsOf = (tree: LifeTree): Goal[] => tree.goals ?? [];
 const looseTasksOf = (tree: LifeTree): Task[] => tree.tasks ?? [];
-const looseHabitsOf = (tree: LifeTree): Habit[] => tree.habits ?? [];
+
+// 一个 Task 是否重复项（旧称"习惯"）：Task.repeat 有值。
+const isRepeating = (task: Task): boolean => task.repeat != null;
 
 export type ItemKind = "task" | "habit";
 
@@ -19,14 +23,15 @@ export interface TaskLoc {
   goal: Goal | null;
   task: Task;
 }
+// 「习惯」现在只是 repeat 有值的 Task；HabitLoc.habit 与 TaskLoc.task 指向同一种底层类型 Task。
 export interface HabitLoc {
   goal: Goal | null;
-  habit: Habit;
+  habit: Task;
 }
 export interface ItemLoc {
   goal: Goal | null;
   kind: ItemKind;
-  item: Task | Habit;
+  item: Task;
 }
 export interface MetricLoc {
   goal: Goal; // 指标只属于目标；散项无指标，故此处恒为非空。
@@ -35,23 +40,31 @@ export interface MetricLoc {
 
 // ───────── reads ─────────
 
-// 所有一次性任务：每个目标的 goal.tasks（goal=该目标）+ 树根的散任务（goal=null）。
+// 所有一次性任务（repeat 未设）：每个目标的 goal.tasks（goal=该目标）+ 树根的散任务（goal=null）。
 export function allTasks(tree: LifeTree): TaskLoc[] {
   const out: TaskLoc[] = [];
   for (const goal of goalsOf(tree)) {
-    for (const task of goal.tasks ?? []) out.push({ goal, task });
+    for (const task of goal.tasks ?? []) {
+      if (!isRepeating(task)) out.push({ goal, task });
+    }
   }
-  for (const task of looseTasksOf(tree)) out.push({ goal: null, task });
+  for (const task of looseTasksOf(tree)) {
+    if (!isRepeating(task)) out.push({ goal: null, task });
+  }
   return out;
 }
 
-// 所有习惯：每个目标的 goal.habits（goal=该目标）+ 树根的散习惯/日常（goal=null）。
+// 所有习惯（repeat 有值的 Task）：每个目标的 goal.tasks（goal=该目标）+ 树根的散任务（goal=null）。
 export function allHabits(tree: LifeTree): HabitLoc[] {
   const out: HabitLoc[] = [];
   for (const goal of goalsOf(tree)) {
-    for (const habit of goal.habits ?? []) out.push({ goal, habit });
+    for (const task of goal.tasks ?? []) {
+      if (isRepeating(task)) out.push({ goal, habit: task });
+    }
   }
-  for (const habit of looseHabitsOf(tree)) out.push({ goal: null, habit });
+  for (const task of looseTasksOf(tree)) {
+    if (isRepeating(task)) out.push({ goal: null, habit: task });
+  }
   return out;
 }
 
@@ -118,9 +131,9 @@ function pruneActivity(tree: LifeTree, ids: Set<string>): LifeTree {
   };
 }
 
-// ───────── writes: tasks / habits ─────────
+// ───────── writes: tasks / habits (habit = Task with repeat set) ─────────
 
-// 改一个 task（任意目标，或树根散任务）的字段，按 id 定位，保留 id。
+// 改一个 task/habit（任意目标，或树根散项）的字段，按 id 定位，保留 id。两者同存于 tasks[]。
 export function updateTask(tree: LifeTree, id: string, patch: Partial<Task>): LifeTree {
   const next = mapGoals(tree, (g) => ({
     ...g,
@@ -132,34 +145,24 @@ export function updateTask(tree: LifeTree, id: string, patch: Partial<Task>): Li
   };
 }
 
-// 改一个 habit（任意目标，或树根散习惯）的字段，按 id 定位，保留 id。
-export function updateHabit(tree: LifeTree, id: string, patch: Partial<Habit>): LifeTree {
-  const next = mapGoals(tree, (g) => ({
-    ...g,
-    habits: (g.habits ?? []).map((h) => (h.id === id ? { ...h, ...patch, id: h.id } : h)),
-  }));
-  return {
-    ...next,
-    habits: looseHabitsOf(next).map((h) => (h.id === id ? { ...h, ...patch, id: h.id } : h)),
-  };
-}
+// updateHabit 是 updateTask 的别名：习惯已并入 Task，二者操作同一底层数组，行为完全一致。
+// 保留独立导出是为了让调用方按语义选用（"这是在改一个习惯"），减少上层改动。
+export const updateHabit = updateTask;
 
-// 删除一个 task 或 habit（任意目标，或树根散项），并清理它在每日活动里的计划/完成记录。
+// 删除一个 task 或 habit（任意目标，或树根散项，同存于 tasks[]），并清理它在每日活动里的计划/完成记录。
 export function removeItem(tree: LifeTree, id: string): LifeTree {
   const next = mapGoals(tree, (g) => ({
     ...g,
     tasks: (g.tasks ?? []).filter((t) => t.id !== id),
-    habits: (g.habits ?? []).filter((h) => h.id !== id),
   }));
   const pruned: LifeTree = {
     ...next,
     tasks: looseTasksOf(next).filter((t) => t.id !== id),
-    habits: looseHabitsOf(next).filter((h) => h.id !== id),
   };
   return pruneActivity(pruned, new Set([id]));
 }
 
-// 在某 goal（长或短皆可）上新增任务，返回新 tree + 新 id。
+// 在某 goal（长或短皆可）上新增一次性任务，返回新 tree + 新 id。
 export function addTask(
   tree: LifeTree,
   goalId: string,
@@ -174,6 +177,7 @@ export function addTask(
   return { tree: next, id };
 }
 
+// 在某 goal（长或短皆可）上新增一个重复任务（旧称"习惯"）：Task 带 repeat，落进同一个 goal.tasks。
 export function addHabit(
   tree: LifeTree,
   goalId: string,
@@ -183,14 +187,15 @@ export function addHabit(
   now: string,
 ): { tree: LifeTree; id: string } {
   const id = `habit-${hashSeed(`${goalId}|${text}|${now}`)}`;
-  const habit: Habit = {
+  const habit: Task = {
     id,
     text: text.trim(),
+    done: false,
     repeat,
     repeatWeekday: repeat === "weekly" ? (weekday ?? 1) : undefined,
   };
   const next = mapGoals(tree, (g) =>
-    g.id === goalId ? { ...g, habits: [...(g.habits ?? []), habit] } : g,
+    g.id === goalId ? { ...g, tasks: [...(g.tasks ?? []), habit] } : g,
   );
   return { tree: next, id };
 }
@@ -208,7 +213,7 @@ export function addLooseTask(
   return { tree: { ...tree, tasks: [...looseTasksOf(tree), task] }, id };
 }
 
-// 新增一个「散」习惯/日常（不属任何目标），挂到 tree.habits。无目标 → 无时间窗，永远重复。
+// 新增一个「散」习惯/日常（不属任何目标），挂到 tree.tasks（带 repeat）。无目标 → 无时间窗，永远重复。
 export function addLooseHabit(
   tree: LifeTree,
   text: string,
@@ -217,13 +222,14 @@ export function addLooseHabit(
   now: string,
 ): { tree: LifeTree; id: string } {
   const id = `habit-${hashSeed(`loose|${text}|${now}`)}`;
-  const habit: Habit = {
+  const habit: Task = {
     id,
     text: text.trim(),
+    done: false,
     repeat,
     repeatWeekday: repeat === "weekly" ? (weekday ?? 1) : undefined,
   };
-  return { tree: { ...tree, habits: [...looseHabitsOf(tree), habit] }, id };
+  return { tree: { ...tree, tasks: [...looseTasksOf(tree), habit] }, id };
 }
 
 // ───────── writes: metrics ─────────
@@ -291,7 +297,6 @@ export function addLongGoal(
     tags: input.tags,
     metrics: [],
     tasks: [],
-    habits: [],
   };
   return { tree: { ...tree, goals: [...goalsOf(tree), goal] }, id };
 }
@@ -321,7 +326,6 @@ export function addShortGoal(
     tags: input.tags,
     metrics: [],
     tasks: [],
-    habits: [],
   };
   return { tree: { ...tree, goals: [...goalsOf(tree), goal] }, id };
 }
@@ -353,12 +357,11 @@ export function removeGoalById(tree: LifeTree, id: string, now: string): LifeTre
     for (const s of shortGoalsOf(tree, id)) removeGoalIds.add(s.id);
   }
 
-  // 收集所有被删 goal 的 task/habit id，用于清 activity。
+  // 收集所有被删 goal 的 task/habit id（同存于 g.tasks[]），用于清 activity。
   const itemIds = new Set<string>();
   for (const g of goalsOf(tree)) {
     if (!removeGoalIds.has(g.id)) continue;
     for (const t of g.tasks ?? []) itemIds.add(t.id);
-    for (const h of g.habits ?? []) itemIds.add(h.id);
   }
 
   let next: LifeTree = {

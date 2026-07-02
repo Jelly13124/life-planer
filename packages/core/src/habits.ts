@@ -1,15 +1,15 @@
-import type { Goal, Habit, LifeTree } from "./types";
+import type { Goal, LifeTree, Task } from "./types";
 import { addDays, dayEntry } from "./daily";
 import { allHabits } from "./goalTree";
 
 // ───────────────────────────────────────────────────────────────────────────
-// habits —— "习惯"（重复 Habit）的领域逻辑。结构由 goalTree 适配器铺平读取。
+// habits —— "习惯"（Task.repeat 有值的重复项）的领域逻辑。结构由 goalTree 适配器铺平读取。
 // 纯函数；today 由外部注入，不调 Date.now/Math.random。
 // ───────────────────────────────────────────────────────────────────────────
 
-// 所有"习惯"（active 目标里的重复 Habit，任意层）+ 散习惯/日常（goal=null，无 active 概念，恒计入）。
-export function recurringActions(tree: LifeTree): { goal: Goal | null; habit: Habit }[] {
-  const out: { goal: Goal | null; habit: Habit }[] = [];
+// 所有"习惯"（active 目标里 repeat 有值的 Task，任意层）+ 散习惯/日常（goal=null，无 active 概念，恒计入）。
+export function recurringActions(tree: LifeTree): { goal: Goal | null; habit: Task }[] {
+  const out: { goal: Goal | null; habit: Task }[] = [];
   for (const { goal, habit } of allHabits(tree)) {
     if (goal && goal.status !== "active") continue;
     out.push({ goal, habit });

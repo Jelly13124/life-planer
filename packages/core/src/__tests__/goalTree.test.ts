@@ -28,7 +28,7 @@ import {
 } from "../goalTree";
 import { createTree, addPath } from "../tree";
 import { LocalPathGenerator } from "../generator/localGenerator";
-import type { Goal, Habit, LifeTree, Metric, Profile, Task } from "../types";
+import type { Goal, LifeTree, Metric, Profile, Task } from "../types";
 
 const NOW = "2026-06-20T00:00:00.000Z";
 
@@ -36,7 +36,7 @@ const NOW = "2026-06-20T00:00:00.000Z";
 function makeTree(
   goals: Goal[],
   activity: LifeTree["activity"] = [],
-  loose: { tasks?: Task[]; habits?: Habit[] } = {},
+  loose: { tasks?: Task[]; habits?: Task[] } = {},
 ): LifeTree {
   return {
     id: "tree-test",
@@ -45,8 +45,7 @@ function makeTree(
     paths: [],
     decisions: [],
     goals,
-    tasks: loose.tasks ?? [],
-    habits: loose.habits ?? [],
+    tasks: [...(loose.tasks ?? []), ...(loose.habits ?? [])],
     choices: [],
     activity,
     calendarFeeds: [],
@@ -55,38 +54,50 @@ function makeTree(
   };
 }
 
-const longGoal = (over: Partial<Goal> = {}): Goal => ({
-  id: "g1",
-  kind: "long",
-  parentGoalId: null,
-  area: "career",
-  title: "长期目标",
-  why: "",
-  status: "active",
-  createdAt: NOW,
-  metrics: [],
-  tasks: [],
-  habits: [],
-  ...over,
-});
+// 便捷构造：habits fixtures 是 { id, text, repeat, repeatWeekday? } 的旧形状，转成带 repeat 的 Task。
+const asHabitTasks = (habits: { id: string; text: string; repeat: "daily" | "weekly"; repeatWeekday?: number }[] = []): Task[] =>
+  habits.map((h) => ({ id: h.id, text: h.text, done: false, repeat: h.repeat, repeatWeekday: h.repeatWeekday }));
 
-const shortGoal = (over: Partial<Goal> = {}): Goal => ({
-  id: "s1",
-  kind: "short",
-  parentGoalId: "g1",
-  area: "career",
-  title: "短期目标",
-  why: "",
-  status: "active",
-  createdAt: NOW,
-  startDate: "2026-06-01",
-  endDate: "2026-06-30",
-  pathId: null,
-  metrics: [],
-  tasks: [],
-  habits: [],
-  ...over,
-});
+const longGoal = (
+  over: Partial<Goal> & { habits?: { id: string; text: string; repeat: "daily" | "weekly"; repeatWeekday?: number }[] } = {},
+): Goal => {
+  const { habits, tasks, ...rest } = over;
+  return {
+    id: "g1",
+    kind: "long",
+    parentGoalId: null,
+    area: "career",
+    title: "长期目标",
+    why: "",
+    status: "active",
+    createdAt: NOW,
+    metrics: [],
+    tasks: [...(tasks ?? []), ...asHabitTasks(habits)],
+    ...rest,
+  };
+};
+
+const shortGoal = (
+  over: Partial<Goal> & { habits?: { id: string; text: string; repeat: "daily" | "weekly"; repeatWeekday?: number }[] } = {},
+): Goal => {
+  const { habits, tasks, ...rest } = over;
+  return {
+    id: "s1",
+    kind: "short",
+    parentGoalId: "g1",
+    area: "career",
+    title: "短期目标",
+    why: "",
+    status: "active",
+    createdAt: NOW,
+    startDate: "2026-06-01",
+    endDate: "2026-06-30",
+    pathId: null,
+    metrics: [],
+    tasks: [...(tasks ?? []), ...asHabitTasks(habits)],
+    ...rest,
+  };
+};
 
 describe("goalTree reads", () => {
   it("allTasks / allHabits flatten items across long and short goals with owning goal", () => {
@@ -159,7 +170,6 @@ describe("goalTree writes — goals (two tiers)", () => {
     expect(g.pathId).toBe("p1");
     expect(g.metrics).toEqual([]);
     expect(g.tasks).toEqual([]);
-    expect(g.habits).toEqual([]);
   });
 
   it("addShortGoal links to parent long via parentGoalId and never carries a pathId", () => {
@@ -350,19 +360,19 @@ describe("goalTree — loose (goal-less) tasks / habits", () => {
     expect(tasks.find((t) => t.task.id === r.id)?.goal).toBeNull();
   });
 
-  it("addLooseHabit lands in tree.habits and surfaces via allHabits with goal:null", () => {
+  it("addLooseHabit lands in tree.tasks (repeat set) and surfaces via allHabits with goal:null", () => {
     let tree = makeTree([]);
     const d = addLooseHabit(tree, "上班", "daily", undefined, NOW);
     tree = d.tree;
     expect(d.id).toMatch(/^habit-/);
-    expect(tree.habits.map((h) => h.id)).toEqual([d.id]);
+    expect(tree.tasks.map((t) => t.id)).toEqual([d.id]);
     const habits = allHabits(tree);
     expect(habits).toHaveLength(1);
     expect(habits[0].habit.repeat).toBe("daily");
     expect(habits[0].goal).toBeNull();
     // weekly 散习惯默认锚定周一。
     const w = addLooseHabit(tree, "每周采购", "weekly", undefined, `${NOW}-w`);
-    expect(w.tree.habits.find((h) => h.id === w.id)?.repeatWeekday).toBe(1);
+    expect(w.tree.tasks.find((t) => t.id === w.id)?.repeatWeekday).toBe(1);
   });
 
   it("findItem / findTask / findHabit resolve a loose id with goal:null", () => {
@@ -393,9 +403,9 @@ describe("goalTree — loose (goal-less) tasks / habits", () => {
     let tree = makeTree([]);
     const h = addLooseHabit(tree, "上班", "daily", undefined, NOW);
     tree = updateHabit(h.tree, h.id, { startTime: "09:00", durationMin: 480 });
-    expect(tree.habits[0].id).toBe(h.id);
-    expect(tree.habits[0].startTime).toBe("09:00");
-    expect(tree.habits[0].durationMin).toBe(480);
+    expect(tree.tasks[0].id).toBe(h.id);
+    expect(tree.tasks[0].startTime).toBe("09:00");
+    expect(tree.tasks[0].durationMin).toBe(480);
   });
 
   it("removeItem deletes a loose task and prunes its activity ids", () => {

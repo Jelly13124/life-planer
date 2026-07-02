@@ -69,7 +69,6 @@ describe("goals domain", () => {
     expect(g.status).toBe("active");
     expect(g.tasks).toEqual([]);
     expect(g.metrics).toEqual([]);
-    expect(g.habits).toEqual([]);
     expect(g.pathId).toBeNull();
     expect(g.createdAt).toBe(NOW);
     expect(g.id).toMatch(/^goal-/);

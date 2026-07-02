@@ -63,7 +63,6 @@ function longGoal(over: Partial<Goal> = {}): Goal {
     pathId: "p1",
     metrics: [],
     tasks: [],
-    habits: [],
     ...over,
   };
 }
@@ -77,7 +76,6 @@ function tree(over: Partial<LifeTree> = {}): LifeTree {
     decisions: [],
     goals: [],
     tasks: [],
-    habits: [],
     choices: [],
     activity: [],
     calendarFeeds: [],

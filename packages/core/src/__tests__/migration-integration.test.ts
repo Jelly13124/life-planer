@@ -4,7 +4,7 @@ import { findItem, goalById, shortGoalsOf } from "../goalTree";
 import { actionsOnDay } from "../calendar";
 import { habitStreak } from "../habits";
 import { isActionDoneToday } from "../daily";
-import type { Habit, LifeTree, Profile, Task } from "../types";
+import type { LifeTree, Profile, Task } from "../types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 迁移集成测试 —— 旧→两级 localStorage 升级的"无损契约"。
@@ -139,11 +139,11 @@ describe("migration integration — legacy 扁平 → 两级（无损）", () =>
     expect(S2.kind).toBe("long"); // 孤儿短期 → 提为 long
     expect(S2.parentGoalId).toBeNull();
 
-    // 每个 goal 都有数组字段 + kind/parentGoalId（迁移 + normalize 兜底）。
+    // 每个 goal 都有数组字段 + kind/parentGoalId（迁移 + normalize 兜底）。habits 已并入 tasks，不再单独存在。
     for (const g of tree.goals) {
       expect(Array.isArray(g.metrics)).toBe(true);
       expect(Array.isArray(g.tasks)).toBe(true);
-      expect(Array.isArray(g.habits)).toBe(true);
+      expect("habits" in g).toBe(false);
       expect(g.kind === "long" || g.kind === "short").toBe(true);
       expect("subgoals" in g).toBe(false);
     }
@@ -166,7 +166,7 @@ describe("migration integration — legacy 扁平 → 两级（无损）", () =>
     const h1 = findItem(tree, "h1");
     expect(h1).not.toBeNull();
     expect(h1!.kind).toBe("habit");
-    expect((h1!.item as Habit).repeat).toBe("daily");
+    expect((h1!.item as Task).repeat).toBe("daily");
 
     const t2 = findItem(tree, "t2");
     expect(t2).not.toBeNull();
@@ -179,7 +179,7 @@ describe("migration integration — legacy 扁平 → 两级（无损）", () =>
     const h2 = findItem(tree, "h2");
     expect(h2).not.toBeNull();
     expect(h2!.kind).toBe("habit");
-    const h2habit = h2!.item as Habit;
+    const h2habit = h2!.item as Task;
     expect(h2habit.repeat).toBe("weekly");
     expect(h2habit.repeatWeekday).toBe(1);
     // h2 在 S2（孤儿提为 long）里。
@@ -228,26 +228,25 @@ describe("migration integration — legacy 扁平 → 两级（无损）", () =>
     expect(again.activity).toEqual(once.activity);
     expect(findItem(again, "t1")!.kind).toBe("task");
     expect(findItem(again, "h2")!.kind).toBe("habit");
-    expect((findItem(again, "h2")!.item as Habit).repeatWeekday).toBe(1);
+    expect((findItem(again, "h2")!.item as Task).repeatWeekday).toBe(1);
   });
 
   it("7) loose tasks/habits: missing tree-level arrays backfill to [] (idempotent; goal items untouched)", () => {
     const tree = migrate();
-    // 旧数据无树级 tasks/habits → 补成空数组（散项容器）。
+    // 旧数据无树级 tasks/habits → 补成空数组（散项容器；habits 已并入 tasks，无独立字段）。
     expect(tree.tasks).toEqual([]);
-    expect(tree.habits).toEqual([]);
-    // goal 自己的 tasks/habits 不受影响（L1 仍持 t1/h1）。
-    expect(goalById(tree, "L1")!.tasks.map((t) => t.id)).toEqual(["t1"]);
-    expect(goalById(tree, "L1")!.habits.map((h) => h.id)).toEqual(["h1"]);
-    // 幂等：已有散项时再 normalize 原样保留。
-    const withLoose: LifeTree = {
+    expect("habits" in tree).toBe(false);
+    // goal 自己的 tasks（含 habits，已并入、带 repeat）不受影响（L1 仍持 t1/h1）。
+    expect(goalById(tree, "L1")!.tasks.map((t) => t.id).sort()).toEqual(["h1", "t1"]);
+    // 幂等：已有散项时再 normalize 原样保留（旧 habits[] 输入仍应无损折进 tasks[]）。
+    const withLoose = {
       ...tree,
       tasks: [{ id: "loose-t", text: "买菜", done: false }],
       habits: [{ id: "loose-h", text: "上班", repeat: "daily" }],
     };
     const again = normalizeLoadedTree(JSON.parse(JSON.stringify(withLoose)))!;
-    expect(again.tasks.map((t) => t.id)).toEqual(["loose-t"]);
-    expect(again.habits.map((h) => h.id)).toEqual(["loose-h"]);
+    expect(again.tasks.map((t) => t.id)).toEqual(["loose-t", "loose-h"]);
+    expect(again.tasks.find((t) => t.id === "loose-h")?.repeat).toBe("daily");
   });
 });
 
@@ -313,8 +312,8 @@ describe("migration integration — nested 嵌套 → 两级（无损，subgoal 
     expect(G.kind).toBe("long");
     expect(G.parentGoalId).toBeNull();
     expect(G.metrics.map((m) => m.id)).toEqual(["gm1"]);
-    expect(G.tasks.map((t) => t.id)).toEqual(["gt1"]);
-    expect(G.habits.map((h) => h.id)).toEqual(["gh1"]);
+    expect(G.tasks.map((t) => t.id)).toEqual(["gt1", "gh1"]);
+    expect(G.tasks.find((t) => t.id === "gh1")?.repeat).toBe("daily");
     expect("subgoals" in G).toBe(false);
 
     const S1 = goalById(tree, "S1")!;
@@ -324,10 +323,10 @@ describe("migration integration — nested 嵌套 → 两级（无损，subgoal 
     expect(S1.startDate).toBe("2026-01-01");
     expect(S1.endDate).toBe("2026-12-31");
     expect(S1.pathId).toBeNull();
-    // short 自带其原子目标 metrics/tasks/habits（id 保留）。
+    // short 自带其原子目标 metrics/tasks（id 保留）；habits 无损并入 tasks（带 repeat）。
     expect(S1.metrics.map((m) => m.id)).toEqual(["sm1"]);
-    expect(S1.tasks.map((t) => t.id)).toEqual(["st1"]);
-    expect(S1.habits.map((h) => h.id)).toEqual(["sh1"]);
+    expect(S1.tasks.map((t) => t.id)).toEqual(["st1", "sh1"]);
+    expect(S1.tasks.find((t) => t.id === "sh1")?.repeat).toBe("daily");
 
     expect(shortGoalsOf(tree, "G").map((s) => s.id)).toEqual(["S1"]);
   });
@@ -399,7 +398,7 @@ describe("migration integration — every input id reachable on a messy fixture"
       // already two-tier short (parent L) — must pass through unchanged
       { id: "two", kind: "short", parentGoalId: "L", area: "career", title: "已两级", why: "",
         status: "active", createdAt: "2026-01-01T00:00:00.000Z", pathId: null,
-        metrics: [], tasks: [], habits: [] },
+        metrics: [], tasks: [] },
     ]);
 
     const present = new Set(tree.goals.map((g) => g.id));

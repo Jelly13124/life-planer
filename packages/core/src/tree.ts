@@ -37,7 +37,6 @@ export function createTree(
     decisions: [],
     goals: [],
     tasks: [],
-    habits: [],
     choices: [],
     activity: [],
     calendarFeeds: [],
