@@ -23,7 +23,6 @@ import {
   choosePath as domainChoosePath,
   clearChosenPath as domainClearChosenPath,
 } from "@lifeplanner/core/tree";
-import { localPathGoals } from "@lifeplanner/core/pathGoals";
 import { localGenerator } from "@lifeplanner/core/generator/localGenerator";
 import {
   longGoals,
@@ -147,7 +146,9 @@ interface AppValue {
   choosePath: (pathId: string) => void;
   clearChosenPath: () => void;
   decomposePathIntoGoals: (pathId: string) => Promise<void>;
+  decomposing: boolean;
   enriching: boolean;
+  retryEnrich: (pathId: string) => void;
   onboard: (inputs: ProfileInputs, win?: { start: string; end: string }) => void;
   reset: () => void;
   // 后端（AI 建议；离线返回 []）
@@ -165,6 +166,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [nudge, setNudge] = useState<{ title: string; delta: number; id: number } | null>(null);
   const nudgeId = useRef(0);
   const [enriching, setEnriching] = useState(false); // 人生树分支 AI 推演中
+  const [decomposing, setDecomposing] = useState(false); // 把路拆成目标 AI 请求中
   // 用 ref 保证持久化/动作读到的是最新树（避免闭包旧值）。在 effect 里同步，不在渲染期写 ref。
   const treeRef = useRef<LifeTree | null>(null);
   useEffect(() => {
@@ -542,25 +544,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     commit(domainClearChosenPath(cur, nowISO()));
   }, [commit]);
 
-  // 把一条路拆成 2-3 个挂路长期目标：AI 优先（复用 /api/goals，把这条路作为 choice 上下文），
-  // 失败/离线 → 本地确定性兜底 localPathGoals。逐个建目标并挂 pathId。
+  // 把一条路拆成 2-3 个挂路长期目标：纯 AI（复用 /api/goals，把这条路作为 choice 上下文）。
+  // 离线 / 请求失败 / 返回空 → 不生成任何目标（不再本地兜底虚构内容），
+  // 「让 AI 拆一版目标」按钮保持可见，用户可稍后重试。
   const decomposePathIntoGoals = useCallback(
     async (pathId: string) => {
       const cur = treeRef.current;
       if (!cur) return;
       const path = cur.paths.find((p) => p.id === pathId);
       if (!path || path.kind !== "choice") return;
+      if (!hasBackend()) return;
 
       let drafts: { area: LifeArea; title: string; why: string }[] = [];
-      if (hasBackend()) {
-        try {
-          const ai = await fetchGoalSuggestions(cur.profile.snapshot || "", [path.choiceLabel], "zh");
-          drafts = ai.slice(0, 3).map((g) => ({ area: g.area, title: g.title, why: g.why }));
-        } catch {
-          // 忽略，走本地兜底
-        }
+      setDecomposing(true);
+      try {
+        const ai = await fetchGoalSuggestions(cur.profile.snapshot || "", [path.choiceLabel], "zh");
+        drafts = ai.slice(0, 3).map((g) => ({ area: g.area, title: g.title, why: g.why }));
+      } catch {
+        drafts = [];
+      } finally {
+        setDecomposing(false);
       }
-      if (drafts.length === 0) drafts = localPathGoals(path, 3);
+      if (drafts.length === 0) return;
 
       // 按标题去重：同标题会算出同一个 goal id（id = hash(title|now)），去掉重复避免撞 id。
       const seenTitles = new Set<string>();
@@ -577,6 +582,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const { tree: next } = domainAddLongGoal(t, { area: d.area, title: d.title, why: d.why, pathId }, nowISO());
         commit(next);
       }
+    },
+    [commit],
+  );
+
+  // 重试某条路的 AI 推演（用于「重试推演」按钮）：离线时静默不做（按钮仍保留，供用户联网后再点）；
+  // 成功则把结果叠加进路径并标记 enriched；失败保留原样，不删已持久化的内容。
+  const retryEnrich = useCallback(
+    (pathId: string) => {
+      const cur = treeRef.current;
+      if (!cur) return;
+      const path = cur.paths.find((p) => p.id === pathId);
+      if (!path) return;
+      if (!hasBackend()) return;
+      setEnriching(true);
+      void enrichPath(cur, path)
+        .then((result) => {
+          if (!result) return;
+          const t = treeRef.current;
+          if (!t) return;
+          commit({
+            ...t,
+            paths: t.paths.map((p) => (p.id === path.id ? applyEnrichToPath(p, result) : p)),
+          });
+        })
+        .catch(() => {
+          // 网络 / AI 失败：保留原路径，不删已持久化内容，用户可再次点「重试推演」。
+        })
+        .finally(() => setEnriching(false));
     },
     [commit],
   );
@@ -685,7 +718,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       choosePath,
       clearChosenPath,
       decomposePathIntoGoals,
+      decomposing,
       enriching,
+      retryEnrich,
       onboard,
       reset,
       suggestGoals,
@@ -725,7 +760,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     choosePath,
     clearChosenPath,
     decomposePathIntoGoals,
+    decomposing,
     enriching,
+    retryEnrich,
     onboard,
     reset,
     suggestGoals,

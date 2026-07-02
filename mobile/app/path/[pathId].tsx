@@ -32,7 +32,7 @@ const round5 = (n: number) => Math.round(n / 5) * 5;
 export default function PathDetailScreen() {
   const { pathId } = useLocalSearchParams<{ pathId: string }>();
   const app = useApp();
-  const { tree, addScenario, enriching } = app;
+  const { tree, addScenario, enriching, decomposing } = app;
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -159,9 +159,16 @@ export default function PathDetailScreen() {
       ) : null}
 
       {isChoice && !isEnriched(path) ? (
-        <Text style={styles.feasFaint}>
-          {enriching ? "AI 正在推演这条路的可能性…" : "可能性待 AI 推演"}
-        </Text>
+        enriching ? (
+          <Text style={styles.feasFaint}>AI 正在推演…</Text>
+        ) : (
+          <Pressable
+            onPress={() => app.retryEnrich(path.id)}
+            style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.9 }]}
+          >
+            <Text style={styles.retryBtnText}>重试推演</Text>
+          </Pressable>
+        )
       ) : null}
 
       {isChoice && isEnriched(path) ? (
@@ -267,9 +274,10 @@ export default function PathDetailScreen() {
           {linkedGoals.length === 0 ? (
             <Pressable
               onPress={() => void app.decomposePathIntoGoals(path.id)}
-              style={({ pressed }) => [styles.planBtn, pressed && { opacity: 0.9 }]}
+              disabled={decomposing}
+              style={({ pressed }) => [styles.planBtn, pressed && { opacity: 0.9 }, decomposing && { opacity: 0.6 }]}
             >
-              <Text style={styles.planBtnText}>让 AI 拆一版目标</Text>
+              <Text style={styles.planBtnText}>{decomposing ? "AI 拆解中…" : "让 AI 拆一版目标"}</Text>
             </Pressable>
           ) : (
             linkedGoals.map((g) => (
@@ -330,6 +338,16 @@ const styles = StyleSheet.create({
   feasNote: { color: colors.fgMuted },
   feasSub: { fontSize: 12, color: colors.fgMuted, marginTop: 5 },
   feasFaint: { fontSize: 11, color: colors.fgMuted, marginTop: 6 },
+  retryBtn: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: radii.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  retryBtnText: { color: colors.accent, fontSize: 13, fontWeight: "700" },
   sectionLabel: { fontSize: 13, fontWeight: "600", color: colors.fgMuted, marginBottom: 8 },
   segRow: { flexDirection: "row", gap: 8 },
   seg: {
