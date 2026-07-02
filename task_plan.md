@@ -1,9 +1,23 @@
 # Task Plan — Life Planner (人生树 / decision + planning app)
 
-## ▶ CURRENT — 2026-07-01 状态快照（承接一路优化 + 上云 + 上 TestFlight）
-Branch `feat/goal-planning-mainline` @ `1ebb790`, master fast-forwarded + pushed. web 全绿（tsc 0 / 490 vitest / build ok）。mobile tsc 干净。full session log in `progress.md` (top entries), gotcha log in there too.
+## ▶ CURRENT — 2026-07-02 状态快照（过夜大改：任务统一 + 预测/AI 重做）
+Branch `feat/goal-planning-mainline` @ `785c808`, master fast-forwarded + pushed. web 全绿（tsc 0 / 497 vitest / build ok）。mobile tsc 干净。full session log in `progress.md` (top entries), gotcha log in there too。**⚠️ 过夜改动只提交未部署——待用户晨间 TestFlight 验收后再 OTA/发 Vercel。**
 
-**刚完成（本轮 2026-07-01 下午）**
+**刚完成（过夜 2026-07-02，subagent-driven，13 任务 + 2 轮 code-review 全过）** —— spec/plan `docs/superpowers/*/2026-07-02-prediction-planning-overhaul*`
+- **WS1 任务统一（两端 + 核心迁移，`13a5827`→`cbf1e34`）**：`Habit` 并入 `Task`（`repeat?`/`repeatWeekday?` 可选属性），删 `Habit` 类型 + `Goal.habits`/`LifeTree.habits`；`normalizeLoadedTree` 无损幂等迁移 legacy habits→重复 tasks；`daily.ts` 连续天数/热力图/今日项改读重复任务；两端所有消费点扫平；网页习惯页→「重复任务」视图。守住了 3 个不变量（迁移无损、重复任务按天完成走 activity、重复任务不计入 goalProgress——`ownUnits` 加 `t.repeat==null` 过滤）。code-review 通过。
+- **WS3 可能性只在 AI 确认后显示（`5f4b4ff`）**：`LifePath.enriched` + core `isEnriched`（带 legacy 真 note 兜底）；两端仅在 enriched 时显示乐观/中性/保守占比；爬升数学不变。
+- **WS4 情景原地切换（手机, `6578e69`）**：详情页乐观/中性/保守本地切换，去掉 `router.replace`，预取变体；odds/选路/计划/聊天绑基准路，曲线+时间线跟随所选情景。
+- **WS2 去假兜底 + 重试（手机+规则, `3dd33cf`）**：`decomposePathIntoGoals` 不再塞 `localPathGoals`；加 `retryEnrich` + 「重试推演」按钮；`ai-and-secrets.md` 规则改为"内容类 AI 无假兜底、给重试态、已存预测离线可读、几何/数学本地"（注明 supersedes 旧规则）。
+- **WS7 调度流（手机, `33e9b92`）**：月视图选未排任务→点某天派过去（`scheduleToDay`）；周视图点任务排时段；重复任务不进派天流。
+- **WS6 AI 建议任务（手机, `5139f2e`）**：目标上「AI 建议任务」→ `/api/goal-actions` → 挂目标下任务；按目标级 in-flight；无假兜底。
+- **WS5 推演动画（手机, `785c808`）**：全屏 `PredictingOverlay`（自绘分支曲线+呼吸原点，reduce-motion 静态兜底）替掉旧「AI 推演中…」占位。
+
+**待用户/待确认（晨间）**
+- **TestFlight 真机验过夜大改**（关开 App 两次拉 OTA，但 OTA 还没发！先看下方部署）：统一任务无每日/每周分栏 + 可设重复；目标建任务→月派天→周排时段；选路 enrich 有动画；乐观/中性/保守原地切换；完成任务乐观爬升；断网历史预测仍在、新预测给「重试推演」。
+- **部署（用户确认后我来发）**：手机 `eas update --environment production`（`EXPO_PUBLIC_API_BASE_URL` 已注册进 EAS 环境，OTA 会带上后端 → 真 AI）；网页已随 master 推送、Vercel 自动构建。
+- 前一轮预测闭环（`b43e8a60` 已 OTA）+ Supabase Auth URL 配置 + build 17 TestFlight，仍待验。
+
+**刚完成（上一轮 2026-07-01 下午）**
 - **信息架构去重（网页, `8f852d0`）**：老用户落地页 `dashboard`→**人生树**（AppContext hydrate）；日历屏瘦身（移除 TodayReminders + 内嵌未来预测小地图这两处重复，只留排期）。preview 实测落地/瘦身生效。
 - **手机端合并双日历（`a927d97`）**：删掉「月历」Tab + MonthScreen，月网格折进「首页」日程（顶部周/月切换，都驱动 viewDate）；5 Tab→4（首页/目标/人生树/我）。
 - **手机端「维持现状」末端可点（`cf21516`）**：status-quo 先渲染→末端命中区被后画的彩色路命中层盖住→点不动。把所有终点命中区（圆点+文字）统一提到最上层。
@@ -55,6 +69,8 @@ A life-planning web app whose centerpiece is an animated branching prediction tr
 | 23 | Mobile build 17 → TestFlight: runtimeVersion fingerprint→appVersion fix (monorepo mismatch killed build 16); build 17 succeeded + auto-submit; first TestFlight build WITH OTA embedded. | complete |
 | 24 | Web IA de-dup: returning users land on 人生树 (not the dashboard); calendar slimmed (drop TodayReminders + embedded prediction mini-map). `8f852d0`. | complete |
 | 25 | Mobile parity + prediction loop (subagent-driven, OTA'd): merge 月历→首页 (week/month toggle, 5→4 tabs, `a927d97`); fix status-quo endpoint tap via top hit-layer (`cf21516`); prediction loop = choosePath(commit) + AI-decompose to path-linked goals + 3-scenario climb bars in a detail "cockpit" + ✓ marker. core TDD (`chosenPathId`, `localPathGoals`). spec/plan 2026-07-01. `af0b3cc`→`1ebb790`. | complete |
+| 26 | Task unification (both platforms + core migration, subagent-driven): merge `Habit` into `Task` (`repeat?` attribute); remove `Habit` type + `Goal/LifeTree.habits`; idempotent lossless `normalizeLoadedTree` migration; `daily.ts` from repeating tasks; sweep core/web/mobile green; HabitsSection→重复任务. Invariants held (migration, per-day completion, goalProgress exclusion). code-reviewed. `13a5827`→`cbf1e34`. | complete (not deployed) |
+| 27 | Prediction+planning overhaul (subagent-driven, WS2–WS7): AI-only possibility shown after `enriched` + progress climb kept (`5f4b4ff`); in-place scenario toggle no-nav (`6578e69`); drop fabricated fallbacks + `retryEnrich`/「重试推演」 + rule update (`3dd33cf`); month=day/week=time schedule flow (`33e9b92`); AI-suggested tasks per goal (`5139f2e`); predicting animation overlay (`785c808`). spec/plan 2026-07-02. code-reviewed. **Awaiting user TestFlight verify before OTA/deploy.** | complete (not deployed) |
 | — | Supabase cloud sync (mobile): NOT built — AsyncStorage only (sync-ready jsonb shape). Needs Supabase client + auth screen (email OTP) + sync wiring in mobile/src/state/store.tsx. | pending |
 
 ## Needs the user (morning of 2026-06-23) — code ready, see docs/MORNING-2026-06-23.md
