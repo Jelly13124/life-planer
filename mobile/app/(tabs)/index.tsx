@@ -1,1 +1,1 @@
-export { default } from "../../src/screens/ScheduleScreen";
+export { default } from "../../src/screens/TreeScreen";
