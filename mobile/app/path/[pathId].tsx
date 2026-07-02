@@ -30,12 +30,15 @@ const round5 = (n: number) => Math.round(n / 5) * 5;
 
 export default function PathDetailScreen() {
   const { pathId } = useLocalSearchParams<{ pathId: string }>();
-  const { tree, addScenario } = useApp();
+  const app = useApp();
+  const { tree, addScenario } = app;
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
 
   const path = tree?.paths.find((p) => p.id === pathId) ?? null;
+  const isChosen = app.chosenPathId === path?.id;
+  const linkedGoals = app.longGoals.filter((g) => g.pathId === path?.id && g.status === "active");
 
   if (!tree || !path) {
     return (
@@ -88,6 +91,35 @@ export default function PathDetailScreen() {
       </View>
       <Text style={styles.disclaimer}>这是一种可能的人生,不是预测。数字代表综合状态感受,仅供想象参考。</Text>
 
+      {isChoice ? (
+        <View style={styles.commitBox}>
+          {isChosen ? (
+            <>
+              <View style={styles.commitRow}>
+                <Text style={styles.commitOn}>✓ 正在走这条路</Text>
+                <Pressable onPress={() => app.clearChosenPath()} hitSlop={8}>
+                  <Text style={styles.commitCancel}>取消</Text>
+                </Pressable>
+              </View>
+              <Text style={styles.commitHint}>完成下面的目标任务，会把这条路的乐观未来往上推。</Text>
+            </>
+          ) : (
+            <>
+              <Pressable
+                onPress={() => {
+                  app.choosePath(path.id);
+                  if (linkedGoals.length === 0) void app.decomposePathIntoGoals(path.id);
+                }}
+                style={({ pressed }) => [styles.commitBtn, pressed && { opacity: 0.9 }]}
+              >
+                <Text style={styles.commitBtnText}>选这条路</Text>
+              </Pressable>
+              <Text style={styles.commitHint}>选定后 AI 会把它拆成几个目标，完成任务即推高乐观未来。</Text>
+            </>
+          )}
+        </View>
+      ) : null}
+
       {/* 现实可行度 */}
       {isChoice && eff ? (
         <View style={styles.feasBox}>
@@ -101,6 +133,32 @@ export default function PathDetailScreen() {
             </Text>
           ) : null}
           <Text style={styles.feasFaint}>AI 粗估,非精确概率</Text>
+        </View>
+      ) : null}
+
+      {isChoice ? (
+        <View style={styles.climbBox}>
+          <Text style={styles.climbTitle}>三种可能的未来</Text>
+          {([
+            { key: "optimistic", label: "乐观", color: "#0f9d6a" },
+            { key: "likely", label: "中性", color: "#c77600" },
+            { key: "conservative", label: "低谷", color: "#e84a6f" },
+          ] as const).map((row) => (
+            <View key={row.key} style={styles.climbRow}>
+              <Text style={styles.climbLabel}>{row.label}</Text>
+              <View style={styles.climbTrack}>
+                <View style={[styles.climbFill, { width: `${odds[row.key]}%`, backgroundColor: row.color }]} />
+              </View>
+              <Text style={[styles.climbPct, row.key === "optimistic" && { color: row.color, fontWeight: "800" }]}>
+                {odds[row.key]}%
+              </Text>
+            </View>
+          ))}
+          {eff && eff.bump > 0 ? (
+            <Text style={styles.climbNote}>你的行动已把乐观未来推高 +{eff.bump}%。</Text>
+          ) : (
+            <Text style={styles.climbNote}>完成挂在这条路上的任务，乐观占比会往上爬。</Text>
+          )}
         </View>
       ) : null}
 
@@ -170,6 +228,27 @@ export default function PathDetailScreen() {
           </View>
         ))}
       </View>
+
+      {isChosen ? (
+        <View style={{ marginTop: 24 }}>
+          <Text style={styles.sectionLabel}>这条路的计划</Text>
+          {linkedGoals.length === 0 ? (
+            <Pressable
+              onPress={() => void app.decomposePathIntoGoals(path.id)}
+              style={({ pressed }) => [styles.planBtn, pressed && { opacity: 0.9 }]}
+            >
+              <Text style={styles.planBtnText}>让 AI 拆一版目标</Text>
+            </Pressable>
+          ) : (
+            linkedGoals.map((g) => (
+              <View key={g.id} style={styles.planRow}>
+                <Text style={styles.planGoalTitle} numberOfLines={1}>{g.title}</Text>
+                <Text style={styles.planGoalPct}>{app.progressOf(g)}%</Text>
+              </View>
+            ))
+          )}
+        </View>
+      ) : null}
 
       {/* 聊天入口 */}
       <Pressable
@@ -265,4 +344,24 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   chatBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  commitBox: { marginTop: 14 },
+  commitRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  commitOn: { fontSize: 16, fontWeight: "700", color: "#0f9d6a" },
+  commitCancel: { fontSize: 13, color: colors.fgMuted },
+  commitBtn: { backgroundColor: colors.accent, borderRadius: radii.sm, paddingVertical: 13, alignItems: "center" },
+  commitBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  commitHint: { fontSize: 12, color: colors.fgMuted, marginTop: 6, lineHeight: 17 },
+  climbBox: { marginTop: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line, borderRadius: radii.md, backgroundColor: "#fff", padding: 14 },
+  climbTitle: { fontSize: 13, fontWeight: "700", color: colors.fg, marginBottom: 10 },
+  climbRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
+  climbLabel: { width: 32, fontSize: 13, color: colors.fg },
+  climbTrack: { flex: 1, height: 10, borderRadius: 5, backgroundColor: "#eee", overflow: "hidden" },
+  climbFill: { height: 10, borderRadius: 5 },
+  climbPct: { width: 44, textAlign: "right", fontSize: 13, color: colors.fg },
+  climbNote: { fontSize: 12, color: colors.fgMuted, marginTop: 4 },
+  planBtn: { borderWidth: 1, borderColor: colors.accent, borderRadius: radii.sm, paddingVertical: 12, alignItems: "center" },
+  planBtnText: { color: colors.accent, fontSize: 15, fontWeight: "700" },
+  planRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
+  planGoalTitle: { flex: 1, fontSize: 15, color: colors.fg },
+  planGoalPct: { fontSize: 13, fontWeight: "700", color: colors.accent, marginLeft: 12 },
 });
