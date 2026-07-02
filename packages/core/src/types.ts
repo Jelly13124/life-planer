@@ -148,6 +148,7 @@ export interface LifePath {
   // ---- 现实可行度（仅 choice 路有；衡量从主角真实起点到这条路要求的差距，不是"预测会成真"）----
   feasibility?: number; // 0-100 整数：对他多够得着（status-quo 不设）
   feasibilityNote?: string; // ≤20 字依据（如「有设计功底+已起号，但变现门槛高」）
+  enriched?: boolean; // AI 已确认基线可能性（否则只有本地占位，不展示可能性）
 }
 
 export type Reversibility = "one-way" | "two-way"; // 单行道 / 可回头

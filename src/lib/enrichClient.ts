@@ -110,6 +110,7 @@ export function applyEnrichment(
   // 起点没变（子分支/未重定）时不动 forkAge；根分支按 AI 重定。
   const forkAge = retime ? base : path.forkAge;
   // 现实可行度：仅 choice 路携带（status-quo 是默认轨道，不评可行度）。
+  // enriched：走到这里说明 AI 结果已成功应用，标记为已由 AI 确认（无论这条路是否 choice）。
   const feas: Partial<LifePath> =
     path.kind === "choice" && Number.isFinite(result.feasibility)
       ? {
@@ -117,8 +118,8 @@ export function applyEnrichment(
           feasibilityNote: (result.feasibilityNote ?? "").trim() || undefined,
         }
       : {};
-  if (cleaned.length < 2) return { ...path, ...feas, summary, forkAge };
-  return { ...path, ...feas, summary, forkAge, nodes: cleaned };
+  if (cleaned.length < 2) return { ...path, ...feas, summary, forkAge, enriched: true };
+  return { ...path, ...feas, summary, forkAge, nodes: cleaned, enriched: true };
 }
 
 // 查询后端是否已接入真实大模型

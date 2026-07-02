@@ -20,6 +20,7 @@ import { DecisionSheet } from "./DecisionSheet";
 import { RegenerateSheet } from "./RegenerateSheet";
 import { activeDecisionFor, reviewedDecisionsFor, togglePlanItem } from "@/domain/decisions";
 import { effectiveFeasibility, linkedGoals } from "@/domain/feasibility";
+import { isEnriched } from "@/domain/pathEnriched";
 
 /** 导入时取一次当下作初值（render 内不可调用 new Date）；组件挂载后用 effect 刷新。 */
 const _bootNow = new Date().getTime();
@@ -67,7 +68,7 @@ export function PathDetail({
   pathId: string;
   onBack: () => void;
 }) {
-  const { addScenario, addBranch, openPath, updateDecision } = useApp();
+  const { addScenario, addBranch, openPath, updateDecision, predicting } = useApp();
   const { t } = useT();
   const [chatting, setChatting] = useState(false);
   const [deciding, setDeciding] = useState(false);
@@ -130,9 +131,10 @@ export function PathDetail({
         <p className="mt-2 text-xs text-[var(--fg-faint)]">
           {t("这是一种可能的人生，不是预测。数字代表综合状态感受，仅供想象与参考。")}
         </p>
-        {/* 现实可行度：仅 choice 路、且有值时显示（status-quo 是默认轨道，不评）。
+        {/* 现实可行度：仅 choice 路、且已由 AI 确认基线（isEnriched）时才展示可能性——
+            本地占位可行度不代表真实评估，不展示会造成误导。
             有效可行度 = AI 起步分 + 你完成这条路上目标的进度加成，让"我的行动把未来推近了"可见。 */}
-        {path.kind === "choice" && eff && (
+        {path.kind === "choice" && eff && isEnriched(path) && (
           <div className="mt-3">
             <div className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-2xl border border-[var(--line)] bg-black/[0.03] px-3 py-2 text-sm">
               <span className="text-[var(--fg-faint)]">{t("现实可行度")}</span>
@@ -161,6 +163,11 @@ export function PathDetail({
             )}
             <p className="mt-1.5 text-xs text-[var(--fg-faint)]">{t("AI 粗估，非精确概率")}</p>
           </div>
+        )}
+        {path.kind === "choice" && !isEnriched(path) && (
+          <p className="mt-3 text-xs text-[var(--fg-faint)]">
+            {predicting ? t("AI 正在推演这条路的可能性…") : t("可能性待 AI 推演")}
+          </p>
         )}
         <div className="mt-4 flex flex-wrap gap-2">
           <Button variant="primary" onClick={() => setChatting(true)}>

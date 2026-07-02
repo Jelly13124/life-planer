@@ -155,9 +155,10 @@ export function applyEnrichToPath(path: LifePath, result: EnrichResult): LifePat
         }
       : {};
   const summary = result.summary || path.summary;
+  // 走到这里说明 AI 结果已成功应用，标记为已由 AI 确认基线可能性。
   return cleaned.length >= 2
-    ? { ...path, ...feas, summary, nodes: cleaned }
-    : { ...path, ...feas, summary };
+    ? { ...path, ...feas, summary, nodes: cleaned, enriched: true }
+    : { ...path, ...feas, summary, enriched: true };
 }
 
 // ───────── 和未来的自己对话（/api/chat，非流式 v1） ─────────

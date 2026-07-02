@@ -263,6 +263,8 @@ export const EN: Record<string, string> = {
   "已推演 {done} / {total} 条路": "Predicted {done} / {total} paths",
   "正在推演，请稍候": "Predicting, please wait",
   "AI 正在推演你的人生": "AI is predicting your life",
+  "AI 正在推演这条路的可能性…": "AI is working out the odds for this path…",
+  "可能性待 AI 推演": "Odds pending AI analysis",
 
   // ── 决策闭环（选定/落地/复盘） ──
   "把这条路变成计划": "Turn this path into a plan",

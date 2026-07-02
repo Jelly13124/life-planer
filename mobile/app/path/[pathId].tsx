@@ -14,6 +14,7 @@ import {
 } from "@lifeplanner/core/types";
 import { effectiveFeasibility } from "@lifeplanner/core/feasibility";
 import { scenarioOdds } from "@lifeplanner/core/scenarioOdds";
+import { isEnriched } from "@lifeplanner/core/pathEnriched";
 import { useApp } from "../../src/state/store";
 import { futureAgeOf } from "../../src/lib/api";
 import { MetricChart } from "../../src/components/MetricChart";
@@ -31,7 +32,7 @@ const round5 = (n: number) => Math.round(n / 5) * 5;
 export default function PathDetailScreen() {
   const { pathId } = useLocalSearchParams<{ pathId: string }>();
   const app = useApp();
-  const { tree, addScenario } = app;
+  const { tree, addScenario, enriching } = app;
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -120,8 +121,9 @@ export default function PathDetailScreen() {
         </View>
       ) : null}
 
-      {/* 现实可行度 */}
-      {isChoice && eff ? (
+      {/* 现实可行度 + 三种可能的未来：仅在 AI 已确认基线（isEnriched）后展示——
+          本地占位可行度只是粗估，展示出来会误导用户，所以先不展示可能性。 */}
+      {isChoice && eff && isEnriched(path) ? (
         <View style={styles.feasBox}>
           <Text style={styles.feasLine}>
             现实可行度 <Text style={styles.feasVal}>约 {round5(eff.value)}%</Text>
@@ -136,7 +138,13 @@ export default function PathDetailScreen() {
         </View>
       ) : null}
 
-      {isChoice ? (
+      {isChoice && !isEnriched(path) ? (
+        <Text style={styles.feasFaint}>
+          {enriching ? "AI 正在推演这条路的可能性…" : "可能性待 AI 推演"}
+        </Text>
+      ) : null}
+
+      {isChoice && isEnriched(path) ? (
         <View style={styles.climbBox}>
           <Text style={styles.climbTitle}>三种可能的未来</Text>
           {([
@@ -162,7 +170,7 @@ export default function PathDetailScreen() {
         </View>
       ) : null}
 
-      {/* 三情景切换(带可能性比率) */}
+      {/* 三情景切换(带可能性比率——比率仅在 AI 已确认基线后展示) */}
       {isChoice ? (
         <View style={{ marginTop: 18 }}>
           <Text style={styles.sectionLabel}>换个走向看看</Text>
@@ -180,12 +188,16 @@ export default function PathDetailScreen() {
                   ]}
                 >
                   <Text style={[styles.segLabel, active && { color: "#fff" }]}>{s.label}</Text>
-                  <Text style={[styles.segPct, active && { color: "#fff" }]}>{odds[s.value]}%</Text>
+                  {isEnriched(path) ? (
+                    <Text style={[styles.segPct, active && { color: "#fff" }]}>{odds[s.value]}%</Text>
+                  ) : null}
                 </Pressable>
               );
             })}
           </View>
-          <Text style={styles.feasFaint}>概率为 AI 粗估,非精确;三者相加 = 100%。</Text>
+          {isEnriched(path) ? (
+            <Text style={styles.feasFaint}>概率为 AI 粗估,非精确;三者相加 = 100%。</Text>
+          ) : null}
         </View>
       ) : null}
 
