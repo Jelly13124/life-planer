@@ -651,23 +651,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // 作息窗兜底：睡觉必须晚于起床（"HH:MM" 零填充 → 字符串比较即时间比较）。
       // 退化输入（睡<=醒）忽略，保留默认窗，避免时间轴/排程算出负区间。
       if (win && win.end > win.start) tree = setDayWindow(tree, win.start, win.end);
-      commit(tree);
-      // 顺手 AI 推演「维持现状」基线：让用户一进来就看到有 AI 参与的现状预测（而非本地模板）。
+      // AI 先推演「维持现状」基线，推演完再进首页（引导页上放推演动画）。
       const sq = tree.paths.find((p) => p.kind === "status-quo");
       if (sq && hasBackend()) {
+        void saveTree(tree); // 先落盘防止推演期间被杀丢数据；但先不 setTree（不进首页）
         setEnriching(true);
         void enrichPath(tree, sq)
           .then((result) => {
-            if (!result) return;
-            const t = treeRef.current;
-            if (!t) return;
-            commit({
-              ...t,
-              paths: t.paths.map((p) => (p.id === sq.id ? applyEnrichToPath(p, result) : p)),
-            });
+            const done = result
+              ? { ...tree, paths: tree.paths.map((p) => (p.id === sq.id ? applyEnrichToPath(p, result) : p)) }
+              : tree;
+            commit(done); // setTree → 现在才进首页
           })
-          .catch(() => {})
+          .catch(() => commit(tree))
           .finally(() => setEnriching(false));
+      } else {
+        commit(tree); // 无后端：直接进首页，无需等待
       }
     },
     [commit],

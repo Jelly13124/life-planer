@@ -16,6 +16,7 @@ import type {
   SalaryBand,
 } from "@lifeplanner/core/types";
 import { useApp, type ProfileInputs } from "../state/store";
+import PredictingOverlay from "../components/PredictingOverlay";
 import { Button, Input, Muted } from "../ui";
 import { colors, radii, space } from "../theme";
 
@@ -65,7 +66,7 @@ function hhmmToDate(hhmm: string): Date {
 }
 
 export default function OnboardingScreen() {
-  const { onboard } = useApp();
+  const { onboard, enriching } = useApp();
   const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState(0);
@@ -292,6 +293,9 @@ export default function OnboardingScreen() {
           </View>
         </Modal>
       ) : null}
+
+      {/* 生成人生树后 AI 推演「现状」：推演完才进首页，期间全屏动画（不可点掉——等它跑完）。 */}
+      <PredictingOverlay visible={enriching} label={name.trim() || undefined} />
     </View>
   );
 }
