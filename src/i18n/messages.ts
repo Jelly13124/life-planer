@@ -550,6 +550,9 @@ export const EN: Record<string, string> = {
   "坚持重复，构成你真正的生活方式。": "Repeat consistently — that's what shapes your real lifestyle.",
   "还没有习惯。去「我的规划」把某条行动设成每天或每周重复。":
     "No habits yet. Go to My Plan and set an action to 🔁 daily or weekly repeat.",
+  重复任务: "Recurring Tasks",
+  "还没有重复任务。去「我的规划」把某条行动设成每天或每周重复。":
+    "No recurring tasks yet. Go to My Plan and set an action to repeat daily or weekly.",
   每天: "Daily",
   每周: "Weekly",
   "🔥 连续 {n}": "🔥 {n}-day streak",

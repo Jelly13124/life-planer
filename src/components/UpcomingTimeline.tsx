@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Goal, Habit, Task } from "@/domain/types";
+import type { Goal, Task } from "@/domain/types";
 import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { actionsOnDay, unscheduledActions, weekdayOf } from "@/domain/calendar";
@@ -34,7 +34,7 @@ const WEEKDAY_TOKEN = ["周日", "周一", "周二", "周三", "周四", "周五
 type DayCell = {
   date: string;
   tasks: { goal: Goal | null; task: Task; done: boolean }[];
-  habits: { goal: Goal | null; habit: Habit }[];
+  habits: { goal: Goal | null; habit: Task }[];
 };
 
 export function UpcomingTimeline() {
@@ -68,8 +68,8 @@ export function UpcomingTimeline() {
       const tasks: DayCell["tasks"] = [];
       const habits: DayCell["habits"] = [];
       for (const a of acts) {
-        if (a.kind === "scheduled") tasks.push({ goal: a.goal, task: a.item as Task, done: a.done });
-        else habits.push({ goal: a.goal, habit: a.item as Habit });
+        if (a.kind === "scheduled") tasks.push({ goal: a.goal, task: a.item, done: a.done });
+        else habits.push({ goal: a.goal, habit: a.item });
       }
       out.push({ date, tasks, habits });
     }

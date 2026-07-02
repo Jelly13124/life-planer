@@ -208,7 +208,7 @@ export function AppShell({ active, children }: { active: View; children: ReactNo
   const lifeItems: NavItem[] = [
     { key: "areas", icon: IconCompass, label: "人生面", go: openAreas, active: active === "areas" },
     { key: "plan", icon: IconTarget, label: "目标", go: openPlan, active: active === "plan" },
-    { key: "habits", icon: IconRepeat, label: "习惯", go: openHabits, active: active === "habits" },
+    { key: "habits", icon: IconRepeat, label: "重复任务", go: openHabits, active: active === "habits" },
     { key: "insights", icon: IconChart, label: "洞察", go: openInsights, active: active === "insights" },
   ];
 

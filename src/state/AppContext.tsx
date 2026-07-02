@@ -1212,12 +1212,14 @@ export function AppProvider({
         const goal = goalByIdInTree(baseTree, goalId);
         if (!goal) return null;
         const today = localDay(new Date());
-        // 未排期任务：没排日期、未完成。
+        // 未排期任务：没排日期、未完成、非重复。
         const tasks = (goal.tasks ?? [])
-          .filter((tk) => !tk.scheduledDate && !tk.done)
+          .filter((tk) => !tk.repeat && !tk.scheduledDate && !tk.done)
           .map((tk) => ({ id: tk.id, text: tk.text }));
         // 每周习惯参与定星期几；每日习惯随同传入但本地兜底不动它们。
-        const habits = (goal.habits ?? []).map((h) => ({ id: h.id, text: h.text, repeat: h.repeat }));
+        const habits = (goal.tasks ?? [])
+          .filter((h) => h.repeat)
+          .map((h) => ({ id: h.id, text: h.text, repeat: h.repeat as "daily" | "weekly" }));
         // 没什么可排（无任务且无每周习惯）→ null，让 UI 提示「这段没有可排的任务」。
         if (!tasks.length && !habits.some((h) => h.repeat === "weekly")) return null;
         const win = dayWindow(baseTree);

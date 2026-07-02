@@ -13,7 +13,6 @@ import {
   type Goal,
   type GoalArea,
   type GoalKind,
-  type Habit,
   type Metric,
   type Task,
 } from "@/domain/types";
@@ -293,7 +292,7 @@ function TaskRow({ task, t }: { task: Task; t: TFn }) {
 // ───────────────────────────────────────────────────────────────────────────
 // 习惯 Habit：图标 + 文本 + 重复徽章（每日/每周+星期几）+ 删除。
 // ───────────────────────────────────────────────────────────────────────────
-function HabitRow({ habit, t }: { habit: Habit; t: TFn }) {
+function HabitRow({ habit, t }: { habit: Task; t: TFn }) {
   const { removeItemById } = useApp();
   const repeatLabel =
     habit.repeat === "daily"
@@ -460,7 +459,7 @@ function ItemGroups({
   goalId: string;
   metrics: Metric[];
   tasks: Task[];
-  habits: Habit[];
+  habits: Task[];
   t: TFn;
   habitHint?: boolean;
 }) {
@@ -1196,13 +1195,13 @@ function ShortGoalCard({
 
   // 是否值得显示 AI 按钮：有时间窗（短期目标常有起/止）且有未排期任务或每周习惯。
   const hasWindow = !!(short.startDate || short.endDate);
-  const unscheduledTasks = (short.tasks ?? []).filter((tk) => !tk.scheduledDate && !tk.done);
-  const weeklyHabits = (short.habits ?? []).filter((h) => h.repeat === "weekly");
+  const unscheduledTasks = (short.tasks ?? []).filter((tk) => !tk.repeat && !tk.scheduledDate && !tk.done);
+  const weeklyHabits = (short.tasks ?? []).filter((h) => h.repeat === "weekly");
   const canPlan = hasWindow && (unscheduledTasks.length > 0 || weeklyHabits.length > 0);
 
   // 预览里需要的任务/习惯文本（按 id 查），用于「任务X → 6月25日」「习惯Y → 每周三」。
   const taskTextById = (id: string) => (short.tasks ?? []).find((tk) => tk.id === id)?.text ?? id;
-  const habitTextById = (id: string) => (short.habits ?? []).find((h) => h.id === id)?.text ?? id;
+  const habitTextById = (id: string) => (short.tasks ?? []).find((h) => h.id === id)?.text ?? id;
 
   async function runPlan() {
     if (planning) return;
@@ -1316,8 +1315,8 @@ function ShortGoalCard({
       <ItemGroups
         goalId={short.id}
         metrics={short.metrics ?? []}
-        tasks={short.tasks ?? []}
-        habits={short.habits ?? []}
+        tasks={(short.tasks ?? []).filter((tk) => !tk.repeat)}
+        habits={(short.tasks ?? []).filter((tk) => tk.repeat)}
         t={t}
         habitHint
       />

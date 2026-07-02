@@ -32,7 +32,7 @@ export function HabitsSection() {
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-8">
       <SectionHeader
         eyebrow="Habits"
-        title={t("习惯")}
+        title={t("重复任务")}
         subtitle={t("坚持重复，构成你真正的生活方式。")}
       />
 
@@ -40,7 +40,7 @@ export function HabitsSection() {
         <EmptyState
           icon={<IconRepeat className="h-7 w-7" />}
           accent="var(--accent)"
-          description={t("还没有习惯。去「我的规划」把某条行动设成每天或每周重复。")}
+          description={t("还没有重复任务。去「我的规划」把某条行动设成每天或每周重复。")}
         />
       ) : (
         <ul className="space-y-2">

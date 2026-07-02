@@ -82,7 +82,6 @@ function makeTree(): LifeTree {
     decisions: [],
     goals: [],
     tasks: [],
-    habits: [],
     choices: [],
     activity: [],
     calendarFeeds: [],

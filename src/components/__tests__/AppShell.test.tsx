@@ -43,7 +43,7 @@ describe("AppShell", () => {
     // 分组后每组各是一个 navigation landmark（待办/我的人生/选择/置顶人生树…）。
     const navs = screen.getAllByRole("navigation");
     expect(navs.length).toBeGreaterThanOrEqual(3);
-    for (const label of ["日历", "目标", "习惯", "人生面", "洞察", "我的人生树", "今天", "全部任务", "已完成", "选择面板"]) {
+    for (const label of ["日历", "目标", "重复任务", "人生面", "洞察", "我的人生树", "今天", "全部任务", "已完成", "选择面板"]) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
   });
@@ -52,7 +52,7 @@ describe("AppShell", () => {
     render(<AppShell active="habits">content</AppShell>);
     const current = screen.getAllByRole("button", { current: "page" });
     expect(current.length).toBe(1);
-    expect(current[0]).toHaveTextContent("习惯");
+    expect(current[0]).toHaveTextContent("重复任务");
   });
 
   it("clicking a section calls its nav method", () => {
