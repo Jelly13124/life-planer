@@ -124,11 +124,34 @@ export function removePath(tree: LifeTree, pathId: string, now: string): LifeTre
     }
   }
 
+  const nextChosen =
+    tree.chosenPathId && toRemove.has(tree.chosenPathId) ? null : tree.chosenPathId;
+
   return {
     ...tree,
     paths: tree.paths.filter((p) => !toRemove.has(p.id)),
     decisions: tree.decisions.filter((d) => !toRemove.has(d.pathId)),
     goals: (tree.goals ?? []).filter((g) => !(g.pathId && toRemove.has(g.pathId))),
+    chosenPathId: nextChosen,
     updatedAt: now,
   };
+}
+
+// 选定「我要走的这条路」：只允许选存在的 choice 路（status-quo / 未知 id 忽略）。
+export function choosePath(tree: LifeTree, pathId: string, now: string): LifeTree {
+  const p = tree.paths.find((x) => x.id === pathId);
+  if (!p || p.kind !== "choice") return tree;
+  return { ...tree, chosenPathId: pathId, updatedAt: now };
+}
+
+// 取消选定。
+export function clearChosenPath(tree: LifeTree, now: string): LifeTree {
+  if (tree.chosenPathId == null) return tree;
+  return { ...tree, chosenPathId: null, updatedAt: now };
+}
+
+// 访问器：选定的那条路（未选或已被删 → null）。
+export function chosenPath(tree: LifeTree): LifePath | null {
+  if (!tree.chosenPathId) return null;
+  return tree.paths.find((p) => p.id === tree.chosenPathId) ?? null;
 }
