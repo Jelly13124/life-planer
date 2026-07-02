@@ -192,7 +192,7 @@ export interface Decision {
   review: Review | null;
 }
 
-// ───────── 规划主线：两级目标 —— 长期目标 ⊃ 短期目标（均直挂 { Metric, Task, Habit }） ─────────
+// ───────── 规划主线：两级目标 —— 长期目标 ⊃ 短期目标（均直挂 { Metric, Task }，重复任务走 Task.repeat） ─────────
 export type GoalStatus = "active" | "done";
 
 // 目标层级：long = 长期/身份级（上树、改预测）；short = 时间盒阶段（挂长期下、不上树）。
@@ -215,16 +215,8 @@ export interface Task {
   scheduledDate?: string; // 排到的本地日 YYYY-MM-DD（未排期则无）
   startTime?: string;     // 本地时刻 HH:MM 24h（仅在 scheduledDate 已排期时有意义）
   durationMin?: number;   // 时长（分钟），未设时默认 60
-}
-
-// 习惯（重复行动，日常纪律，不计入里程碑进度）
-export interface Habit {
-  id: string;
-  text: string;
-  repeat: "daily" | "weekly";
-  repeatWeekday?: number; // 仅 weekly：锚定星期几 0=周日…6=周六
-  startTime?: string;     // 本地时刻 HH:MM 24h
-  durationMin?: number;   // 时长（分钟），未设时默认 60
+  repeat?: "daily" | "weekly"; // 有值 = 重复任务（按天完成，走 activity）；无值 = 一次性
+  repeatWeekday?: number;      // 仅 weekly：0=周日…6=周六
 }
 
 // 目标 Plan：扁平两级 —— 靠 kind/parentGoalId 区分长期/短期，直挂指标/任务/习惯。
@@ -246,7 +238,6 @@ export interface Goal {
   favorite?: boolean; // 收藏（进侧边栏「收藏」组，可选，无需迁移）
   metrics: Metric[];  // 目标级指标
   tasks: Task[];      // 目标级一次性任务
-  habits: Habit[];    // 目标级习惯
   completedAt?: string;
   lastReviewedAt?: string;
 }
@@ -275,13 +266,23 @@ export interface Choice {
 
 // ───────── 迁移用旧类型（仅供 normalize → migrateGoals 读取，不在新代码中使用） ─────────
 
+// 旧嵌套形态的习惯（habits[] 里的一项，Habit 类型已并入 Task.repeat，仅供迁移读取旧数据）。
+export interface LegacyHabit {
+  id: string;
+  text: string;
+  repeat: "daily" | "weekly";
+  repeatWeekday?: number;
+  startTime?: string;
+  durationMin?: number;
+}
+
 // 旧嵌套形态的子目标（goal.subgoals[] 里的一项）。两级化后并入 short Goal。
 export interface NestedSubgoal {
   id: string;
   title: string;
   metrics?: Metric[];
   tasks?: Task[];
-  habits?: Habit[];
+  habits?: LegacyHabit[];
 }
 
 // 旧嵌套形态的目标（带 subgoals[]，无 kind）。两级化后 → 一个 long Goal + N 个 short Goal。
@@ -301,7 +302,7 @@ export interface NestedGoal {
   lastReviewedAt?: string;
   metrics?: Metric[];
   tasks?: Task[];
-  habits?: Habit[];
+  habits?: LegacyHabit[];
   subgoals: NestedSubgoal[];
 }
 
@@ -349,7 +350,6 @@ export interface LifeTree {
   decisions: Decision[]; // 决策日志（看见→追问→选定→落地→复盘）
   goals: Goal[]; // 规划主线：长期/短期目标
   tasks: Task[]; // 无目标的散任务（goal-less，如「临时买菜」）—— 与 goal.tasks 区分，挂树根
-  habits: Habit[]; // 无目标的散习惯/日常（goal-less，如「上班」）—— 与 goal.habits 区分，挂树根
   choices: Choice[]; // 选择面板：决策对比（与人生树打通）
   activity: ActivityDay[]; // 每日激励闭环：今日计划/完成记录
   calendarFeeds: CalendarFeed[]; // 只读外部日历（ICS 订阅源 / 上传文件），叠加在月/日视图
