@@ -9,11 +9,19 @@ import {
   EDUCATION_OPTIONS,
   SALARY_OPTIONS,
   RELATIONSHIP_OPTIONS,
+  SAVINGS_OPTIONS,
+  DEBT_OPTIONS,
+  FAMILY_OPTIONS,
+  RISK_OPTIONS,
 } from "@lifeplanner/core/profile";
 import type {
+  DebtBand,
   EducationLevel,
+  FamilyResponsibility,
   RelationshipStatus,
+  RiskAppetite,
   SalaryBand,
+  SavingsBand,
 } from "@lifeplanner/core/types";
 import { useApp, type ProfileInputs } from "../state/store";
 import PredictingOverlay from "../components/PredictingOverlay";
@@ -76,9 +84,18 @@ export default function OnboardingScreen() {
   const [major, setMajor] = useState("");
   const [occupation, setOccupation] = useState("");
   const [salary, setSalary] = useState<SalaryBand>("5to10");
-  const [relationship, setRelationship] = useState<RelationshipStatus>("single");
-  const [location, setLocation] = useState("");
+  const [hasSideHustle, setHasSideHustle] = useState(false);
+  const [sideHustle, setSideHustle] = useState("");
+  const [savings, setSavings] = useState<SavingsBand | "">("");
+  const [debt, setDebt] = useState<DebtBand | "">("");
+  const [skills, setSkills] = useState("");
   const [hobbies, setHobbies] = useState("");
+  const [relationship, setRelationship] = useState<RelationshipStatus>("single");
+  const [family, setFamily] = useState<FamilyResponsibility | "">("");
+  const [location, setLocation] = useState("");
+  const [nationality, setNationality] = useState("");
+  const [status, setStatus] = useState("");
+  const [riskAppetite, setRiskAppetite] = useState<RiskAppetite | "">("");
   const [crossroad, setCrossroad] = useState("");
   const [wake, setWake] = useState("07:00");
   const [sleep, setSleep] = useState("23:00");
@@ -112,13 +129,19 @@ export default function OnboardingScreen() {
       major: major.trim(),
       occupation: occupation.trim(),
       salary,
-      hasSideHustle: false,
-      sideHustle: "",
+      hasSideHustle,
+      sideHustle: sideHustle.trim(),
       hobbies: hobbies.trim(),
       relationship,
       location: location.trim(),
-      status: "",
+      nationality: nationality.trim() || undefined,
+      status: status.trim(),
       crossroad: crossroad.trim(),
+      skills: skills.trim() || undefined,
+      savings: savings || undefined,
+      debt: debt || undefined,
+      family: family || undefined,
+      riskAppetite: riskAppetite || undefined,
     };
     onboard(inputs, { start: wake, end: sleep });
   };
@@ -139,7 +162,7 @@ export default function OnboardingScreen() {
       ),
     },
     {
-      title: "学历与专业",
+      title: "学历与职业",
       body: (
         <>
           <SubLabel>学历</SubLabel>
@@ -147,31 +170,64 @@ export default function OnboardingScreen() {
           <View style={{ height: 18 }} />
           <SubLabel>专业 / 方向</SubLabel>
           <Input value={major} onChangeText={setMajor} placeholder="如 计算机 / 金融 / 设计（可空）" />
+          <View style={{ height: 18 }} />
+          <SubLabel>现在的职业</SubLabel>
+          <Input value={occupation} onChangeText={setOccupation} placeholder="职业 / 身份（可空）" />
         </>
       ),
     },
     {
-      title: "现在做什么",
+      title: "收入与副业",
       body: (
         <>
-          <SubLabel>职业 / 身份</SubLabel>
-          <Input value={occupation} onChangeText={setOccupation} placeholder="职业 / 身份（可空）" />
-          <View style={{ height: 18 }} />
           <SubLabel>月收入</SubLabel>
           <ChipGroup options={SALARY_OPTIONS} value={salary} onChange={setSalary} />
+          <View style={{ height: 18 }} />
+          <SubLabel>有没有副业</SubLabel>
+          <ChipGroup
+            options={[
+              { value: "yes", label: "有" },
+              { value: "no", label: "没有" },
+            ]}
+            value={hasSideHustle ? "yes" : "no"}
+            onChange={(v) => setHasSideHustle(v === "yes")}
+          />
+          {hasSideHustle ? (
+            <>
+              <View style={{ height: 18 }} />
+              <SubLabel>副业是什么</SubLabel>
+              <Input value={sideHustle} onChangeText={setSideHustle} placeholder="如 做自媒体 / 摆摊 / 接私活（可空）" />
+            </>
+          ) : null}
         </>
       ),
     },
     {
-      title: "感情状态",
-      body: <ChipGroup options={RELATIONSHIP_OPTIONS} value={relationship} onChange={setRelationship} />,
-    },
-    {
-      title: "现在的生活",
+      title: "存款与负债",
       body: (
         <>
-          <SubLabel>现在生活在哪</SubLabel>
-          <Input value={location} onChangeText={setLocation} placeholder="城市 / 国家（可空）" />
+          <SubLabel>存款</SubLabel>
+          <ChipGroup
+            options={[{ value: "" as SavingsBand | "", label: "(暂不填)" }, ...SAVINGS_OPTIONS]}
+            value={savings}
+            onChange={setSavings}
+          />
+          <View style={{ height: 18 }} />
+          <SubLabel>负债</SubLabel>
+          <ChipGroup
+            options={[{ value: "" as DebtBand | "", label: "(暂不填)" }, ...DEBT_OPTIONS]}
+            value={debt}
+            onChange={setDebt}
+          />
+        </>
+      ),
+    },
+    {
+      title: "技能与爱好",
+      body: (
+        <>
+          <SubLabel>技能 / 专长</SubLabel>
+          <Input value={skills} onChangeText={setSkills} placeholder="如 编程、设计、英语、带团队（可空）" />
           <View style={{ height: 18 }} />
           <SubLabel>爱好</SubLabel>
           <Input value={hobbies} onChangeText={setHobbies} placeholder="如 跑步、写作（可空）" />
@@ -179,38 +235,75 @@ export default function OnboardingScreen() {
       ),
     },
     {
-      title: "现在最纠结的岔路",
-      hint: "有的话写一个，没有可以跳过。",
+      title: "情感与家庭",
       body: (
-        <Input
-          value={crossroad}
-          onChangeText={setCrossroad}
-          placeholder="如 要不要换行 / 要不要出国（可空）"
-          multiline
-          style={{ minHeight: 96, textAlignVertical: "top" }}
-        />
+        <>
+          <SubLabel>情感 / 婚姻状态</SubLabel>
+          <ChipGroup options={RELATIONSHIP_OPTIONS} value={relationship} onChange={setRelationship} />
+          <View style={{ height: 18 }} />
+          <SubLabel>家庭责任</SubLabel>
+          <ChipGroup
+            options={[{ value: "" as FamilyResponsibility | "", label: "(暂不填)" }, ...FAMILY_OPTIONS]}
+            value={family}
+            onChange={setFamily}
+          />
+        </>
       ),
     },
     {
-      title: "作息时间",
-      hint: "用来排日程的清醒时段。点一下用滚轮选。",
+      title: "所在地与身份",
       body: (
-        <View style={styles.timeRow}>
-          <Pressable
-            style={({ pressed }) => [styles.timePill, pressed && { opacity: 0.8 }]}
-            onPress={() => setPicker("wake")}
-          >
-            <Text style={styles.timePillLabel}>起床</Text>
-            <Text style={styles.timePillValue}>{wake}</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.timePill, pressed && { opacity: 0.8 }]}
-            onPress={() => setPicker("sleep")}
-          >
-            <Text style={styles.timePillLabel}>睡觉</Text>
-            <Text style={styles.timePillValue}>{sleep}</Text>
-          </Pressable>
-        </View>
+        <>
+          <SubLabel>现在生活在哪</SubLabel>
+          <Input value={location} onChangeText={setLocation} placeholder="城市 / 国家（可空）" />
+          <View style={{ height: 18 }} />
+          <SubLabel>国籍 / 出生国</SubLabel>
+          <Input value={nationality} onChangeText={setNationality} placeholder="如 中国大陆 / 美国 / 印度（可空）" />
+          <View style={{ height: 18 }} />
+          <SubLabel>当前身份 / 阶段</SubLabel>
+          <Input value={status} onChangeText={setStatus} placeholder="如 H1B工作签 / 在读研究生 / 创业中（可空）" />
+        </>
+      ),
+    },
+    {
+      title: "风险偏好与作息",
+      hint: "岔路有的话写一个，没有可以跳过。",
+      body: (
+        <>
+          <SubLabel>风险偏好</SubLabel>
+          <ChipGroup
+            options={[{ value: "" as RiskAppetite | "", label: "(暂不填)" }, ...RISK_OPTIONS]}
+            value={riskAppetite}
+            onChange={setRiskAppetite}
+          />
+          <View style={{ height: 18 }} />
+          <SubLabel>现在最纠结的岔路</SubLabel>
+          <Input
+            value={crossroad}
+            onChangeText={setCrossroad}
+            placeholder="如 要不要换行 / 要不要出国（可空）"
+            multiline
+            style={{ minHeight: 72, textAlignVertical: "top" }}
+          />
+          <View style={{ height: 18 }} />
+          <SubLabel>作息时间</SubLabel>
+          <View style={styles.timeRow}>
+            <Pressable
+              style={({ pressed }) => [styles.timePill, pressed && { opacity: 0.8 }]}
+              onPress={() => setPicker("wake")}
+            >
+              <Text style={styles.timePillLabel}>起床</Text>
+              <Text style={styles.timePillValue}>{wake}</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.timePill, pressed && { opacity: 0.8 }]}
+              onPress={() => setPicker("sleep")}
+            >
+              <Text style={styles.timePillLabel}>睡觉</Text>
+              <Text style={styles.timePillValue}>{sleep}</Text>
+            </Pressable>
+          </View>
+        </>
       ),
     },
   ];
