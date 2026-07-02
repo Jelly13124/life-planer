@@ -1,7 +1,7 @@
 // 岔路详情(完整预测展示)—— 对齐网页 PathDetail 的预测部分:
 // 头部 + 现实可行度 + 乐观/中性/保守三情景(带可能性比率)+ 五领域指标曲线 + 关键时刻时间线 + 聊天入口。
 // 不含:把这条路变成计划/复盘、补充信息重推(本轮不做)。
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -41,6 +41,36 @@ export default function PathDetailScreen() {
   const isChosen = app.chosenPathId === path?.id;
   const linkedGoals = app.longGoals.filter((g) => g.pathId === path?.id && g.status === "active");
 
+  const [scenario, setScenario] = useState<Scenario | null>(path?.scenario ?? null);
+
+  useEffect(() => {
+    setScenario(path?.scenario ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path?.id]);
+
+  const isChoice = path?.kind === "choice";
+
+  const variantFor = (s: Scenario) =>
+    path
+      ? tree?.paths.find(
+          (p) =>
+            p.kind === "choice" &&
+            p.choiceLabel === path.choiceLabel &&
+            p.parentId === path.parentId &&
+            p.scenario === s,
+        )
+      : undefined;
+
+  // 预取:首次进入时若基础路径已推演完成,提前把另外两种情景生成好,
+  // 让三个 tab 切换时都能立刻显示,不用等一次生成。
+  useEffect(() => {
+    if (!path || !isChoice || !isEnriched(path)) return;
+    (["optimistic", "conservative"] as const).forEach((s) => {
+      if (!variantFor(s)) addScenario(path.id, s);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path?.id, path?.enriched]);
+
   if (!tree || !path) {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
@@ -52,23 +82,13 @@ export default function PathDetailScreen() {
     );
   }
 
-  const isChoice = path.kind === "choice";
   const eff = isChoice ? effectiveFeasibility(tree, path) : null;
   const odds = scenarioOdds(eff?.value ?? path.feasibility);
+  const shownPath = (scenario ? variantFor(scenario) : undefined) ?? path;
 
-  const variantFor = (s: Scenario) =>
-    tree.paths.find(
-      (p) =>
-        p.kind === "choice" &&
-        p.choiceLabel === path.choiceLabel &&
-        p.parentId === path.parentId &&
-        p.scenario === s,
-    );
   const pickScenario = (s: Scenario) => {
-    if (s === path.scenario) return;
-    const v = variantFor(s);
-    if (v) router.replace(`/path/${v.id}`);
-    else addScenario(path.id, s);
+    setScenario(s);
+    if (!variantFor(s)) addScenario(path.id, s);
   };
 
   const chartW = Math.min(170, (width - space * 2 - 12) / 2);
@@ -81,13 +101,13 @@ export default function PathDetailScreen() {
 
       {/* 头部 */}
       <View style={styles.headRow}>
-        <View style={[styles.dot, { backgroundColor: path.color }]} />
+        <View style={[styles.dot, { backgroundColor: shownPath.color }]} />
         <Text style={styles.title}>{path.choiceLabel}</Text>
       </View>
-      {path.summary ? <Text style={styles.summary}>{path.summary}</Text> : null}
+      {shownPath.summary ? <Text style={styles.summary}>{shownPath.summary}</Text> : null}
       <View style={styles.indexPill}>
         <Text style={styles.indexLabel}>{tree.profile.name || "你"} 的综合人生指数 · </Text>
-        <Text style={[styles.indexVal, { color: path.color }]}>{path.endValue}</Text>
+        <Text style={[styles.indexVal, { color: shownPath.color }]}>{shownPath.endValue}</Text>
         <Text style={styles.indexLabel}>/100</Text>
       </View>
       <Text style={styles.disclaimer}>这是一种可能的人生,不是预测。数字代表综合状态感受,仅供想象参考。</Text>
@@ -176,7 +196,7 @@ export default function PathDetailScreen() {
           <Text style={styles.sectionLabel}>换个走向看看</Text>
           <View style={styles.segRow}>
             {SCENARIOS.map((s) => {
-              const active = path.scenario === s.value;
+              const active = scenario === s.value;
               return (
                 <Pressable
                   key={s.value}
@@ -205,18 +225,18 @@ export default function PathDetailScreen() {
       <Text style={[styles.sectionLabel, { marginTop: 22 }]}>各方面随时间的变化</Text>
       <View style={styles.chartGrid}>
         {LIFE_AREAS.map((a) => (
-          <MetricChart key={a} label={AREA_LABELS[a]} points={path.metrics[a] ?? []} color={path.color} width={chartW} />
+          <MetricChart key={a} label={AREA_LABELS[a]} points={shownPath.metrics[a] ?? []} color={shownPath.color} width={chartW} />
         ))}
       </View>
 
       {/* 关键时刻时间线 */}
       <Text style={[styles.sectionLabel, { marginTop: 24 }]}>这条路上的关键时刻</Text>
       <View style={styles.timeline}>
-        {path.nodes.map((n, i) => (
+        {shownPath.nodes.map((n, i) => (
           <View key={`${n.age}-${i}`} style={styles.tlRow}>
             <View style={styles.tlLeft}>
               <View style={[styles.tlDot, { backgroundColor: MOOD_COLOR[n.mood] }]} />
-              {i < path.nodes.length - 1 ? <View style={styles.tlSpine} /> : null}
+              {i < shownPath.nodes.length - 1 ? <View style={styles.tlSpine} /> : null}
             </View>
             <View style={styles.tlBody}>
               <View style={styles.tlHead}>
