@@ -5,7 +5,7 @@ import type { Profile } from "../types";
 
 const NOW = "2026-07-01T00:00:00.000Z";
 const profile = (): Profile => ({
-  name: "测试", age: 28, education: "本科", major: "", occupation: "", salary: "1万 - 2万",
+  name: "测试", age: 28, education: "bachelor", major: "", occupation: "", salary: "10to20",
   hasSideHustle: false, sideHustle: "", hobbies: "", relationship: "single", location: "上海",
   status: "", snapshot: "", crossroad: "",
   areas: { career: 50, wealth: 50, relationships: 50, health: 50, growth: 50 },
