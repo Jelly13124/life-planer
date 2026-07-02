@@ -30,9 +30,9 @@ function daysUntil(reviewDate: string, nowMs: number): number {
 }
 
 const SCENARIOS: { value: Scenario; label: string }[] = [
-  { value: "optimistic", label: "乐观" },
-  { value: "likely", label: "最可能" },
-  { value: "conservative", label: "保守" },
+  { value: "optimistic", label: "高光" },
+  { value: "likely", label: "平稳" },
+  { value: "conservative", label: "低谷" },
 ];
 
 // 可行度显示：四舍五入到最近的 5，避免给出"精确概率"的错觉。
@@ -276,7 +276,7 @@ export function PathDetail({
         </div>
       )}
 
-      {/* 多走向切换（乐观/最可能/保守） */}
+      {/* 多走向切换（高光/平稳/低谷） */}
       {path.kind === "choice" && (
         <div className="mt-5">
           <div className="text-xs uppercase tracking-wider text-[var(--fg-faint)]">

@@ -1,5 +1,5 @@
 // 岔路详情(完整预测展示)—— 对齐网页 PathDetail 的预测部分:
-// 头部 + 现实可行度 + 乐观/中性/保守三情景(带可能性比率)+ 五领域指标曲线 + 关键时刻时间线 + 聊天入口。
+// 头部 + 现实可行度 + 高光/平稳/低谷三情景(带可能性比率)+ 五领域指标曲线 + 关键时刻时间线 + 聊天入口。
 // 不含:把这条路变成计划/复盘、补充信息重推(本轮不做)。
 import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
@@ -21,9 +21,9 @@ import { MetricChart } from "../../src/components/MetricChart";
 import { colors, space, radii } from "../../src/theme";
 
 const SCENARIOS: { value: Scenario; label: string }[] = [
-  { value: "optimistic", label: "乐观" },
-  { value: "likely", label: "中性" },
-  { value: "conservative", label: "保守" },
+  { value: "optimistic", label: "高光" },
+  { value: "likely", label: "平稳" },
+  { value: "conservative", label: "低谷" },
 ];
 const MOOD_COLOR: Record<Mood, string> = { high: "#0f9d6a", mid: "#c77600", low: "#e84a6f" };
 const MOOD_LABEL: Record<Mood, string> = { high: "高光", mid: "平稳", low: "低谷" };
@@ -178,8 +178,8 @@ export default function PathDetailScreen() {
         <View style={styles.climbBox}>
           <Text style={styles.climbTitle}>三种可能的未来</Text>
           {([
-            { key: "optimistic", label: "乐观", color: "#0f9d6a" },
-            { key: "likely", label: "中性", color: "#c77600" },
+            { key: "optimistic", label: "高光", color: "#0f9d6a" },
+            { key: "likely", label: "平稳", color: "#c77600" },
             { key: "conservative", label: "低谷", color: "#e84a6f" },
           ] as const).map((row) => (
             <View key={row.key} style={styles.climbRow}>
