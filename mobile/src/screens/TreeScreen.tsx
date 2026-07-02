@@ -85,7 +85,7 @@ function useReduceMotion(): boolean {
 }
 
 export default function TreeScreen() {
-  const { tree, addChoiceBranch, addChoiceBranchAt, removeBranch, enriching } = useApp();
+  const { tree, addChoiceBranch, addChoiceBranchAt, removeBranch, enriching, chosenPathId } = useApp();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const reduce = useReduceMotion();
@@ -309,7 +309,7 @@ export default function TreeScreen() {
                     fontSize={19}
                     fontWeight="700"
                   >
-                    {truncate(p.choiceLabel, 10)}
+                    {(p.id === chosenPathId ? "✓ " : "") + truncate(p.choiceLabel, 10)}
                   </SvgText>
                   <SvgText x={p.end.x + 16} y={p.end.y + 20} fill={DARK.textMuted} fontSize={15}>
                     {truncate(p.summary, 16)}
@@ -393,7 +393,7 @@ export default function TreeScreen() {
             <Pressable onPress={() => router.push(`/path/${p.id}`)}>
               <View style={styles.legendHead}>
                 <View style={[styles.swatch, { backgroundColor: p.color }]} />
-                <Text style={styles.legendTitle}>{p.choiceLabel}</Text>
+                <Text style={styles.legendTitle}>{(p.id === chosenPathId ? "✓ " : "") + p.choiceLabel}</Text>
                 {typeof p.feasibility === "number" ? (
                   <Text style={styles.feasibility}>约 {p.feasibility}%</Text>
                 ) : null}
