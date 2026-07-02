@@ -127,6 +127,7 @@ interface AppValue {
   addLooseTask: (text: string) => void;
   addTimelineTask: (text: string, date?: string, time?: string) => void;
   addScheduledTask: (opts: { text: string; goalId?: string | null; date?: string; time?: string; durationMin?: number }) => void;
+  scheduleToDay: (taskId: string, date: string) => void;
   scheduleAtTime: (taskId: string, date: string, time: string, durationMin?: number) => void;
   setActionTimeById: (id: string, time: string, durationMin?: number) => void;
   unschedule: (taskId: string) => void;
@@ -332,6 +333,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (opts.date) t = setActionScheduledDate(t, id, opts.date);
       if (opts.time) t = setActionTime(t, id, opts.time, opts.durationMin ?? DEFAULT_DURATION_MIN);
       commit(t);
+    },
+    [commit],
+  );
+
+  // 把任务排到某一天（不带时间）：目标页新建的未排任务 → 月视图点某天，先分配日期。
+  const scheduleToDay = useCallback(
+    (taskId: string, date: string) => {
+      const cur = treeRef.current;
+      if (!cur) return;
+      commit(setActionScheduledDate(cur, taskId, date));
     },
     [commit],
   );
@@ -699,6 +710,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addLooseTask,
       addTimelineTask,
       addScheduledTask,
+      scheduleToDay,
       scheduleAtTime,
       setActionTimeById,
       unschedule,
@@ -742,6 +754,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addLooseTask,
     addTimelineTask,
     addScheduledTask,
+    scheduleToDay,
     scheduleAtTime,
     setActionTimeById,
     unschedule,

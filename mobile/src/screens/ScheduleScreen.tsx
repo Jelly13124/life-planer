@@ -52,6 +52,7 @@ export default function ScheduleScreen() {
   const [addDur, setAddDur] = useState(60);
   const [timeSheet, setTimeSheet] = useState<TimeSheetState | null>(null);
   const [calMode, setCalMode] = useState<"week" | "month">("week"); // 周条 / 月网格（合并了原「月历」Tab）
+  const [pendingDayTaskId, setPendingDayTaskId] = useState<string | null>(null); // 月模式：选中的「待排到某天」任务
 
   const timed = app.dayActions
     .filter((a) => a.item.startTime)
@@ -157,7 +158,10 @@ export default function ScheduleScreen() {
           {(["week", "month"] as const).map((m) => (
             <Pressable
               key={m}
-              onPress={() => setCalMode(m)}
+              onPress={() => {
+                setCalMode(m);
+                setPendingDayTaskId(null); // 切换模式清掉「待排到某天」选中态
+              }}
               style={({ pressed }) => [
                 styles.calToggle,
                 calMode === m && styles.calToggleOn,
@@ -170,6 +174,10 @@ export default function ScheduleScreen() {
             </Pressable>
           ))}
         </View>
+
+        <Muted style={{ marginBottom: 8 }}>
+          {calMode === "week" ? "周：点任务排时段" : "月：选未排任务 → 点某天排过去"}
+        </Muted>
 
         {calMode === "week" ? (
           <WeekStrip
@@ -189,9 +197,46 @@ export default function ScheduleScreen() {
               dueOf={(d) => (app.tree ? goalsDueOn(app.tree, d).length > 0 : false)}
               onPickDay={app.setViewDate}
               onShiftMonth={app.setViewDate}
+              onAssignDay={
+                pendingDayTaskId
+                  ? (date) => {
+                      app.scheduleToDay(pendingDayTaskId, date);
+                      setPendingDayTaskId(null);
+                      app.setViewDate(date);
+                    }
+                  : undefined
+              }
             />
           </View>
         )}
+
+        {calMode === "month" && app.unscheduled.length > 0 ? (
+          <View style={styles.untimedWrap}>
+            <Muted style={{ marginBottom: 6 }}>
+              {pendingDayTaskId ? "已选中，点上面某天把它排过去" : "未排 · 点一下选中，再点某天排过去"}
+            </Muted>
+            <View style={styles.chipRow}>
+              {app.unscheduled.map(({ goal, item }) => {
+                const c = goal ? AREA_COLORS[goal.area] : colors.fgMuted;
+                const pending = pendingDayTaskId === item.id;
+                return (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => setPendingDayTaskId(pending ? null : item.id)}
+                    style={[
+                      styles.chip,
+                      { borderColor: c },
+                      pending && { backgroundColor: c },
+                    ]}
+                  >
+                    <AreaTile area={goal ? goal.area : null} size={22} />
+                    <Text style={[styles.chipText, pending && { color: "#fff" }]}>{item.text}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
 
         {activeGoals.length > 0 ? (
           <ScrollView
@@ -218,9 +263,9 @@ export default function ScheduleScreen() {
           </ScrollView>
         ) : null}
 
-        {untimed.length > 0 ? (
+        {calMode === "week" && untimed.length > 0 ? (
           <View style={styles.untimedWrap}>
-            <Muted style={{ marginBottom: 6 }}>未定时（点一下选时间）</Muted>
+            <Muted style={{ marginBottom: 6 }}>未定时（点一下排时段）</Muted>
             <View style={styles.chipRow}>
               {untimed.map((a) => (
                 <Pressable
@@ -297,7 +342,7 @@ export default function ScheduleScreen() {
           </View>
         )}
 
-        {app.unscheduled.length > 0 ? (
+        {calMode === "week" && app.unscheduled.length > 0 ? (
           <>
             <SectionTitle>未排 · 点一下选时间排进当天</SectionTitle>
             <Card>

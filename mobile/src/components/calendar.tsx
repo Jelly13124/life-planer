@@ -80,6 +80,7 @@ export function MonthView({
   dueOf,
   onPickDay,
   onShiftMonth,
+  onAssignDay,
 }: {
   year: number;
   month: number; // 1-based
@@ -89,6 +90,8 @@ export function MonthView({
   dueOf?: (date: string) => boolean; // 该天有目标到期 → 角标
   onPickDay: (date: string) => void;
   onShiftMonth: (firstOfMonthDate: string) => void;
+  // 有「待排任务」被选中时点某天 → 把该任务排到这天（而不是切换 viewDate）。不传则始终走 onPickDay。
+  onAssignDay?: (date: string) => void;
 }) {
   const cells = monthGrid(year, month);
   return (
@@ -120,7 +123,7 @@ export function MonthView({
           return (
             <Pressable
               key={date}
-              onPress={() => onPickDay(date)}
+              onPress={() => (onAssignDay ? onAssignDay(date) : onPickDay(date))}
               style={({ pressed }) => [styles.cell, isSel && styles.cellSel, pressed && !isSel && { opacity: 0.5 }]}
             >
               <Text
