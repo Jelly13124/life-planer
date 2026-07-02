@@ -562,6 +562,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       if (drafts.length === 0) drafts = localPathGoals(path, 3);
 
+      // 按标题去重：同标题会算出同一个 goal id（id = hash(title|now)），去掉重复避免撞 id。
+      const seenTitles = new Set<string>();
+      drafts = drafts.filter((d) => {
+        const key = d.title.trim();
+        if (!key || seenTitles.has(key)) return false;
+        seenTitles.add(key);
+        return true;
+      });
+
       for (const d of drafts) {
         const t = treeRef.current;
         if (!t) break;
