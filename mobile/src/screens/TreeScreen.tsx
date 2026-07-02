@@ -31,8 +31,9 @@ import Svg, {
 import type { LifePath } from "@lifeplanner/core/types";
 import { layoutMap } from "../lib/mapLayout";
 import { useApp } from "../state/store";
-import { Button, Card, Input, Muted, SkeletonCard } from "../ui";
+import { Button, Card, Input, Muted } from "../ui";
 import { colors, space } from "../theme";
+import PredictingOverlay from "../components/PredictingOverlay";
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -93,6 +94,7 @@ export default function TreeScreen() {
   const [label, setLabel] = useState("");
   const [forkSheet, setForkSheet] = useState<{ parentId: string; age: number } | null>(null);
   const [forkText, setForkText] = useState("");
+  const [predictingLabel, setPredictingLabel] = useState<string | undefined>(undefined); // 正在推演的选择标签（提交后输入框会被清空，需单独存一份给蒙层用）
   const [anim] = useState(() => new Animated.Value(0)); // 曲线自绘进度 0→1
   const [pulse] = useState(() => new Animated.Value(0)); // 原点呼吸
 
@@ -138,12 +140,14 @@ export default function TreeScreen() {
 
   const submitBranch = () => {
     if (!label.trim()) return;
+    setPredictingLabel(label.trim());
     addChoiceBranch(label);
     setLabel("");
   };
 
   const submitFork = () => {
     if (!forkSheet || !forkText.trim()) return;
+    setPredictingLabel(forkText.trim());
     addChoiceBranchAt(forkSheet.parentId, forkSheet.age, forkText);
     setForkText("");
     setForkSheet(null);
@@ -374,10 +378,7 @@ export default function TreeScreen() {
         />
         <View style={{ height: 10 }} />
         <Button label="推演这条路" onPress={submitBranch} disabled={!label.trim()} />
-        {enriching ? <Muted style={{ marginTop: 8, textAlign: "center" }}>AI 推演中…</Muted> : null}
       </Card>
-
-      {enriching ? <SkeletonCard /> : null}
 
       {/* 路径清单 */}
       {choices.length === 0 ? (
@@ -419,6 +420,9 @@ export default function TreeScreen() {
       {choices.length > 0 ? (
         <Text style={styles.disclaimer}>可行度为 AI 粗估，非精确概率；随你的实际进度上升。</Text>
       ) : null}
+
+      {/* AI 推演中：全屏动画蒙层（加岔路 / 首次建图时） */}
+      <PredictingOverlay visible={enriching} label={predictingLabel} />
 
       {/* 点节点 → 在那一年加岔路 */}
       <Modal visible={!!forkSheet} transparent animationType="fade" onRequestClose={() => setForkSheet(null)}>
