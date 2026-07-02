@@ -14,8 +14,16 @@ import React, {
 } from "react";
 import { AppState } from "react-native";
 
-import type { GoalArea, Goal, LifeTree, Profile, Task, Habit, Scenario } from "@lifeplanner/core/types";
-import { createTree, addPath, addScenarioVariant, removePath } from "@lifeplanner/core/tree";
+import type { GoalArea, Goal, LifeTree, Profile, Task, Habit, Scenario, LifeArea, LifePath } from "@lifeplanner/core/types";
+import {
+  createTree,
+  addPath,
+  addScenarioVariant,
+  removePath,
+  choosePath as domainChoosePath,
+  clearChosenPath as domainClearChosenPath,
+} from "@lifeplanner/core/tree";
+import { localPathGoals } from "@lifeplanner/core/pathGoals";
 import { localGenerator } from "@lifeplanner/core/generator/localGenerator";
 import {
   longGoals,
@@ -112,7 +120,7 @@ interface AppValue {
   shiftViewDate: (delta: number) => void;
   goToday: () => void;
   // 写入（复用领域核心）
-  addLongGoal: (area: GoalArea, title: string, why?: string, endDate?: string) => void;
+  addLongGoal: (area: GoalArea, title: string, why?: string, endDate?: string, pathId?: string | null) => void;
   setGoalDueDate: (goalId: string, endDate?: string) => void;
   addShortGoalToLong: (longId: string, title: string, endDate?: string) => void;
   addTaskToGoal: (goalId: string, text: string) => void;
@@ -135,6 +143,10 @@ interface AppValue {
   addChoiceBranchAt: (parentPathId: string, forkAge: number, label: string) => void;
   addScenario: (basePathId: string, scenario: Scenario) => void;
   removeBranch: (pathId: string) => void;
+  chosenPathId: string | null;
+  choosePath: (pathId: string) => void;
+  clearChosenPath: () => void;
+  decomposePathIntoGoals: (pathId: string) => Promise<void>;
   enriching: boolean;
   onboard: (inputs: ProfileInputs, win?: { start: string; end: string }) => void;
   reset: () => void;
@@ -219,10 +231,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ───────── 写入动作（全部复用领域核心；时间在此注入） ─────────
   const addLongGoal = useCallback(
-    (area: GoalArea, title: string, why?: string, endDate?: string) => {
+    (area: GoalArea, title: string, why?: string, endDate?: string, pathId?: string | null) => {
       const cur = treeRef.current;
       if (!cur || !title.trim()) return;
-      const { tree: next } = domainAddLongGoal(cur, { area, title: title.trim(), why, endDate }, nowISO());
+      const { tree: next } = domainAddLongGoal(cur, { area, title: title.trim(), why, endDate, pathId: pathId ?? null }, nowISO());
       commit(next);
     },
     [commit],
@@ -515,6 +527,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [commit],
   );
 
+  const choosePath = useCallback(
+    (pathId: string) => {
+      const cur = treeRef.current;
+      if (!cur) return;
+      commit(domainChoosePath(cur, pathId, nowISO()));
+    },
+    [commit],
+  );
+
+  const clearChosenPath = useCallback(() => {
+    const cur = treeRef.current;
+    if (!cur) return;
+    commit(domainClearChosenPath(cur, nowISO()));
+  }, [commit]);
+
+  // 把一条路拆成 2-3 个挂路长期目标：AI 优先（复用 /api/goals，把这条路作为 choice 上下文），
+  // 失败/离线 → 本地确定性兜底 localPathGoals。逐个建目标并挂 pathId。
+  const decomposePathIntoGoals = useCallback(
+    async (pathId: string) => {
+      const cur = treeRef.current;
+      if (!cur) return;
+      const path = cur.paths.find((p) => p.id === pathId);
+      if (!path || path.kind !== "choice") return;
+
+      let drafts: { area: LifeArea; title: string; why: string }[] = [];
+      if (hasBackend()) {
+        try {
+          const ai = await fetchGoalSuggestions(cur.profile.snapshot || "", [path.choiceLabel], "zh");
+          drafts = ai.slice(0, 3).map((g) => ({ area: g.area, title: g.title, why: g.why }));
+        } catch {
+          // 忽略，走本地兜底
+        }
+      }
+      if (drafts.length === 0) drafts = localPathGoals(path, 3);
+
+      for (const d of drafts) {
+        const t = treeRef.current;
+        if (!t) break;
+        const { tree: next } = domainAddLongGoal(t, { area: d.area, title: d.title, why: d.why, pathId }, nowISO());
+        commit(next);
+      }
+    },
+    [commit],
+  );
+
   // 删除一条分支（级联删其后代；维持现状不可删，由领域层保证）。
   const removeBranch = useCallback(
     (pathId: string) => {
@@ -615,6 +672,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addChoiceBranchAt,
       addScenario,
       removeBranch,
+      chosenPathId: t?.chosenPathId ?? null,
+      choosePath,
+      clearChosenPath,
+      decomposePathIntoGoals,
       enriching,
       onboard,
       reset,
@@ -652,6 +713,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addChoiceBranchAt,
     addScenario,
     removeBranch,
+    choosePath,
+    clearChosenPath,
+    decomposePathIntoGoals,
     enriching,
     onboard,
     reset,
