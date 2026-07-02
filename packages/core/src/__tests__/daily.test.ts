@@ -7,11 +7,11 @@ import {
 } from "@/domain/daily";
 import { createTree, addPath } from "@/domain/tree";
 import {
-  addLongGoal, addShortGoal, addHabit, addTask, findHabit, findTask,
-  addLooseHabit, addLooseTask,
+  addLongGoal, addShortGoal, addTask, findTask,
+  addLooseTask,
 } from "@/domain/goalTree";
 import { LocalPathGenerator } from "@/domain/generator/localGenerator";
-import type { LifeTree, Profile } from "@/domain/types";
+import type { LifeTree, Profile, Task } from "@/domain/types";
 
 const profile: Profile = {
   name: "小林", age: 30, education: "bachelor", major: "视觉传达", occupation: "设计师",
@@ -35,11 +35,47 @@ function withGoal(): { tree: LifeTree; goalId: string; a0: string; a1: string } 
   return { tree: t, goalId: g.id, a0: t0.id, a1: t1.id };
 }
 
-// 在某目标里加一个习惯，返回新树 + 习惯 id。
-function addHabitTo(
+// 在某目标里加一个「重复任务」（habit 已并入 Task.repeat），返回新树 + id。
+function addRepeatingTaskTo(
   tree: LifeTree, goalId: string, text: string, repeat: "daily" | "weekly", seed: string,
+  repeatWeekday?: number,
 ): { tree: LifeTree; id: string } {
-  return addHabit(tree, goalId, text, repeat, undefined, seed);
+  const r = addTask(tree, goalId, text, seed);
+  const withRepeat: LifeTree = {
+    ...r.tree,
+    goals: r.tree.goals.map((g) =>
+      g.id === goalId
+        ? {
+            ...g,
+            tasks: g.tasks.map((t) =>
+              t.id === r.id ? { ...t, repeat, repeatWeekday } : t,
+            ),
+          }
+        : g,
+    ),
+  };
+  return { tree: withRepeat, id: r.id };
+}
+
+// 在树根加一个「散」重复任务（无目标），返回新树 + id。
+function addLooseRepeatingTask(
+  tree: LifeTree, text: string, repeat: "daily" | "weekly", seed: string,
+  repeatWeekday?: number,
+): { tree: LifeTree; id: string } {
+  const r = addLooseTask(tree, text, seed);
+  const withRepeat: LifeTree = {
+    ...r.tree,
+    tasks: r.tree.tasks.map((t) => (t.id === r.id ? { ...t, repeat, repeatWeekday } : t)),
+  };
+  return { tree: withRepeat, id: r.id };
+}
+
+function findAnyTask(tree: LifeTree, id: string): Task | null {
+  for (const g of tree.goals) {
+    const hit = g.tasks.find((t) => t.id === id);
+    if (hit) return hit;
+  }
+  return tree.tasks.find((t) => t.id === id) ?? null;
 }
 
 describe("daily domain", () => {
@@ -78,12 +114,12 @@ describe("daily domain", () => {
     expect(dayEntry(t, T).completedActionIds).toEqual([]);
   });
 
-  it("completeAction (Habit): records the day but does NOT set permanent done", () => {
+  it("completeAction (repeating Task): records the day but does NOT set permanent done", () => {
     const { tree, goalId } = withGoal();
-    const h = addHabitTo(tree, goalId, "每天背单词", "daily", NOW);
+    const h = addRepeatingTaskTo(tree, goalId, "每天背单词", "daily", NOW);
     const t = completeAction(h.tree, h.id, T);
-    const habit = findHabit(t, h.id)!.habit;
-    // habit has no permanent done; completion lives only in activity
+    const habit = findAnyTask(t, h.id)!;
+    // repeating task has no permanent done; completion lives only in activity
     expect(dayEntry(t, T).completedActionIds).toContain(h.id);
     expect(isActionDoneToday(t, habit, T)).toBe(true);
     expect(isActionDoneToday(t, habit, "2026-06-19")).toBe(false);
@@ -91,8 +127,8 @@ describe("daily domain", () => {
 
   it("recurringDueToday: daily always shows; weekly hides once done this week", () => {
     const { tree, goalId } = withGoal();
-    const d = addHabitTo(tree, goalId, "每天背单词", "daily", NOW);
-    const w = addHabit(d.tree, goalId, "每周复盘", "weekly", undefined, `${NOW}-w`);
+    const d = addRepeatingTaskTo(tree, goalId, "每天背单词", "daily", NOW);
+    const w = addRepeatingTaskTo(d.tree, goalId, "每周复盘", "weekly", `${NOW}-w`);
     const base = w.tree;
     const daily = d.id;
     const weekly = w.id;
@@ -108,7 +144,7 @@ describe("daily domain", () => {
   });
 
   it("recurringDueToday: a habit is hidden after its owning goal's endDate (habit window)", () => {
-    // 短期目标带时间窗 2026-06-10..2026-06-18，其下一个 daily 习惯。
+    // 短期目标带时间窗 2026-06-10..2026-06-18，其下一个 daily 重复任务。
     let t = createTree(profile, gen, NOW);
     const long = addLongGoal(t, { area: "health", title: "健康" }, NOW);
     t = long.tree;
@@ -116,7 +152,7 @@ describe("daily domain", () => {
       t, long.id, { area: "health", title: "减肥冲刺", startDate: "2026-06-10", endDate: "2026-06-18" }, NOW,
     );
     t = short.tree;
-    const h = addHabit(t, short.id, "每天快走", "daily", undefined, `${NOW}-hw`);
+    const h = addRepeatingTaskTo(t, short.id, "每天快走", "daily", `${NOW}-hw`);
     t = h.tree;
     // 窗口内（含 endDate 当天）→ 到期出现
     expect(recurringDueToday(t, "2026-06-18").map((x) => x.item.id)).toContain(h.id);
@@ -129,7 +165,7 @@ describe("daily domain", () => {
 
   it("recurringDueToday: a loose daily habit (no goal) is due every day (no window)", () => {
     let t = createTree(profile, gen, NOW);
-    const h = addLooseHabit(t, "上班", "daily", undefined, NOW);
+    const h = addLooseRepeatingTask(t, "上班", "daily", NOW);
     t = h.tree;
     // 无目标 → 无 active 概念 / 无时间窗 → 任意日恒到期，goal 为 null。
     expect(recurringDueToday(t, T).find((x) => x.item.id === h.id)?.goal).toBeNull();
@@ -147,7 +183,7 @@ describe("daily domain", () => {
 
   it("todayItems = manual one-shot ∪ recurring-due, each with kind + doneToday", () => {
     const { tree, goalId, a0 } = withGoal();
-    const d = addHabitTo(tree, goalId, "每天背单词", "daily", NOW);
+    const d = addRepeatingTaskTo(tree, goalId, "每天背单词", "daily", NOW);
     let t = planToday(d.tree, a0, T);
     t = completeAction(t, d.id, T);
     const items = todayItems(t, T);
@@ -158,9 +194,9 @@ describe("daily domain", () => {
     expect(items.find((i) => i.item.id === a0)!.kind).toBe("task");
   });
 
-  it("findAction locates a task or habit and tags its kind", () => {
+  it("findAction locates a task or repeating task and tags its kind", () => {
     const { tree, goalId, a0 } = withGoal();
-    const h = addHabitTo(tree, goalId, "每天背单词", "daily", NOW);
+    const h = addRepeatingTaskTo(tree, goalId, "每天背单词", "daily", NOW);
     expect(findAction(h.tree, a0)!.kind).toBe("task");
     expect(findAction(h.tree, h.id)!.kind).toBe("habit");
     expect(findAction(h.tree, "missing")).toBeNull();
