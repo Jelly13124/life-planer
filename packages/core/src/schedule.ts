@@ -23,19 +23,47 @@ export function toHHMM(min: number): string {
 
 export interface ArrangeItem { id: string; durationMin?: number }
 export interface ArrangeResult { id: string; startTime: string; durationMin: number }
+export interface Break { start: string; end: string } // 休息窗 HH:MM（如午餐/晚餐）
+
+// 默认休息窗：午餐 12:00–13:00、晚餐 18:00–19:00。避免任务从早到晚一件接一件、没有饭点/喘息。
+export const DEFAULT_BREAKS: Break[] = [
+  { start: "12:00", end: "13:00" },
+  { start: "18:00", end: "19:00" },
+];
+
+// 若某任务块会压到休息窗，把游标推到窗结束后（可能连续跨多个窗 → 循环直到不再相交）。
+function pushPastBreaks(cursor: number, durationMin: number, breaks: { start: number; end: number }[]): number {
+  let c = cursor;
+  let moved = true;
+  while (moved) {
+    moved = false;
+    for (const b of breaks) {
+      if (c < b.end && c + durationMin > b.start) {
+        c = b.end;
+        moved = true;
+      }
+    }
+  }
+  return c;
+}
 
 // 贪心顺排：从 window.start 起，每件按其时长(默认60)依次排，块之间留 gapMin 分钟，保证不重叠、有先后。
-// window.end 作软目标（MVP 不强制压缩；若排不下就继续顺排，调用方可提示）。纯函数、确定性。
+// 会绕开休息窗（默认午/晚餐），不把任务排进饭点。window.end 作软目标（MVP 不强制压缩）。纯、确定性。
+// 传 breaks:[] 可关闭休息窗。
 export function arrangeDay(
   items: ArrangeItem[],
-  opts?: { start?: string; end?: string; gapMin?: number },
+  opts?: { start?: string; end?: string; gapMin?: number; breaks?: Break[] },
 ): ArrangeResult[] {
   const start = toMinutes(opts?.start ?? DEFAULT_DAY_START);
   const gap = opts?.gapMin ?? DEFAULT_GAP_MIN;
+  const breaks = (opts?.breaks ?? DEFAULT_BREAKS)
+    .map((b) => ({ start: toMinutes(b.start), end: toMinutes(b.end) }))
+    .filter((b) => b.end > b.start);
   let cursor = start;
   const out: ArrangeResult[] = [];
   for (const it of items) {
     const durationMin = it.durationMin && it.durationMin > 0 ? it.durationMin : DEFAULT_DURATION_MIN;
+    cursor = pushPastBreaks(cursor, durationMin, breaks);
     out.push({ id: it.id, startTime: toHHMM(cursor), durationMin });
     cursor += durationMin + gap;
   }

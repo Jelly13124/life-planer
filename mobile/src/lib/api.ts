@@ -41,16 +41,23 @@ export function hasBackend(): boolean {
 // 调用方据此决定走本地兜底，绝不向 UI 抛错。
 export async function postJson<T>(path: string, body: unknown): Promise<T | null> {
   if (!hasBackend()) return null;
+  // 客户端超时兜底：AI 路由可能很慢/卡住；无超时会让 fetch 永不 resolve →
+  // 调用方的 enriching 永远为 true → 推演蒙层永远盖住树。用 AbortController（Hermes 兼容）。
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 35000);
   try {
     const res = await fetch(`${API_BASE_URL}${path}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
+      signal: controller.signal,
     });
     if (!res.ok) return null;
     return (await res.json()) as T;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

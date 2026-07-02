@@ -652,6 +652,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // 退化输入（睡<=醒）忽略，保留默认窗，避免时间轴/排程算出负区间。
       if (win && win.end > win.start) tree = setDayWindow(tree, win.start, win.end);
       commit(tree);
+      // 顺手 AI 推演「维持现状」基线：让用户一进来就看到有 AI 参与的现状预测（而非本地模板）。
+      const sq = tree.paths.find((p) => p.kind === "status-quo");
+      if (sq && hasBackend()) {
+        setEnriching(true);
+        void enrichPath(tree, sq)
+          .then((result) => {
+            if (!result) return;
+            const t = treeRef.current;
+            if (!t) return;
+            commit({
+              ...t,
+              paths: t.paths.map((p) => (p.id === sq.id ? applyEnrichToPath(p, result) : p)),
+            });
+          })
+          .catch(() => {})
+          .finally(() => setEnriching(false));
+      }
     },
     [commit],
   );

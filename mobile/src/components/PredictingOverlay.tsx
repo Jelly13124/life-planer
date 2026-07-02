@@ -2,7 +2,7 @@
 // 暗色媒体面板质感 + 主时间线分叉自绘入场 + 原点呼吸，营造「AI 正在认真计算」的观感。
 // 复用 TreeScreen 的 useReduceMotion 模式：减少动态效果时渲染静态版本（曲线常亮、原点不脉动）。
 import React, { useEffect, useState } from "react";
-import { AccessibilityInfo, Animated, Easing, Modal, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Defs, Path, RadialGradient, Stop } from "react-native-svg";
 import { colors } from "../theme";
 
@@ -48,9 +48,10 @@ function truncate(s: string, max: number): string {
 export interface PredictingOverlayProps {
   visible: boolean;
   label?: string; // 正在推演的选择标签（可选）
+  onDismiss?: () => void; // 点一下收起（AI 继续在后台跑）——防止慢/卡的推演把整棵树盖死
 }
 
-export default function PredictingOverlay({ visible, label }: PredictingOverlayProps) {
+export default function PredictingOverlay({ visible, label, onDismiss }: PredictingOverlayProps) {
   const reduce = useReduceMotion();
   const [draw] = useState(() => new Animated.Value(0)); // 曲线自绘 0→1，循环
   const [pulse] = useState(() => new Animated.Value(0)); // 原点呼吸
@@ -97,8 +98,13 @@ export default function PredictingOverlay({ visible, label }: PredictingOverlayP
   const pulseO = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 0.35] });
 
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
-      <View style={styles.root} accessibilityRole="alert" accessibilityLabel="AI 正在推演这条路">
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onDismiss}>
+      <Pressable
+        style={styles.root}
+        onPress={onDismiss}
+        accessibilityRole="alert"
+        accessibilityLabel="AI 正在推演这条路"
+      >
         <Svg viewBox="0 0 280 220" width={260} height={204}>
           <Defs>
             {BRANCHES.map((b, i) => (
@@ -160,7 +166,8 @@ export default function PredictingOverlay({ visible, label }: PredictingOverlayP
         <Text style={styles.title}>正在推演…</Text>
         <Text style={styles.sub}>AI 正在描绘这条路的未来</Text>
         {label ? <Text style={styles.label}>{truncate(label, 20)}</Text> : null}
-      </View>
+        {onDismiss ? <Text style={styles.dismiss}>点一下继续 · AI 会在后台完成</Text> : null}
+      </Pressable>
     </Modal>
   );
 }
@@ -198,5 +205,11 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: "#33333d",
     overflow: "hidden",
+  },
+  dismiss: {
+    marginTop: 22,
+    fontSize: 12,
+    color: DARK.textFaint,
+    textAlign: "center",
   },
 });

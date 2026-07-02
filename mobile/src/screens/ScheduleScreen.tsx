@@ -353,13 +353,21 @@ export default function ScheduleScreen() {
                     <Pressable
                       key={item.id}
                       onPress={() =>
-                        setTimeSheet({
-                          mode: "schedule",
-                          id: item.id,
-                          title: item.text,
-                          area: goal ? goal.area : null,
-                          duration: item.durationMin ?? 60,
-                        })
+                        Alert.alert(item.text, "", [
+                          {
+                            text: "排时间进当天",
+                            onPress: () =>
+                              setTimeSheet({
+                                mode: "schedule",
+                                id: item.id,
+                                title: item.text,
+                                area: goal ? goal.area : null,
+                                duration: item.durationMin ?? 60,
+                              }),
+                          },
+                          { text: "直接完成", onPress: () => app.toggleTaskDone(item.id) },
+                          { text: "取消", style: "cancel" },
+                        ])
                       }
                       style={[styles.chip, { borderColor: c }]}
                     >
@@ -370,7 +378,7 @@ export default function ScheduleScreen() {
                 })}
               </View>
               <View style={{ marginTop: 12 }}>
-                <Button label="AI 排今天" kind="ghost" onPress={() => app.arrangeToday(app.viewDate)} />
+                <Button label="自动排今天（避开饭点）" kind="ghost" onPress={() => app.arrangeToday(app.viewDate)} />
               </View>
             </Card>
           </>

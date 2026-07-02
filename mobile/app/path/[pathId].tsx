@@ -158,7 +158,8 @@ export default function PathDetailScreen() {
         </View>
       ) : null}
 
-      {isChoice && !isEnriched(path) ? (
+      {/* 推演/重试：任何未经 AI 确认的路（含「维持现状」基线）都能触发一次真 AI 推演。 */}
+      {!isEnriched(path) ? (
         enriching ? (
           <Text style={styles.feasFaint}>AI 正在推演…</Text>
         ) : (
@@ -166,7 +167,9 @@ export default function PathDetailScreen() {
             onPress={() => app.retryEnrich(path.id)}
             style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.9 }]}
           >
-            <Text style={styles.retryBtnText}>重试推演</Text>
+            <Text style={styles.retryBtnText}>
+              {path.kind === "status-quo" ? "推演现状" : "重试推演"}
+            </Text>
           </Pressable>
         )
       ) : null}

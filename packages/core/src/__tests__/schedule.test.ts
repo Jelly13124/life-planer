@@ -95,6 +95,17 @@ describe("schedule domain", () => {
     expect(out.map((r) => r.durationMin)).toEqual([DEFAULT_DURATION_MIN, DEFAULT_DURATION_MIN]);
   });
 
+  it("arrangeDay: pushes a task past the lunch break (12:00–13:00) instead of cramming through it", () => {
+    // 从 09:00 起 4×60min：第 3 件本会 11:20 开始、12:20 结束（压到午餐）→ 推到 13:00。
+    const out = arrangeDay([{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }], { start: "09:00" });
+    expect(out.map((r) => r.startTime)).toEqual(["09:00", "10:10", "13:00", "14:10"]);
+  });
+
+  it("arrangeDay: breaks:[] disables meal breaks (back-to-back through noon)", () => {
+    const out = arrangeDay([{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }], { start: "09:00", breaks: [] });
+    expect(out.map((r) => r.startTime)).toEqual(["09:00", "10:10", "11:20", "12:30"]);
+  });
+
   it("arrangeDay: guarantees no overlap and preserves order", () => {
     const out = arrangeDay(
       [{ id: "a", durationMin: 45 }, { id: "b", durationMin: 30 }, { id: "c", durationMin: 120 }, { id: "d" }],

@@ -95,6 +95,7 @@ export default function TreeScreen() {
   const [forkSheet, setForkSheet] = useState<{ parentId: string; age: number } | null>(null);
   const [forkText, setForkText] = useState("");
   const [predictingLabel, setPredictingLabel] = useState<string | undefined>(undefined); // 正在推演的选择标签（提交后输入框会被清空，需单独存一份给蒙层用）
+  const [overlayDismissed, setOverlayDismissed] = useState(false); // 用户点掉推演蒙层（AI 在后台继续），防止慢/卡的推演盖死整棵树
   const [anim] = useState(() => new Animated.Value(0)); // 曲线自绘进度 0→1
   const [pulse] = useState(() => new Animated.Value(0)); // 原点呼吸
 
@@ -141,6 +142,7 @@ export default function TreeScreen() {
   const submitBranch = () => {
     if (!label.trim()) return;
     setPredictingLabel(label.trim());
+    setOverlayDismissed(false);
     addChoiceBranch(label);
     setLabel("");
   };
@@ -148,6 +150,7 @@ export default function TreeScreen() {
   const submitFork = () => {
     if (!forkSheet || !forkText.trim()) return;
     setPredictingLabel(forkText.trim());
+    setOverlayDismissed(false);
     addChoiceBranchAt(forkSheet.parentId, forkSheet.age, forkText);
     setForkText("");
     setForkSheet(null);
@@ -422,7 +425,11 @@ export default function TreeScreen() {
       ) : null}
 
       {/* AI 推演中：全屏动画蒙层（加岔路 / 首次建图时） */}
-      <PredictingOverlay visible={enriching} label={predictingLabel} />
+      <PredictingOverlay
+        visible={enriching && !overlayDismissed}
+        label={predictingLabel}
+        onDismiss={() => setOverlayDismissed(true)}
+      />
 
       {/* 点节点 → 在那一年加岔路 */}
       <Modal visible={!!forkSheet} transparent animationType="fade" onRequestClose={() => setForkSheet(null)}>
