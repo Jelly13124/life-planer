@@ -14,7 +14,7 @@ import React, {
 } from "react";
 import { AppState } from "react-native";
 
-import type { GoalArea, Goal, LifeTree, Profile, Task, Habit, Scenario, LifeArea, LifePath } from "@lifeplanner/core/types";
+import type { GoalArea, Goal, LifeTree, Profile, Task, Scenario, LifeArea, LifePath } from "@lifeplanner/core/types";
 import {
   createTree,
   addPath,
@@ -83,15 +83,15 @@ export type ProfileInputs = Omit<Profile, "areas" | "snapshot">;
 
 export interface TodayRow {
   goal: Goal | null;
-  item: Task | Habit;
+  item: Task;
   kind: "task" | "habit";
   doneToday: boolean;
 }
 
-// 某天日历上的一行（已排一次性任务 / 当天到期习惯）。
+// 某天日历上的一行（已排一次性任务 / 当天到期习惯，两者都是 Task；习惯 = repeat 已设的 Task）。
 export interface DayAction {
   goal: Goal | null;
-  item: Task | Habit;
+  item: Task;
   kind: DayActionKind;
   done: boolean;
 }

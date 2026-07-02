@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { GOAL_AREA_LABELS, type GoalArea, type Task, type Habit } from "@lifeplanner/core/types";
+import { GOAL_AREA_LABELS, type GoalArea } from "@lifeplanner/core/types";
 import { weekdayOf } from "@lifeplanner/core/calendar";
 import { goalsDueOn } from "@lifeplanner/core/goals";
 import { toMinutes, toHHMM } from "@lifeplanner/core/schedule";
@@ -68,7 +68,7 @@ export default function ScheduleScreen() {
   }, [nudge, clearNudge]);
 
   const colorOf = (a: DayAction) => (a.goal ? AREA_COLORS[a.goal.area] : colors.fgMuted);
-  const isHabit = (a: DayAction) => a.kind !== "scheduled";
+  const isHabit = (a: DayAction) => !!a.item.repeat;
 
   const onTimeConfirm = (start: string, dur: number) => {
     const ts = timeSheet;
@@ -91,7 +91,7 @@ export default function ScheduleScreen() {
           setTimeSheet({
             mode: "retime",
             id: a.item.id,
-            title: (a.item as Task | Habit).text,
+            title: a.item.text,
             area: a.goal ? a.goal.area : null,
             start: a.item.startTime,
             duration: a.item.durationMin ?? 60,
@@ -100,7 +100,7 @@ export default function ScheduleScreen() {
     ];
     if (!isHabit(a)) opts.push({ text: "移回未排", onPress: () => app.unschedule(a.item.id) });
     opts.push({ text: "取消", style: "cancel" });
-    Alert.alert((a.item as Task | Habit).text, a.item.startTime ?? "", opts);
+    Alert.alert(a.item.text, a.item.startTime ?? "", opts);
   };
 
   const openAdd = () => {
@@ -229,7 +229,7 @@ export default function ScheduleScreen() {
                     setTimeSheet({
                       mode: "retime",
                       id: a.item.id,
-                      title: (a.item as Task | Habit).text,
+                      title: a.item.text,
                       area: a.goal ? a.goal.area : null,
                       duration: a.item.durationMin ?? 60,
                     })
@@ -281,7 +281,7 @@ export default function ScheduleScreen() {
                       </Text>
                       <Text style={styles.tlMeta}>
                         {rangeLabel(a.item.startTime!, a.item.durationMin)}
-                        {habit ? ((a.item as Habit).repeat === "weekly" ? " · 每周" : " · 每天") : ""}
+                        {habit ? (a.item.repeat === "weekly" ? " · 每周" : " · 每天") : ""}
                         {a.goal ? ` · ${GOAL_AREA_LABELS[a.goal.area]}` : ""}
                       </Text>
                     </Pressable>

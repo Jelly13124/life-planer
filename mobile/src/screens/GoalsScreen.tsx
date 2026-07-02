@@ -228,37 +228,38 @@ export default function GoalsScreen() {
                 </Text>
               </Pressable>
 
-              {/* 任务清单（任务 + 重复任务） */}
-              {goal.tasks.map((task) => (
-                <View key={task.id} style={styles.taskRow}>
-                  <Checkbox checked={task.done} accent={ac} onPress={() => app.toggleTaskDone(task.id)} />
-                  <Text style={[styles.taskText, task.done && styles.taskTextDone]} numberOfLines={2}>
-                    {task.text}
-                  </Text>
-                  {!task.done ? (
-                    <Pressable onPress={() => app.planTaskToday(task.id)} hitSlop={6}>
-                      <Text style={styles.todayLink}>今天</Text>
+              {/* 任务清单（一个列表；重复任务内联"每天/每周"标签，不再分区） */}
+              {goal.tasks.map((task) =>
+                task.repeat ? (
+                  <View key={task.id} style={styles.taskRow}>
+                    <View style={[styles.repDot, { backgroundColor: ac }]} />
+                    <Text style={styles.taskText} numberOfLines={2}>
+                      {task.text}
+                    </Text>
+                    <View style={styles.repTag}>
+                      <Text style={styles.repTagText}>{task.repeat === "daily" ? "每天" : "每周"}</Text>
+                    </View>
+                    <Pressable onPress={() => app.removeItem(task.id)} hitSlop={6}>
+                      <Text style={styles.removeLink}>删</Text>
                     </Pressable>
-                  ) : null}
-                  <Pressable onPress={() => app.removeItem(task.id)} hitSlop={6}>
-                    <Text style={styles.removeLink}>删</Text>
-                  </Pressable>
-                </View>
-              ))}
-              {goal.habits.map((habit) => (
-                <View key={habit.id} style={styles.taskRow}>
-                  <View style={[styles.repDot, { backgroundColor: ac }]} />
-                  <Text style={styles.taskText} numberOfLines={2}>
-                    {habit.text}
-                  </Text>
-                  <View style={styles.repTag}>
-                    <Text style={styles.repTagText}>{habit.repeat === "daily" ? "每天" : "每周"}</Text>
                   </View>
-                  <Pressable onPress={() => app.removeItem(habit.id)} hitSlop={6}>
-                    <Text style={styles.removeLink}>删</Text>
-                  </Pressable>
-                </View>
-              ))}
+                ) : (
+                  <View key={task.id} style={styles.taskRow}>
+                    <Checkbox checked={task.done} accent={ac} onPress={() => app.toggleTaskDone(task.id)} />
+                    <Text style={[styles.taskText, task.done && styles.taskTextDone]} numberOfLines={2}>
+                      {task.text}
+                    </Text>
+                    {!task.done ? (
+                      <Pressable onPress={() => app.planTaskToday(task.id)} hitSlop={6}>
+                        <Text style={styles.todayLink}>今天</Text>
+                      </Pressable>
+                    ) : null}
+                    <Pressable onPress={() => app.removeItem(task.id)} hitSlop={6}>
+                      <Text style={styles.removeLink}>删</Text>
+                    </Pressable>
+                  </View>
+                ),
+              )}
 
               {/* 加任务 + 重复选择 */}
               <View style={styles.addRow}>
