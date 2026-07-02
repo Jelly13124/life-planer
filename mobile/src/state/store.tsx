@@ -67,6 +67,7 @@ import { loadTree, saveTree, clearTree } from "../lib/storage";
 import { syncNotifications } from "../lib/notifications";
 import {
   fetchGoalSuggestions,
+  fetchGoalActions,
   hasBackend,
   enrichPath,
   applyEnrichToPath,
@@ -154,6 +155,8 @@ interface AppValue {
   reset: () => void;
   // 后端（AI 建议；离线返回 []）
   suggestGoals: () => Promise<GoalSuggestion[]>;
+  suggestTasksForGoal: (goalId: string) => Promise<void>;
+  suggestingTasksGoalId: string | null;
 }
 
 const Ctx = createContext<AppValue | null>(null);
@@ -168,6 +171,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const nudgeId = useRef(0);
   const [enriching, setEnriching] = useState(false); // 人生树分支 AI 推演中
   const [decomposing, setDecomposing] = useState(false); // 把路拆成目标 AI 请求中
+  const [suggestingTasksGoalId, setSuggestingTasksGoalId] = useState<string | null>(null); // 正在为哪个目标 AI 建议任务
   // 用 ref 保证持久化/动作读到的是最新树（避免闭包旧值）。在 effect 里同步，不在渲染期写 ref。
   const treeRef = useRef<LifeTree | null>(null);
   useEffect(() => {
@@ -679,6 +683,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // 给某个目标 AI 建议几条任务并直接加入其任务清单（对应 web 的「AI 建议任务」）。
+  // 离线 / 请求失败 / 返回空 → 不生成任何任务（不虚构本地兜底），按钮保持可点，用户可重试。
+  const suggestTasksForGoal = useCallback(
+    async (goalId: string) => {
+      const cur = treeRef.current;
+      if (!cur) return;
+      const goal = longGoals(cur).concat(standaloneShortGoals(cur)).find((g) => g.id === goalId);
+      if (!goal) return;
+      if (!hasBackend()) return;
+
+      setSuggestingTasksGoalId(goalId);
+      try {
+        const texts = await fetchGoalActions({
+          goalTitle: goal.title,
+          why: goal.why ?? "",
+          area: goal.area,
+          profileSummary: cur.profile.snapshot || "",
+        });
+        for (const text of texts.slice(0, 5)) {
+          const t = treeRef.current;
+          if (!t) break;
+          const { tree: next } = domainAddTask(t, goalId, text, nowISO());
+          commit(next);
+        }
+      } catch {
+        // 网络 / AI 失败：不生成任何任务，按钮保持可用，用户可重试。
+      } finally {
+        setSuggestingTasksGoalId(null);
+      }
+    },
+    [commit],
+  );
+
   const value = useMemo<AppValue>(() => {
     const t = tree;
     return {
@@ -736,6 +773,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       onboard,
       reset,
       suggestGoals,
+      suggestTasksForGoal,
+      suggestingTasksGoalId,
     };
   }, [
     tree,
@@ -779,6 +818,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     onboard,
     reset,
     suggestGoals,
+    suggestTasksForGoal,
+    suggestingTasksGoalId,
   ]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

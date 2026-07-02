@@ -278,6 +278,19 @@ export default function GoalsScreen() {
                   <Text style={styles.addBtnText}>＋</Text>
                 </Pressable>
               </View>
+              <Pressable
+                onPress={() => app.suggestTasksForGoal(goal.id)}
+                disabled={app.suggestingTasksGoalId === goal.id}
+                style={({ pressed }) => [
+                  styles.suggestTasksBtn,
+                  pressed && { opacity: 0.7 },
+                  app.suggestingTasksGoalId === goal.id && { opacity: 0.5 },
+                ]}
+              >
+                <Text style={styles.suggestTasksBtnText}>
+                  {app.suggestingTasksGoalId === goal.id ? "AI 建议中…" : "AI 建议任务"}
+                </Text>
+              </Pressable>
               <View style={styles.repRow}>
                 <Text style={styles.repLabel}>重复</Text>
                 {REPEATS.map((o) => {
@@ -389,6 +402,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   addBtnText: { fontSize: 22, color: colors.accent, fontWeight: "600", lineHeight: 24 },
+  suggestTasksBtn: { alignSelf: "flex-start", marginTop: 10 },
+  suggestTasksBtnText: { fontSize: 13, fontWeight: "600", color: colors.accent },
   repRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
   repLabel: { fontSize: 13, color: colors.fgMuted },
   repPill: {
