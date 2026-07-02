@@ -1,15 +1,16 @@
 # Task Plan — Life Planner (人生树 / decision + planning app)
 
 ## ▶ CURRENT — 2026-07-01 状态快照（承接一路优化 + 上云 + 上 TestFlight）
-Branch `feat/goal-planning-mainline`, master fast-forwarded each commit. web 全绿（tsc 0 / 482 vitest / build ok）。full session log in `progress.md` (top entries), gotcha log in there too.
+Branch `feat/goal-planning-mainline` @ `1ebb790`, master fast-forwarded + pushed. web 全绿（tsc 0 / 490 vitest / build ok）。mobile tsc 干净。full session log in `progress.md` (top entries), gotcha log in there too.
 
-**刚完成（本轮）**
-- **职场版 MBTI「人生路径码」病毒漏斗 P1**（网页端，已上线 Vercel）：纯域模块 `packages/core/src/lifePathCode/`（4轴8字母·16型·28题滑块·确定性算分）+ `/test` 测试页 + `/t/[code]` 公开结果页(OG) + 可晒卡 SVG + onboarding 一体化(测试答案喂进预测:riskAppetite + enrich 软性倾向行)。spec/plan: `docs/superpowers/*/2026-06-29-life-path-code-viral-test*`. 型文案已过 humanizer-zh。
-- **网页优化 3 轮**：①手机触控目标 ≥40px(lp-tap)②error/global-error 边界 + 代码分割(next/dynamic)+ 加载态 ③预测提示词打磨(summary 不再和 nodes 矛盾 + 故事有内心戏)。
-- **Web 云同步已接通**（memory `cloud-sync-status`）：Supabase 项目 `ucwgdgiymxfvuryzgevi` 建了 `trees` 表+RLS(via MCP)；Vercel 设了 `NEXT_PUBLIC_SUPABASE_*`(Prod+Preview)+ 重新部署 → 线上云同步开。
-- **手机 build 17 → TestFlight**：修了 `runtimeVersion` fingerprint→appVersion(monorepo 指纹不一致导致 build 16 挂在 Configure expo-updates)。build 17 成功、auto-submit 已排，**首个带 OTA 的包** → 以后 JS 改动 `eas update` 秒推。
+**刚完成（本轮 2026-07-01 下午）**
+- **信息架构去重（网页, `8f852d0`）**：老用户落地页 `dashboard`→**人生树**（AppContext hydrate）；日历屏瘦身（移除 TodayReminders + 内嵌未来预测小地图这两处重复，只留排期）。preview 实测落地/瘦身生效。
+- **手机端合并双日历（`a927d97`）**：删掉「月历」Tab + MonthScreen，月网格折进「首页」日程（顶部周/月切换，都驱动 viewDate）；5 Tab→4（首页/目标/人生树/我）。
+- **手机端「维持现状」末端可点（`cf21516`）**：status-quo 先渲染→末端命中区被后画的彩色路命中层盖住→点不动。把所有终点命中区（圆点+文字）统一提到最上层。
+- **手机端预测闭环 = 选路→定路→拆计划→乐观爬升（spec/plan `docs/superpowers/*/2026-07-01-mobile-prediction-loop*`, subagent-driven）**：core 加 `chosenPathId` + `choosePath/clearChosenPath/chosenPath` + `localPathGoals` 兜底（TDD）；store 选路/清路 + `addLongGoal` 挂 `pathId` + `decomposePathIntoGoals`（复用 /api/goals，离线本地兜底，按标题去重）；详情页**驾驶舱**（选这条路 + 三情景爬升条 + 计划）；树加「✓ 正在走」。**修好的根因**：手机端目标从不填 pathId → pathProgress 恒 0 → 乐观占比冻死；现在完成挂路目标的任务 → 有效可行度涨 → 乐观爬升。**已 OTA 到 production（iOS, runtime 1.0.0, `b43e8a60`）**。
 
 **待用户/待确认**
+- **TestFlight 真机验预测闭环**（关开 App 两次拉 OTA）：选路→✓+AI 拆出目标→完成任务→乐观爬升条变高。
 - Supabase 后台 Auth → URL Configuration 设 Site URL + Redirect URLs（GoTrue 配置,无 MCP/API,只能用户点）→ 然后首登实测云同步(未对过真 Supabase)。
 - 确认 build 17 在 TestFlight 处理完(Apple 侧 ~5–15min)。
 
@@ -52,6 +53,8 @@ A life-planning web app whose centerpiece is an animated branching prediction tr
 | 21 | 职场版 MBTI「人生路径码」viral funnel P1: pure-domain lifePathCode (16 types + 28-statement slider + deterministic scoring) + /test + /t/[code] (OG) + share card + onboarding integration (answers → riskAppetite + enrich soft line). humanized copy. spec/plan 2026-06-29. | complete |
 | 22 | Cloud sync turned ON (web): Supabase `trees` table + RLS (via MCP) on project ucwgdgiymxfvuryzgevi; NEXT_PUBLIC_SUPABASE_* on Vercel + redeploy. Only Auth URL-config (user, dashboard) + first real login test remain. | complete |
 | 23 | Mobile build 17 → TestFlight: runtimeVersion fingerprint→appVersion fix (monorepo mismatch killed build 16); build 17 succeeded + auto-submit; first TestFlight build WITH OTA embedded. | complete |
+| 24 | Web IA de-dup: returning users land on 人生树 (not the dashboard); calendar slimmed (drop TodayReminders + embedded prediction mini-map). `8f852d0`. | complete |
+| 25 | Mobile parity + prediction loop (subagent-driven, OTA'd): merge 月历→首页 (week/month toggle, 5→4 tabs, `a927d97`); fix status-quo endpoint tap via top hit-layer (`cf21516`); prediction loop = choosePath(commit) + AI-decompose to path-linked goals + 3-scenario climb bars in a detail "cockpit" + ✓ marker. core TDD (`chosenPathId`, `localPathGoals`). spec/plan 2026-07-01. `af0b3cc`→`1ebb790`. | complete |
 | — | Supabase cloud sync (mobile): NOT built — AsyncStorage only (sync-ready jsonb shape). Needs Supabase client + auth screen (email OTP) + sync wiring in mobile/src/state/store.tsx. | pending |
 
 ## Needs the user (morning of 2026-06-23) — code ready, see docs/MORNING-2026-06-23.md
