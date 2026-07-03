@@ -1,7 +1,14 @@
 # Task Plan — Life Planner (人生树 / decision + planning app)
 
-## ▶ CURRENT — 2026-07-02 状态快照（过夜大改：任务统一 + 预测/AI 重做）
-Branch `feat/goal-planning-mainline` @ `785c808`, master fast-forwarded + pushed. web 全绿（tsc 0 / 497 vitest / build ok）。mobile tsc 干净。full session log in `progress.md` (top entries), gotcha log in there too。**⚠️ 过夜改动只提交未部署——待用户晨间 TestFlight 验收后再 OTA/发 Vercel。**
+## ▶ CURRENT — 2026-07-02 状态快照（过夜大改 + 多轮真机修复/迭代，全部已部署）
+Branch `feat/goal-planning-mainline` @ `26ed3ff`, master fast-forwarded + pushed. web 全绿（tsc 0 / 499 vitest / build ok）。mobile tsc 干净。**已部署：手机多轮 OTA（最新 `5e86cf6d`）、网页/服务端随 master→Vercel。** full session log in `progress.md` (top entries)。
+
+**刚完成（2026-07-02 真机反馈修复 + 迭代轮，全部已 OTA/部署）**
+- **OTA env 修复（关键，见 memory `mobile-ota-first`）**：`eas update` 不吃 `eas.json build.env` → 之前几次 OTA 丢了 `EXPO_PUBLIC_API_BASE_URL` → 真 AI 静默关闭。已 `eas env:create` 注册进 EAS 生产环境，之后 OTA 自动带上（发 OTA 时仍顺手 inline 一份保险）。
+- **过夜大改真机 bug 批（`2c962f4`）**：推演蒙层卡死（`postJson` 加 35s AbortController 超时 + 蒙层可点掉）；维持现状接 AI；未排任务可「直接完成」；`arrangeDay` 避开午/晚餐窗、按钮改名"自动排今天（避开饭点）"（它是本地确定性、非 AI）。
+- **维持现状 = 完整人生路线（`d002b98`）**：core `choosePath` 允许 status-quo；详情去掉 isChoice 特判 → 可选定/三种可能/拆计划；`applyEnrichToPath` 给它保留可行度。
+- **引导等 AI 再进首页（`34a24c7`）**：`onboard` 先落盘、推演完现状再进首页，引导页放推演动画。
+- **本轮 5 任务（spec/plan `docs/superpowers/*/2026-07-02-prediction-realism-onboarding-tabs*`, subagent-driven, `0b81960`→`26ed3ff`, OTA `5e86cf6d`）**：①走向改名 **高光/平稳/低谷**（两端）②**三走向全 AI**（手机 `addScenario` 改成本地建变体 + `enrichPath`，删掉本地预取——修掉"本地托底"根源；网页早已如此）③**Tab 重排** 人生树(默认)/日历/目标/我 ④**onboarding 8 页**对齐网页字段（技能/存款/负债/风险/家庭/国籍/身份/副业）⑤**enrich 提示词调真实**（可行度校准更低 + 结局允许"有得有失/稳住没起飞/换方向重来"，不写爽文；既有反预言/≥2 挫折/现实锚点约束未删）。E 的真实度需真机/样本判定，待用户反馈迭代。
 
 **刚完成（过夜 2026-07-02，subagent-driven，13 任务 + 2 轮 code-review 全过）** —— spec/plan `docs/superpowers/*/2026-07-02-prediction-planning-overhaul*`
 - **WS1 任务统一（两端 + 核心迁移，`13a5827`→`cbf1e34`）**：`Habit` 并入 `Task`（`repeat?`/`repeatWeekday?` 可选属性），删 `Habit` 类型 + `Goal.habits`/`LifeTree.habits`；`normalizeLoadedTree` 无损幂等迁移 legacy habits→重复 tasks；`daily.ts` 连续天数/热力图/今日项改读重复任务；两端所有消费点扫平；网页习惯页→「重复任务」视图。守住了 3 个不变量（迁移无损、重复任务按天完成走 activity、重复任务不计入 goalProgress——`ownUnits` 加 `t.repeat==null` 过滤）。code-review 通过。
