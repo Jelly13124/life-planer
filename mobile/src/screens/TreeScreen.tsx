@@ -30,6 +30,7 @@ import Svg, {
 } from "react-native-svg";
 import type { LifePath } from "@lifeplanner/core/types";
 import { layoutMap } from "../lib/mapLayout";
+import { shareCard } from "../lib/shareCard";
 import { useApp } from "../state/store";
 import { Button, Card, Input, Muted } from "../ui";
 import { colors, radii, space } from "../theme";
@@ -199,6 +200,20 @@ export default function TreeScreen() {
   const choices = tree.paths.filter((p) => p.kind === "choice");
   const name = tree.profile.name || "你";
 
+  // 晒人生树：取可行度最高的前 3 条选择路（都没算出可行度时退化成前 3 条的标签）。
+  const handleShareTree = () => {
+    const ranked = choices
+      .filter((p) => typeof p.feasibility === "number")
+      .sort((a, b) => (b.feasibility ?? 0) - (a.feasibility ?? 0))
+      .slice(0, 3)
+      .map((p) => ({ label: p.choiceLabel, feasibility: p.feasibility }));
+    const top = ranked.length > 0 ? ranked : choices.slice(0, 3).map((p) => ({ label: p.choiceLabel }));
+    void shareCard(
+      { kind: "tree", title: "我的人生树", name: tree.profile.name || undefined, items: top },
+      "这是我的人生树，三条可能的路：",
+    );
+  };
+
   // 渲染尺寸：固定高度，宽度按布局宽高比，横向滚动看更远年龄。
   const renderH = PANEL_H;
   const renderW = Math.max(width - space * 2, renderH * (layout.width / layout.height));
@@ -240,6 +255,17 @@ export default function TreeScreen() {
           </View>
           <Muted>补签卡 ×{freezesLeft}</Muted>
         </View>
+      ) : null}
+
+      {/* 晒人生树：至少有一条选择路径时才给分享入口 */}
+      {choices.length > 0 ? (
+        <Pressable
+          onPress={handleShareTree}
+          hitSlop={8}
+          style={({ pressed }) => [styles.shareTreeLink, pressed && { opacity: 0.7 }]}
+        >
+          <Text style={styles.shareTreeLinkText}>晒我的人生树 ›</Text>
+        </Pressable>
       ) : null}
 
       {/* 暗色媒体面板 + 分支地图（横向可滚动） */}
@@ -536,6 +562,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   freezeBannerText: { color: "#fff", fontSize: 14, fontWeight: "600", textAlign: "center" },
+  shareTreeLink: { alignSelf: "flex-start", marginBottom: 14 },
+  shareTreeLinkText: { fontSize: 13, fontWeight: "600", color: colors.accent },
   emptyTitle: { fontSize: 16, fontWeight: "600", color: colors.fg, marginBottom: 4 },
   composerTitle: { fontSize: 16, fontWeight: "700", color: colors.fg, marginBottom: 4 },
   cardActions: {

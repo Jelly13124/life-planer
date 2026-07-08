@@ -89,3 +89,35 @@ export async function signOut(): Promise<void> {
   // 即使服务端 revoke 失败，signOut 也会清掉本地会话；这里忽略错误，不阻塞退出登录。
   if (sb) await sb.auth.signOut().catch(() => {});
 }
+
+// 分享卡 payload —— 必须和网页 /s/[id] 页面的契约一致：只允许这几个字段，
+// 绝不能带完整 tree/goals/tasks（隐私 + 页面本来也读不出别的字段）。
+export interface SharePayload {
+  kind: "tree" | "future-self" | "path";
+  title: string;
+  subtitle?: string;
+  name?: string; // 昵称（可空——只传 profile.name，不传其他隐私）
+  items?: { label: string; feasibility?: number }[]; // 至多 3 条
+  quote?: string; // future-self 卡
+}
+
+export const SHARE_BASE_URL = "https://life-planer-opal.vercel.app";
+export function shareUrl(id: string): string {
+  return `${SHARE_BASE_URL}/s/${id}`;
+}
+
+// 创建分享卡（写 shares 表一行，返回分享 id）。需登录（RLS: auth.uid() = user_id）；
+// 未登录/未配置/失败 → null，调用方给「登录后可分享」/「稍后再试」提示。
+export async function createShare(payload: SharePayload): Promise<string | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+  try {
+    const uid = (await sb.auth.getSession()).data.session?.user?.id ?? null;
+    if (!uid) return null;
+    const { data, error } = await sb.from("shares").insert({ user_id: uid, payload }).select("id").single();
+    if (error) return null;
+    return (data?.id as string) ?? null;
+  } catch {
+    return null;
+  }
+}

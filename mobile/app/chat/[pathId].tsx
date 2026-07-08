@@ -15,9 +15,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useApp } from "../../src/state/store";
 import { chatReply, hasBackend, futureAgeOf, type ChatMessage } from "../../src/lib/api";
+import { shareCard } from "../../src/lib/shareCard";
 import { colors, space } from "../../src/theme";
 
 const QUICK = ["你后悔走这条路吗？", "当时最难的坎怎么熬过来的？", "给现在的我一句话"];
+
+// 分享用：引言截断到 ≤120 字，避免分享文案过长。
+function trimQuote(s: string, max = 120): string {
+  return s.length > max ? s.slice(0, max - 1) + "…" : s;
+}
 
 export default function ChatScreen() {
   const { pathId } = useLocalSearchParams<{ pathId: string }>();
@@ -110,11 +116,29 @@ export default function ChatScreen() {
               </View>
             ) : null}
             {messages.map((m, i) => (
-              <View
-                key={i}
-                style={[m.role === "user" ? styles.userBubble : styles.aiBubble]}
-              >
-                <Text style={m.role === "user" ? styles.userText : styles.aiText}>{m.content}</Text>
+              <View key={i} style={{ alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
+                <View style={m.role === "user" ? styles.userBubble : styles.aiBubble}>
+                  <Text style={m.role === "user" ? styles.userText : styles.aiText}>{m.content}</Text>
+                </View>
+                {m.role === "assistant" ? (
+                  <Pressable
+                    onPress={() =>
+                      void shareCard(
+                        {
+                          kind: "future-self",
+                          title: "来自未来的我",
+                          quote: trimQuote(m.content),
+                          name: tree?.profile.name || undefined,
+                        },
+                        "未来的我对我说：",
+                      )
+                    }
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.shareMsgBtn, pressed && { opacity: 0.7 }]}
+                  >
+                    <Text style={styles.shareMsgText}>分享</Text>
+                  </Pressable>
+                ) : null}
               </View>
             ))}
             {loading ? <ActivityIndicator color={colors.accent} style={{ marginTop: 8 }} /> : null}
@@ -203,6 +227,8 @@ const styles = StyleSheet.create({
     maxWidth: "85%",
   },
   aiText: { color: colors.fg, fontSize: 15, lineHeight: 21 },
+  shareMsgBtn: { marginTop: 4, paddingHorizontal: 4, paddingVertical: 2 },
+  shareMsgText: { fontSize: 12, color: colors.fgMuted, fontWeight: "600" },
   inputBar: {
     flexDirection: "row",
     alignItems: "center",

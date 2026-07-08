@@ -17,6 +17,7 @@ import { scenarioOdds } from "@lifeplanner/core/scenarioOdds";
 import { isEnriched } from "@lifeplanner/core/pathEnriched";
 import { useApp } from "../../src/state/store";
 import { futureAgeOf } from "../../src/lib/api";
+import { shareCard } from "../../src/lib/shareCard";
 import { MetricChart } from "../../src/components/MetricChart";
 import PredictingOverlay from "../../src/components/PredictingOverlay";
 import { colors, space, radii } from "../../src/theme";
@@ -148,6 +149,27 @@ export default function PathDetailScreen() {
           ) : null}
           <Text style={styles.feasFaint}>AI 粗估,非精确概率</Text>
         </View>
+      ) : null}
+
+      {/* 分享这条路：只在 AI 已确认基线后开放——占位内容不值得分享 */}
+      {isRoute && isEnriched(path) ? (
+        <Pressable
+          onPress={() =>
+            void shareCard(
+              {
+                kind: "path",
+                title: path.choiceLabel,
+                name: tree.profile.name || undefined,
+                items: [{ label: path.choiceLabel, feasibility: eff?.value ?? path.feasibility }],
+              },
+              `我的人生路线 · ${path.choiceLabel}`,
+            )
+          }
+          hitSlop={8}
+          style={({ pressed }) => [styles.shareLink, pressed && { opacity: 0.7 }]}
+        >
+          <Text style={styles.shareLinkText}>分享这条路 ›</Text>
+        </Pressable>
       ) : null}
 
       {/* 推演/重试：任何未经 AI 确认的路（含「维持现状」基线）都能触发一次真 AI 推演。 */}
@@ -345,6 +367,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   retryBtnText: { color: colors.accent, fontSize: 13, fontWeight: "700" },
+  shareLink: { marginTop: 10, alignSelf: "flex-start" },
+  shareLinkText: { fontSize: 13, fontWeight: "600", color: colors.accent },
   sectionLabel: { fontSize: 13, fontWeight: "600", color: colors.fgMuted, marginBottom: 8 },
   segRow: { flexDirection: "row", gap: 8 },
   seg: {
