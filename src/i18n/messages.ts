@@ -889,4 +889,10 @@ export const EN: Record<string, string> = {
   最终走向: "Where it ends up",
   关键里程碑: "Key milestones",
   返回: "Back",
+
+  // ── 公开分享卡片页 /s/[id] ──
+  来自未来的我: "From my future self",
+  "AI 推演的可能性，非预测 · 由朋友分享": "An AI-predicted possibility, not a forecast · shared by a friend",
+  测测你的人生树: "Try the life tree yourself",
+  测职场人格: "Take the career-type test",
 };
