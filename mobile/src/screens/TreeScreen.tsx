@@ -1,7 +1,7 @@
 // 人生树（只读预测地图）—— 与网页端 LifeMap 一致：从「现在」原点分叉出的彩色曲线树。
 // 复用 web 同一套 mapLayout 几何（曲线形状/分叉/节点完全相同），用 react-native-svg 渲染。
 // 动画：曲线自绘入场（staggered）+ 原点呼吸；横向可滚动看更远的年龄。点曲线 → 和未来的自己聊。
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   Alert,
@@ -32,8 +32,9 @@ import type { LifePath } from "@lifeplanner/core/types";
 import { layoutMap } from "../lib/mapLayout";
 import { useApp } from "../state/store";
 import { Button, Card, Input, Muted } from "../ui";
-import { colors, space } from "../theme";
+import { colors, radii, space } from "../theme";
 import PredictingOverlay from "../components/PredictingOverlay";
+import { Icon } from "../components/icons";
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -86,7 +87,18 @@ function useReduceMotion(): boolean {
 }
 
 export default function TreeScreen() {
-  const { tree, addChoiceBranch, addChoiceBranchAt, removeBranch, enriching, chosenPathId } = useApp();
+  const {
+    tree,
+    addChoiceBranch,
+    addChoiceBranchAt,
+    removeBranch,
+    enriching,
+    chosenPathId,
+    streak,
+    freezesLeft,
+    freezeNotice,
+    clearFreezeNotice,
+  } = useApp();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const reduce = useReduceMotion();
@@ -98,6 +110,27 @@ export default function TreeScreen() {
   const [overlayDismissed, setOverlayDismissed] = useState(false); // 用户点掉推演蒙层（AI 在后台继续），防止慢/卡的推演盖死整棵树
   const [anim] = useState(() => new Animated.Value(0)); // 曲线自绘进度 0→1
   const [pulse] = useState(() => new Animated.Value(0)); // 原点呼吸
+  const [streakScale] = useState(() => new Animated.Value(1)); // 连击数字：上升时轻微放大回弹
+  const prevStreakRef = useRef(streak);
+
+  // 连续天数上升时轻微放大回弹一下（reduce motion 时跳过）。
+  useEffect(() => {
+    if (streak > prevStreakRef.current && !reduce) {
+      streakScale.setValue(1);
+      Animated.sequence([
+        Animated.spring(streakScale, { toValue: 1.15, useNativeDriver: true, speed: 20, bounciness: 8 }),
+        Animated.spring(streakScale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 8 }),
+      ]).start();
+    }
+    prevStreakRef.current = streak;
+  }, [streak, reduce, streakScale]);
+
+  // 自动补签提示：轻提示，~3s 后自动消失。
+  useEffect(() => {
+    if (!freezeNotice) return;
+    const t = setTimeout(clearFreezeNotice, 3000);
+    return () => clearTimeout(t);
+  }, [freezeNotice, clearFreezeNotice]);
 
   // 几何布局（与 web 完全一致；tree 为空时 null，hooks 仍无条件调用）。
   const layout = useMemo(
@@ -188,6 +221,26 @@ export default function TreeScreen() {
       <Muted style={{ marginBottom: 14 }}>
         从「现在」分叉出的每条路 · 点下方卡片(或曲线)看这条路的未来 · 点节点在那年加岔路 · 左右滑看更远
       </Muted>
+
+      {/* 自动补签提示：漏签时补签卡自动桥接连击，~3s 后自动消失 */}
+      {freezeNotice ? (
+        <View style={styles.freezeBanner}>
+          <Text style={styles.freezeBannerText}>{freezeNotice}</Text>
+        </View>
+      ) : null}
+
+      {/* 连击条：新用户（无连击且补签卡未用）不展示，避免噪音 */}
+      {streak > 0 || freezesLeft < 2 ? (
+        <View style={styles.streakRow}>
+          <View style={styles.streakLeft}>
+            <Icon name="fire" size={18} color="#c77600" />
+            <Animated.Text style={[styles.streakText, { transform: [{ scale: streakScale }] }]}>
+              连续 {streak} 天
+            </Animated.Text>
+          </View>
+          <Muted>补签卡 ×{freezesLeft}</Muted>
+        </View>
+      ) : null}
 
       {/* 暗色媒体面板 + 分支地图（横向可滚动） */}
       <View style={styles.panel}>
@@ -467,6 +520,22 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: DARK.bg,
   },
+  streakRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  streakLeft: { flexDirection: "row", alignItems: "center", gap: 6 },
+  streakText: { fontSize: 15, fontWeight: "700", color: colors.fg },
+  freezeBanner: {
+    backgroundColor: colors.accent,
+    borderRadius: radii.sm,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+  },
+  freezeBannerText: { color: "#fff", fontSize: 14, fontWeight: "600", textAlign: "center" },
   emptyTitle: { fontSize: 16, fontWeight: "600", color: colors.fg, marginBottom: 4 },
   composerTitle: { fontSize: 16, fontWeight: "700", color: colors.fg, marginBottom: 4 },
   cardActions: {

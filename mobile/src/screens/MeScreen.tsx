@@ -1,10 +1,11 @@
 // 我 Tab：个人资料 + 账号/同步（邮箱验证码登录）+ 数据（重置）。
 import React from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "../state/store";
 import { Button, Card, Input, Muted, SectionTitle } from "../ui";
 import { colors, space } from "../theme";
+import { ensureNotifPermission } from "../lib/notifications";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -33,6 +34,20 @@ export default function MeScreen() {
   const [phase, setPhase] = React.useState<"email" | "code">("email");
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [digestHint, setDigestHint] = React.useState<string | null>(null);
+
+  const digestOn = app.tree?.dailyDigest !== false;
+  const handleToggleDigest = React.useCallback(
+    async (on: boolean) => {
+      app.setDailyDigest(on);
+      setDigestHint(null);
+      if (on) {
+        const granted = await ensureNotifPermission();
+        if (!granted) setDigestHint("需要在系统设置里允许通知");
+      }
+    },
+    [app],
+  );
 
   const handleSendCode = React.useCallback(async () => {
     const target = email.trim();
@@ -193,6 +208,16 @@ export default function MeScreen() {
             <Button label="退出登录" kind="ghost" onPress={confirmLogout} />
           </View>
         )}
+      </Card>
+
+      <SectionTitle>通知</SectionTitle>
+      <Card>
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>每日提醒</Text>
+          <Switch value={digestOn} onValueChange={(v) => void handleToggleDigest(v)} />
+        </View>
+        <Muted style={{ marginTop: 6 }}>每天固定时段提醒今日任务和连击天数</Muted>
+        {digestHint ? <Muted style={{ marginTop: 6 }}>{digestHint}</Muted> : null}
       </Card>
 
       <SectionTitle>数据</SectionTitle>

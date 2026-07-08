@@ -7,7 +7,9 @@ import { Platform } from "react-native";
 import Constants from "expo-constants";
 import type { LifeTree } from "@lifeplanner/core/types";
 import { actionsOnDay } from "@lifeplanner/core/calendar";
-import { addDays } from "@lifeplanner/core/daily";
+import { addDays, todayItems } from "@lifeplanner/core/daily";
+import { dayWindow } from "@lifeplanner/core/schedule";
+import { currentStreakWithFreeze } from "@lifeplanner/core/streak";
 
 // Expo Go 检测：storeClient / appOwnership==="expo" 即 Expo Go；dev build/standalone 才用通知。
 const IS_EXPO_GO =
@@ -99,6 +101,40 @@ export async function syncNotifications(
         });
       }
     }
+  } catch {
+    // 通知失败不影响应用主流程
+  }
+}
+
+const DAILY_DIGEST_ID = "daily-digest";
+
+// 每日摘要推送：每天固定时刻一条常驻提醒（今日任务数 + 连击天数），独立于按任务时间点的提醒。
+// tree.dailyDigest === false → 只取消、不再排；否则先取消旧的再排新的（同 identifier，
+// 保证任何时候至多一条）。时刻 = 清醒时段起点 +2 小时，夹在 [8, 11] 点之间。
+// Expo Go / 未授权 / 失败 → 静默 no-op，不影响应用主流程。
+export async function syncDailyDigest(tree: LifeTree, today: string): Promise<void> {
+  const N = await getNotif();
+  if (!N) return;
+  try {
+    await N.cancelScheduledNotificationAsync(DAILY_DIGEST_ID);
+  } catch {
+    // 可能压根没排过，忽略
+  }
+  if (tree.dailyDigest === false) return;
+  try {
+    const granted = await ensureNotifPermission();
+    if (!granted) return;
+    const startHour = Number(dayWindow(tree).start.slice(0, 2));
+    const hour = Math.min(11, Math.max(8, (Number.isFinite(startHour) ? startHour : 7) + 2));
+    const count = todayItems(tree, today).length;
+    const streak = currentStreakWithFreeze(tree, today);
+    const body =
+      count > 0 ? `今天 ${count} 个任务在等你 · 连击 ${streak} 天` : "给未来的自己留 10 分钟";
+    await N.scheduleNotificationAsync({
+      identifier: DAILY_DIGEST_ID,
+      content: { title: "人生树", body },
+      trigger: { type: N.SchedulableTriggerInputTypes.DAILY, hour, minute: 0 },
+    });
   } catch {
     // 通知失败不影响应用主流程
   }

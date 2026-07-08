@@ -359,6 +359,7 @@ export interface LifeTree {
   guideDismissed?: boolean; // 首次上手引导是否已关闭（undefined=未关→仍显示，无需迁移）
   chosenPathId?: string | null; // 用户「正在走」的那条路（选定）；未选 = undefined/null
   freezeDays?: string[]; // 被补签卡保护的日期 YYYY-MM-DD（每月免费 2 张，自动使用）
+  dailyDigest?: boolean; // 每日摘要推送开关（undefined=默认开，无需迁移）
   createdAt: string;
   updatedAt: string;
 }

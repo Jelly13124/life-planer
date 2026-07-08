@@ -47,8 +47,12 @@ import {
   completeAction,
   uncompleteAction,
   planToday,
-  currentStreak,
 } from "@lifeplanner/core/daily";
+import {
+  currentStreakWithFreeze,
+  freezesLeft as domainFreezesLeft,
+  applyAutoFreeze,
+} from "@lifeplanner/core/streak";
 import {
   actionsOnDay,
   unscheduledActions,
@@ -64,7 +68,7 @@ import {
 } from "@lifeplanner/core/schedule";
 
 import { loadTree, saveTree, clearTree, backupTree } from "../lib/storage";
-import { syncNotifications } from "../lib/notifications";
+import { syncNotifications, syncDailyDigest } from "../lib/notifications";
 import {
   fetchGoalSuggestions,
   fetchGoalActions,
@@ -108,9 +112,12 @@ interface AppValue {
   shortGoalsOf: (longId: string) => Goal[];
   progressOf: (goal: Goal) => number;
   todayRows: TodayRow[];
-  streak: number;
+  streak: number; // 含补签卡桥接（见 @lifeplanner/core/streak）
+  freezesLeft: number; // 本月剩余免费补签卡数
   nudge: { title: string; delta: number; id: number } | null;
   clearNudge: () => void;
+  freezeNotice: string | null; // 自动补签提示（"补签卡帮你保住了 N 天连击"）——与 nudge 分开的独立轻提示通道
+  clearFreezeNotice: () => void;
   // 安排（日视图）
   viewDate: string;
   isViewToday: boolean;
@@ -155,6 +162,7 @@ interface AppValue {
   retryEnrich: (pathId: string) => void;
   onboard: (inputs: ProfileInputs, win?: { start: string; end: string }) => void;
   reset: () => void;
+  setDailyDigest: (on: boolean) => void; // 每日摘要推送开关（undefined=默认开）
   // 后端（AI 建议；离线返回 []）
   suggestGoals: () => Promise<GoalSuggestion[]>;
   suggestTasksForGoal: (goalId: string) => Promise<void>;
@@ -180,6 +188,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // 完成动力提示：完成某目标的任务时弹"你的努力让『X』+Y%"。id 单调递增以重触发自动消失。
   const [nudge, setNudge] = useState<{ title: string; delta: number; id: number } | null>(null);
   const nudgeId = useRef(0);
+  // 自动补签提示：与 nudge（"你的努力让…+X%"）文案不同，独立状态通道，避免误用/混淆。
+  const [freezeNotice, setFreezeNotice] = useState<string | null>(null);
   const [enriching, setEnriching] = useState(false); // 人生树分支 AI 推演中
   const [decomposing, setDecomposing] = useState(false); // 把路拆成目标 AI 请求中
   const [suggestingTasksGoalId, setSuggestingTasksGoalId] = useState<string | null>(null); // 正在为哪个目标 AI 建议任务
@@ -268,6 +278,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // 任一变更后持久化（仅在初始化完成后；避免用起始树覆盖刚读到的存档）。
+  // 提到 boot effect 之前声明：boot effect 里自动补签命中时要 commit(frozenTree)，
+  // React Compiler 的 immutability 检查不允许在效果里引用晚于它声明的 useCallback。
+  const commit = useCallback(
+    (next: LifeTree) => {
+      setTree(next);
+      treeRef.current = next;
+      void saveTree(next);
+      // 去抖重排本地通知 + 每日摘要（取消旧的 → 排未来几天已排时间的提醒；顺序执行——
+      // syncNotifications 内部会 cancelAll 再排任务提醒，摘要用独立 identifier 单排，
+      // 但仍需排在其后，避免被 cancelAll 连带清掉）。
+      if (notifTimer.current) clearTimeout(notifTimer.current);
+      notifTimer.current = setTimeout(() => {
+        void (async () => {
+          await syncNotifications(next, todayStr());
+          await syncDailyDigest(next, todayStr());
+        })();
+      }, 1500);
+      // 去抖云端保存（仅登录时；未登录/未配置云同步 → getCloudStore 返回 null，早退）。
+      const uid = cloudUserIdRef.current;
+      if (uid) {
+        if (cloudSaveTimer.current) clearTimeout(cloudSaveTimer.current);
+        cloudSaveTimer.current = setTimeout(() => {
+          // 定时器触发时重新读 uid（而非闭包捕获的旧值）：800ms 内可能已登出/切号。
+          const uidAtFire = cloudUserIdRef.current;
+          const store = getCloudStore();
+          if (!uidAtFire || !store) return;
+          // store.putTree 会抛错（不像 SupabaseRepository.save 吞错）——失败真实反映到 syncState。
+          store
+            .putTree(uidAtFire, next)
+            .then(() => {
+              setSyncState("synced");
+              setLastSyncAt(new Date().toISOString());
+            })
+            .catch(() => setSyncState("error"));
+        }, 800);
+      }
+    },
+    [],
+  );
+
   // 启动：加载存档（可能为 null → 未引导，Gate 显示 onboarding）。不再自动生成默认树。
   useEffect(() => {
     let alive = true;
@@ -294,7 +345,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTree(loaded);
       treeRef.current = loaded; // 立即同步（下面 resolveCloud 要读最新本地树，不等 effect 那一轮）
       setReady(true);
-      if (loaded) void syncNotifications(loaded, todayStr());
+      if (loaded) {
+        // 通知重排 + 每日摘要顺序执行：syncNotifications 内部会 cancelAll 再排任务提醒，
+        // 摘要用独立 identifier 单排，但仍需排在其后，避免被 cancelAll 连带清掉。
+        void (async () => {
+          await syncNotifications(loaded, todayStr());
+          await syncDailyDigest(loaded, todayStr());
+        })();
+        // 自动补签：开机时先于任何用户交互桥接漏签的缺口天（见 packages/core/src/streak.ts）。
+        const day = todayStr();
+        const { tree: frozenTree, frozen } = applyAutoFreeze(loaded, day);
+        if (frozen.length > 0) {
+          commit(frozenTree);
+          setFreezeNotice(`补签卡帮你保住了 ${currentStreakWithFreeze(frozenTree, day)} 天连击`);
+        }
+      }
       // 本地会话检测：只读 AsyncStorage 缓存的 session，绝不发网络请求
       // （getCurrentUserId() 会发请求验证，开机不能用它）。这是即时路径；上面的订阅是恢复路径。
       const { data } = (await getSupabase()?.auth.getSession()) ?? { data: { session: null } };
@@ -309,53 +374,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       alive = false;
       sub?.data.subscription.unsubscribe();
     };
-  }, [resolveCloud]);
+  }, [resolveCloud, commit]);
 
-  // 回到前台时刷新「今天」（对应 web 的 visibilitychange/focus）。
+  // 回到前台时刷新「今天」（对应 web 的 visibilitychange/focus）+ 自动补签：
+  // 每次回到前台都先于任何用户交互尝试桥接漏签的缺口天（跨天/跨会话都能补上）。
   useEffect(() => {
     const sub = AppState.addEventListener("change", (s) => {
-      if (s === "active") setToday(todayStr());
+      if (s !== "active") return;
+      const day = todayStr();
+      setToday(day);
+      const cur = treeRef.current;
+      if (!cur) return;
+      const { tree: frozenTree, frozen } = applyAutoFreeze(cur, day);
+      if (frozen.length > 0) {
+        commit(frozenTree);
+        setFreezeNotice(`补签卡帮你保住了 ${currentStreakWithFreeze(frozenTree, day)} 天连击`);
+      }
     });
     return () => sub.remove();
-  }, []);
-
-  // 任一变更后持久化（仅在初始化完成后；避免用起始树覆盖刚读到的存档）。
-  const commit = useCallback(
-    (next: LifeTree) => {
-      setTree(next);
-      treeRef.current = next;
-      void saveTree(next);
-      // 去抖重排本地通知（取消旧的 → 排未来几天已排时间的提醒）。
-      if (notifTimer.current) clearTimeout(notifTimer.current);
-      notifTimer.current = setTimeout(() => void syncNotifications(next, todayStr()), 1500);
-      // 去抖云端保存（仅登录时；未登录/未配置云同步 → getCloudStore 返回 null，早退）。
-      const uid = cloudUserIdRef.current;
-      if (uid) {
-        if (cloudSaveTimer.current) clearTimeout(cloudSaveTimer.current);
-        cloudSaveTimer.current = setTimeout(() => {
-          // 定时器触发时重新读 uid（而非闭包捕获的旧值）：800ms 内可能已登出/切号。
-          const uidAtFire = cloudUserIdRef.current;
-          const store = getCloudStore();
-          if (!uidAtFire || !store) return;
-          // store.putTree 会抛错（不像 SupabaseRepository.save 吞错）——失败真实反映到 syncState。
-          store
-            .putTree(uidAtFire, next)
-            .then(() => {
-              setSyncState("synced");
-              setLastSyncAt(new Date().toISOString());
-            })
-            .catch(() => setSyncState("error"));
-        }, 800);
-      }
-    },
-    [],
-  );
+  }, [commit]);
 
   const bumpNudge = useCallback((title: string, delta: number) => {
     nudgeId.current += 1;
     setNudge({ title, delta, id: nudgeId.current });
   }, []);
   const clearNudge = useCallback(() => setNudge(null), []);
+  const clearFreezeNotice = useCallback(() => setFreezeNotice(null), []);
 
   // 完成/取消完成核心：完成属于某目标的任务时，算出该目标进度增量 → 触发动力提示。
   const applyComplete = useCallback(
@@ -846,6 +890,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  // 每日摘要推送开关（undefined=默认开）。
+  const setDailyDigest = useCallback(
+    (on: boolean) => {
+      const cur = treeRef.current;
+      if (!cur) return;
+      commit({ ...cur, dailyDigest: on, updatedAt: nowISO() });
+    },
+    [commit],
+  );
+
   // ── 云同步动作（登录可跳过；见 mobile/src/lib/supabase.ts 的 OTP 流）──
   const sendLoginCode = useCallback(async (email: string): Promise<string | null> => {
     return sendOtp(email);
@@ -945,9 +999,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       shortGoalsOf: (longId: string) => (t ? shortGoalsOf(t, longId) : []),
       progressOf: (goal: Goal) => (t ? goalProgress(t, goal) : 0),
       todayRows: t ? todayItems(t, today) : [],
-      streak: t ? currentStreak(t, today) : 0,
+      streak: t ? currentStreakWithFreeze(t, today) : 0,
+      freezesLeft: t ? domainFreezesLeft(t, today) : 0,
       nudge,
       clearNudge,
+      freezeNotice,
+      clearFreezeNotice,
       viewDate,
       isViewToday: viewDate === today,
       dayWin: t ? dayWindow(t) : { start: "07:00", end: "23:00" },
@@ -990,6 +1047,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       retryEnrich,
       onboard,
       reset,
+      setDailyDigest,
       suggestGoals,
       suggestTasksForGoal,
       suggestingTasksGoalId,
@@ -1008,6 +1066,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     today,
     nudge,
     clearNudge,
+    freezeNotice,
+    clearFreezeNotice,
     viewDate,
     shiftViewDate,
     goToday,
@@ -1043,6 +1103,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     retryEnrich,
     onboard,
     reset,
+    setDailyDigest,
     suggestGoals,
     suggestTasksForGoal,
     suggestingTasksGoalId,
