@@ -222,13 +222,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       if (cloudTree && local) {
         if (Date.parse(cloudTree.updatedAt) > Date.parse(local.updatedAt)) {
-          // 云端更新 → 覆盖本地前先取消待触发的云端保存（防止旧本地树在采用云端树之后又被写回云端），
-          // 再兜底备份，防止数据丢失。
+          // 云端更新 → 先兜底备份，防止数据丢失。
+          await backupTree(local);
+          // 备份期间（await）用户可能又改了树（commit() 落了新 tree）：此时绝不能用
+          // 备份前捕获的旧 cloudTree 采用覆盖，否则会吞掉刚做的编辑。放弃本次采用，
+          // 按失败处理——本地数据不动，下次 resolveCloud 再重新比较 updatedAt。
+          if (treeRef.current !== local) {
+            setSyncState("error");
+            return;
+          }
+          // 确认没有并发编辑后才真正采用：先取消待触发的云端保存（防止旧本地树在采用
+          // 云端树之后又被写回云端——这必须在 bail 之后做，否则备份期间用户新编辑
+          // 排的定时器会被误取消，导致那次编辑再也不会被推上云）。
           if (cloudSaveTimer.current) {
             clearTimeout(cloudSaveTimer.current);
             cloudSaveTimer.current = null;
           }
-          await backupTree(local);
           setTree(cloudTree);
           treeRef.current = cloudTree;
           void saveTree(cloudTree); // 只落盘，不走 commit()（避免立刻又把刚拉下来的树写回云端）
@@ -236,7 +245,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           await store.putTree(uid, local); // 本地更新或打平 → 推上云
         }
       } else if (cloudTree) {
-        // 本地为空、云端有 → 采用云端。同样先取消待触发的云端保存。
+        // 本地为空、云端有 → 采用云端。同样防守并发编辑（local 在捕获前就已确定）。
+        if (treeRef.current !== local) {
+          setSyncState("error");
+          return;
+        }
         if (cloudSaveTimer.current) {
           clearTimeout(cloudSaveTimer.current);
           cloudSaveTimer.current = null;
@@ -258,6 +271,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // 启动：加载存档（可能为 null → 未引导，Gate 显示 onboarding）。不再自动生成默认树。
   useEffect(() => {
     let alive = true;
+    // 订阅 auth 状态变化：一次性 getSession() 只覆盖「冷启动即刻」这一刻；
+    // 若冷启动时离线导致 token 刷新失败，cloudUserId 会一直为 null，且没有恢复路径。
+    // 订阅事件作为恢复路径——联网后 Supabase SDK 触发 TOKEN_REFRESHED/SIGNED_IN，这里接住并补 resolveCloud。
+    const sb = getSupabase();
+    const sub = sb?.auth.onAuthStateChange((event, session) => {
+      const uid = session?.user?.id ?? null;
+      if (event === "SIGNED_OUT") {
+        setCloudUserId(null);
+        setSyncState("off");
+        return;
+      }
+      // INITIAL_SESSION / SIGNED_IN / TOKEN_REFRESHED：会话恢复/建立 → 若与当前不同则接管并解决同步。
+      if (uid && uid !== cloudUserIdRef.current) {
+        setCloudUserId(uid);
+        void resolveCloud(uid);
+      }
+    });
     (async () => {
       const loaded = await loadTree();
       if (!alive) return;
@@ -266,7 +296,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setReady(true);
       if (loaded) void syncNotifications(loaded, todayStr());
       // 本地会话检测：只读 AsyncStorage 缓存的 session，绝不发网络请求
-      // （getCurrentUserId() 会发请求验证，开机不能用它）。
+      // （getCurrentUserId() 会发请求验证，开机不能用它）。这是即时路径；上面的订阅是恢复路径。
       const { data } = (await getSupabase()?.auth.getSession()) ?? { data: { session: null } };
       if (!alive) return;
       const uid = data.session?.user?.id ?? null;
@@ -277,6 +307,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     })();
     return () => {
       alive = false;
+      sub?.data.subscription.unsubscribe();
     };
   }, [resolveCloud]);
 

@@ -77,7 +77,18 @@ export default function MeScreen() {
   const confirmLogout = () =>
     Alert.alert("退出登录", "本地数据保留，仅停止云同步", [
       { text: "取消", style: "cancel" },
-      { text: "退出", style: "destructive", onPress: () => void app.logout() },
+      {
+        text: "退出",
+        style: "destructive",
+        onPress: () => {
+          void app.logout();
+          // 登出后卡片会重新出现登录表单：重置到初始态，避免残留旧的验证码步骤/报错。
+          // 保留 email 作为下次登录的预填，体验更好。
+          setPhase("email");
+          setCode("");
+          setError(null);
+        },
+      },
     ]);
 
   return (
