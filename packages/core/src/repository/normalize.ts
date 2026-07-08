@@ -1,13 +1,18 @@
 import type { Goal, LifeTree, Task } from "../types";
 import { migrateGoals, type MigratableGoal } from "../migrateGoals";
 
+// legacy habit 项的宽松形状（旧数据，字段任意/可能缺失）——仅供 foldHabits 读取。
+type LegacyHabitLike = Record<string, unknown>;
+// 迁移期宽松形状：Goal / LifeTree 可能还带着尚未折叠的旧 habits 字段。
+type WithLegacyHabits<T> = T & { habits?: unknown };
+
 // 习惯并入任务：把 legacy habits[] 转成带 repeat 的 tasks[]（保 id/字段），去重。幂等。
 function foldHabits(tasks: unknown, habits: unknown): Task[] {
   const base: Task[] = Array.isArray(tasks) ? (tasks as Task[]) : [];
-  const hs: any[] = Array.isArray(habits) ? (habits as any[]) : [];
+  const hs: LegacyHabitLike[] = Array.isArray(habits) ? (habits as LegacyHabitLike[]) : [];
   const seen = new Set(base.map((t) => t.id));
   const converted: Task[] = hs
-    .filter((h) => h && typeof h === "object" && !seen.has(h.id))
+    .filter((h) => h && typeof h === "object" && !seen.has(h.id as string))
     .map((h) => ({
       id: String(h.id),
       text: String(h.text ?? ""),
@@ -36,6 +41,8 @@ export function normalizeLoadedTree(parsed: unknown): LifeTree | null {
   if (!Array.isArray(t.activity)) t.activity = [];
   // 只读日历订阅源/事件（P4 ICS）：旧数据无此字段 → 补空数组。
   if (!Array.isArray(t.calendarFeeds)) t.calendarFeeds = [];
+  // 补签卡保护日（P2 streak freeze）：旧数据无此字段 → 补空数组。
+  if (!Array.isArray(t.freezeDays)) t.freezeDays = [];
 
   // 旧→两级目标迁移：任一目标带 `actions`/`horizon`（legacy）、带 `subgoals`（nested）、
   // 或缺 `kind`（未知/部分迁移）→ migrateGoals 统一升级。已是两级则不触发，原样通过。
@@ -53,7 +60,7 @@ export function normalizeLoadedTree(parsed: unknown): LifeTree | null {
   // 兜底：补齐每个 Goal 的数组字段 + kind/parentGoalId（防御未来缺字段或部分迁移）。
   // 习惯并入任务：goal.habits[] 折入 goal.tasks[]（带 repeat），并从输出中去掉 habits 字段。
   t.goals = t.goals.map((g): Goal => {
-    const ag = g as any;
+    const ag = g as WithLegacyHabits<Goal>;
     const { habits: _dropHabits, ...restNoHabits } = ag;
     return {
       ...restNoHabits,
@@ -65,7 +72,7 @@ export function normalizeLoadedTree(parsed: unknown): LifeTree | null {
   });
 
   // 习惯并入任务：tree.habits[] 折入 tree.tasks[]，并从树上去掉 habits 字段。
-  const anyT = t as any;
+  const anyT = t as WithLegacyHabits<LifeTree>;
   anyT.tasks = foldHabits(anyT.tasks, anyT.habits);
   delete anyT.habits;
 

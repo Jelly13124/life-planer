@@ -358,6 +358,7 @@ export interface LifeTree {
   dayEnd?: string;   // 清醒时段终点 HH:MM（未设默认 23:00）
   guideDismissed?: boolean; // 首次上手引导是否已关闭（undefined=未关→仍显示，无需迁移）
   chosenPathId?: string | null; // 用户「正在走」的那条路（选定）；未选 = undefined/null
+  freezeDays?: string[]; // 被补签卡保护的日期 YYYY-MM-DD（每月免费 2 张，自动使用）
   createdAt: string;
   updatedAt: string;
 }
