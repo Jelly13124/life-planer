@@ -54,8 +54,9 @@ export function currentStreakWithFreeze(tree: LifeTree, today: string): number {
 // 直到遇到一天已完成/已冻结（说明 gap 有意义：能接上一段已保住的 streak）或超过上限（2 天）。
 // gap 为空（昨天已算数）→ 无需补，no-op。gap 非空但触底前未遇到"已算数"的一天（说明再往前也是
 // 空的，没有 streak 可保）→ no-op。gap 超过 2 天（补不起/不划算）→ no-op。
-// 否则若今月剩余补签卡数 ≥ gap 长度 → 把 gap 里的每一天都计入 freezeDays（全部记在 today 所在月
-// 的配额上，保持简单），返回新树 + 被冻结的日期列表；配额不够 → no-op。
+// 否则若今月剩余补签卡数 ≥ gap 长度 → 把 gap 里的每一天都计入 freezeDays，返回新树 + 被冻结的
+// 日期列表；配额不够 → no-op。配额检查用 today 所在月的剩余张数；gap 日期按其自身月份记录
+// （跨月缺口会记在上个月名下，边界情况下略宽松——可接受）。
 export function applyAutoFreeze(
   tree: LifeTree,
   today: string,

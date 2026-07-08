@@ -248,9 +248,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             clearTimeout(cloudSaveTimer.current);
             cloudSaveTimer.current = null;
           }
-          setTree(cloudTree);
-          treeRef.current = cloudTree;
-          void saveTree(cloudTree); // 只落盘，不走 commit()（避免立刻又把刚拉下来的树写回云端）
+          // 采纳云端树后重新自动补签（本地刚补的签可能被更新的云端树顶掉；补签幂等，直接对新树再跑一次）。
+          const day1 = todayStr();
+          const { tree: refrozen1, frozen: frozen1 } = applyAutoFreeze(cloudTree, day1);
+          if (frozen1.length > 0) {
+            const stamped1 = { ...refrozen1, updatedAt: nowISO() };
+            setTree(stamped1);
+            treeRef.current = stamped1;
+            void saveTree(stamped1); // 只落盘，不走 commit()（避免立刻又把刚拉下来的树写回云端）
+            setFreezeNotice(`补签卡帮你保住了 ${currentStreakWithFreeze(stamped1, day1)} 天连击`);
+          } else {
+            setTree(cloudTree);
+            treeRef.current = cloudTree;
+            void saveTree(cloudTree); // 只落盘，不走 commit()（避免立刻又把刚拉下来的树写回云端）
+          }
         } else {
           await store.putTree(uid, local); // 本地更新或打平 → 推上云
         }
@@ -264,9 +275,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           clearTimeout(cloudSaveTimer.current);
           cloudSaveTimer.current = null;
         }
-        setTree(cloudTree);
-        treeRef.current = cloudTree;
-        void saveTree(cloudTree);
+        // 采纳云端树后重新自动补签（本地刚补的签可能被更新的云端树顶掉；补签幂等，直接对新树再跑一次）。
+        const day2 = todayStr();
+        const { tree: refrozen2, frozen: frozen2 } = applyAutoFreeze(cloudTree, day2);
+        if (frozen2.length > 0) {
+          const stamped2 = { ...refrozen2, updatedAt: nowISO() };
+          setTree(stamped2);
+          treeRef.current = stamped2;
+          void saveTree(stamped2);
+          setFreezeNotice(`补签卡帮你保住了 ${currentStreakWithFreeze(stamped2, day2)} 天连击`);
+        } else {
+          setTree(cloudTree);
+          treeRef.current = cloudTree;
+          void saveTree(cloudTree);
+        }
       } else if (local) {
         await store.putTree(uid, local);
       }
@@ -356,7 +378,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const day = todayStr();
         const { tree: frozenTree, frozen } = applyAutoFreeze(loaded, day);
         if (frozen.length > 0) {
-          commit(frozenTree);
+          commit({ ...frozenTree, updatedAt: nowISO() });
           setFreezeNotice(`补签卡帮你保住了 ${currentStreakWithFreeze(frozenTree, day)} 天连击`);
         }
       }
@@ -387,9 +409,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!cur) return;
       const { tree: frozenTree, frozen } = applyAutoFreeze(cur, day);
       if (frozen.length > 0) {
-        commit(frozenTree);
+        commit({ ...frozenTree, updatedAt: nowISO() });
         setFreezeNotice(`补签卡帮你保住了 ${currentStreakWithFreeze(frozenTree, day)} 天连击`);
       }
+      // 刷新每日摘要通知内容（任务数/连击天数可能已因跨天而变化，即使用户还没做任何编辑）。
+      const cur2 = treeRef.current;
+      if (cur2) void syncDailyDigest(cur2, todayStr());
     });
     return () => sub.remove();
   }, [commit]);
