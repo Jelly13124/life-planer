@@ -74,7 +74,7 @@ import {
   type GoalSuggestion,
 } from "../lib/api";
 import { isCloudEnabled, getSupabase, getCloudStore, sendOtp, verifyOtp, signOut } from "../lib/supabase";
-import { SupabaseRepository } from "@lifeplanner/core/repository/supabaseRepo";
+import { normalizeLoadedTree } from "@lifeplanner/core/repository/normalize";
 
 // 时间注入（状态层，允许取当前时间——领域层才禁止）。
 const nowISO = (): string => new Date().toISOString();
@@ -201,53 +201,59 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     cloudUserIdRef.current = cloudUserId;
   }, [cloudUserId]);
   // 云端保存的去抖定时器（与本地 notifTimer 分开管理；登出时必须显式取消，
-  // 否则可能在切换账号后仍以旧 userId 触发一次保存 —— RLS 会拒绝，且 repo.save 吞错会掩盖它）。
+  // 否则可能在切换账号后仍以旧 userId 触发一次保存 —— RLS 会拒绝写入）。
   const cloudSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // 当前登录用户对应的云仓库；SupabaseRepository 在构造时绑定 userId，
-  // 因此 userId 变化（登录/登出/切换账号）必须重建，只有 userId 相同才复用（镜像 web AppContext.tsx 的 cloudRepoRef）。
-  const cloudRepoRef = useRef<{ userId: string; repo: SupabaseRepository } | null>(null);
-  const cloudRepo = useCallback((uid: string | null): SupabaseRepository | null => {
-    if (!uid || !isCloudEnabled()) return null;
-    if (cloudRepoRef.current?.userId === uid) return cloudRepoRef.current.repo;
-    const store = getCloudStore();
-    if (!store) return null;
-    const repo = new SupabaseRepository(store, uid);
-    cloudRepoRef.current = { userId: uid, repo };
-    return repo;
-  }, []);
   // 拉取云端树、与本地比较（updatedAt 更新者胜）、必要时覆盖本地（覆盖前先兜底备份）或把本地推上云。
-  const resolveCloud = useCallback(
-    async (uid: string) => {
-      const repo = cloudRepo(uid);
-      if (!repo) return;
-      try {
-        const cloudTree = await repo.load();
-        const local = treeRef.current;
-        if (cloudTree && local) {
-          if (Date.parse(cloudTree.updatedAt) > Date.parse(local.updatedAt)) {
-            await backupTree(local); // 云端更新 → 覆盖本地前先备份，防止数据丢失
-            setTree(cloudTree);
-            treeRef.current = cloudTree;
-            void saveTree(cloudTree); // 只落盘，不走 commit()（避免立刻又把刚拉下来的树写回云端）
-          } else {
-            void repo.save(local); // 本地更新或打平 → 推上云
+  // 直接用会抛错的 CloudStore（而非会吞错的 SupabaseRepository）：
+  // getTree 只有「行不存在」才返回 null，网络/RLS 失败一律 throw —— 这样才能区分
+  // 「云端确实没有」和「拉取失败」，避免把失败误判成「云端为空」而把本地（可能更旧）推上去覆盖云端。
+  const resolveCloud = useCallback(async (uid: string) => {
+    const store = getCloudStore();
+    if (!store) return;
+    let cloudTree: LifeTree | null = null;
+    try {
+      const raw = await store.getTree(uid); // 行不存在 → null；网络/RLS 失败 → throw
+      cloudTree = raw == null ? null : normalizeLoadedTree(typeof raw === "string" ? JSON.parse(raw) : raw);
+    } catch {
+      setSyncState("error"); // 拉取失败：绝不把本地推上去（可能盖掉更新的云端），等重试
+      return;
+    }
+    const local = treeRef.current;
+    try {
+      if (cloudTree && local) {
+        if (Date.parse(cloudTree.updatedAt) > Date.parse(local.updatedAt)) {
+          // 云端更新 → 覆盖本地前先取消待触发的云端保存（防止旧本地树在采用云端树之后又被写回云端），
+          // 再兜底备份，防止数据丢失。
+          if (cloudSaveTimer.current) {
+            clearTimeout(cloudSaveTimer.current);
+            cloudSaveTimer.current = null;
           }
-        } else if (cloudTree && !local) {
+          await backupTree(local);
           setTree(cloudTree);
           treeRef.current = cloudTree;
-          void saveTree(cloudTree);
-        } else if (!cloudTree && local) {
-          void repo.save(local);
+          void saveTree(cloudTree); // 只落盘，不走 commit()（避免立刻又把刚拉下来的树写回云端）
+        } else {
+          await store.putTree(uid, local); // 本地更新或打平 → 推上云
         }
-        // 云端为空且本地也为空：无事可做。
-        setSyncState("synced");
-        setLastSyncAt(new Date().toISOString());
-      } catch {
-        setSyncState("error"); // 本地数据不动
+      } else if (cloudTree) {
+        // 本地为空、云端有 → 采用云端。同样先取消待触发的云端保存。
+        if (cloudSaveTimer.current) {
+          clearTimeout(cloudSaveTimer.current);
+          cloudSaveTimer.current = null;
+        }
+        setTree(cloudTree);
+        treeRef.current = cloudTree;
+        void saveTree(cloudTree);
+      } else if (local) {
+        await store.putTree(uid, local);
       }
-    },
-    [cloudRepo],
-  );
+      // 云端为空且本地也为空：无事可做。
+      setSyncState("synced");
+      setLastSyncAt(new Date().toISOString());
+    } catch {
+      setSyncState("error"); // 推送失败：本地数据不动，UI 给重试
+    }
+  }, []);
 
   // 启动：加载存档（可能为 null → 未引导，Gate 显示 onboarding）。不再自动生成默认树。
   useEffect(() => {
@@ -291,14 +297,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // 去抖重排本地通知（取消旧的 → 排未来几天已排时间的提醒）。
       if (notifTimer.current) clearTimeout(notifTimer.current);
       notifTimer.current = setTimeout(() => void syncNotifications(next, todayStr()), 1500);
-      // 去抖云端保存（仅登录时；未登录/未配置云同步 → cloudRepo 返回 null，早退）。
+      // 去抖云端保存（仅登录时；未登录/未配置云同步 → getCloudStore 返回 null，早退）。
       const uid = cloudUserIdRef.current;
       if (uid) {
         if (cloudSaveTimer.current) clearTimeout(cloudSaveTimer.current);
         cloudSaveTimer.current = setTimeout(() => {
-          // repo.save 内部吞错并 resolve；这里把 resolve 当成功（其契约就是隐藏失败）。
-          cloudRepo(uid)
-            ?.save(next)
+          // 定时器触发时重新读 uid（而非闭包捕获的旧值）：800ms 内可能已登出/切号。
+          const uidAtFire = cloudUserIdRef.current;
+          const store = getCloudStore();
+          if (!uidAtFire || !store) return;
+          // store.putTree 会抛错（不像 SupabaseRepository.save 吞错）——失败真实反映到 syncState。
+          store
+            .putTree(uidAtFire, next)
             .then(() => {
               setSyncState("synced");
               setLastSyncAt(new Date().toISOString());
@@ -307,7 +317,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }, 800);
       }
     },
-    [cloudRepo],
+    [],
   );
 
   const bumpNudge = useCallback((title: string, delta: number) => {
@@ -789,14 +799,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const reset = useCallback(() => {
+    // 先取消任何待触发的云端保存 —— 否则编辑→800ms 内 reset 会让旧树在清空云端行之后
+    // 又被去抖定时器写回去，复活刚清掉的云端数据。
+    if (cloudSaveTimer.current) {
+      clearTimeout(cloudSaveTimer.current);
+      cloudSaveTimer.current = null;
+    }
     const uid = cloudUserIdRef.current;
-    if (uid) void cloudRepo(uid)?.clear(); // fire-and-forget：清云端那一行（吞错，不阻塞本地重置）
+    const store = getCloudStore();
+    if (uid && store) void store.deleteTree(uid).catch(() => {}); // fire-and-forget：清云端那一行（吞错，不阻塞本地重置）
     void (async () => {
       await clearTree();
       setTree(null);
       treeRef.current = null;
     })();
-  }, [cloudRepo]);
+  }, []);
 
   // ── 云同步动作（登录可跳过；见 mobile/src/lib/supabase.ts 的 OTP 流）──
   const sendLoginCode = useCallback(async (email: string): Promise<string | null> => {
@@ -820,7 +837,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async (): Promise<void> => {
     // 先取消任何待触发的云端保存 —— 否则登出后可能仍以旧 userId 触发一次保存，
-    // RLS 会拒绝写入，而 repo.save 内部吞错会让这次失败悄无声息。
+    // RLS 会拒绝写入（虽然现在会真实抛错/置 syncState error，但登出后这次写入本就不该发生）。
     if (cloudSaveTimer.current) {
       clearTimeout(cloudSaveTimer.current);
       cloudSaveTimer.current = null;
@@ -828,7 +845,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await signOut();
     setCloudUserId(null);
     setSyncState("off");
-    cloudRepoRef.current = null; // 本地数据不动，只是不再指向旧用户的云仓库
   }, []);
 
   const retrySync = useCallback(() => {
