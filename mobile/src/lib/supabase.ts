@@ -7,18 +7,18 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { LifeTree } from "@lifeplanner/core/types";
 import type { CloudStore } from "@lifeplanner/core/repository/supabaseRepo";
 
-const URL_ = (process.env.EXPO_PUBLIC_SUPABASE_URL ?? "").trim();
-const ANON = (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
+const SUPA_URL = (process.env.EXPO_PUBLIC_SUPABASE_URL ?? "").trim();
+const SUPA_ANON = (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
 
 export function isCloudEnabled(): boolean {
-  return URL_.length > 0 && ANON.length > 0;
+  return SUPA_URL.length > 0 && SUPA_ANON.length > 0;
 }
 
 let cached: SupabaseClient | null = null;
 export function getSupabase(): SupabaseClient | null {
   if (cached) return cached;
   if (!isCloudEnabled()) return null;
-  cached = createClient(URL_, ANON, {
+  cached = createClient(SUPA_URL, SUPA_ANON, {
     auth: { storage: AsyncStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
   });
   return cached;
@@ -59,20 +59,33 @@ export function getCloudStore(): CloudStore | null {
   };
 }
 
+// Supabase auth 错误 → 用户可见中文（登录 UI 直接展示；未匹配时给通用文案兜底）。
+function zhAuthError(message: string, status?: number): string {
+  const m = message.toLowerCase();
+  if (status === 429 || m.includes("rate limit") || m.includes("only request this after"))
+    return "发送太频繁，请稍后再试";
+  if (m.includes("expired") || m.includes("invalid") || m.includes("token"))
+    return "验证码错误或已过期";
+  if (m.includes("network") || m.includes("fetch") || m.includes("failed to"))
+    return "网络异常，请重试";
+  return "操作失败，请稍后再试";
+}
+
 // OTP 登录流：发码 → 验码。返回错误文案（null = 成功）。
 export async function sendOtp(email: string): Promise<string | null> {
   const sb = getSupabase();
   if (!sb) return "云同步未配置";
   const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
-  return error ? error.message : null;
+  return error ? zhAuthError(error.message, error.status) : null;
 }
 export async function verifyOtp(email: string, token: string): Promise<string | null> {
   const sb = getSupabase();
   if (!sb) return "云同步未配置";
   const { error } = await sb.auth.verifyOtp({ email, token, type: "email" });
-  return error ? error.message : null;
+  return error ? zhAuthError(error.message, error.status) : null;
 }
 export async function signOut(): Promise<void> {
   const sb = getSupabase();
-  if (sb) await sb.auth.signOut();
+  // 即使服务端 revoke 失败，signOut 也会清掉本地会话；这里忽略错误，不阻塞退出登录。
+  if (sb) await sb.auth.signOut().catch(() => {});
 }
