@@ -38,3 +38,13 @@ export async function clearTree(): Promise<void> {
     // ignore
   }
 }
+
+// 云端覆盖本地前的兜底备份（一份，覆盖式）。恢复入口后续再做——先保证数据不丢。
+const BACKUP_KEY = "lifeplanner.tree.backup";
+export async function backupTree(tree: LifeTree): Promise<void> {
+  try {
+    await AsyncStorage.setItem(BACKUP_KEY, JSON.stringify(tree));
+  } catch {
+    /* 忽略 */
+  }
+}

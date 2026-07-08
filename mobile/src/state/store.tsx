@@ -63,7 +63,7 @@ import {
   DEFAULT_DURATION_MIN,
 } from "@lifeplanner/core/schedule";
 
-import { loadTree, saveTree, clearTree } from "../lib/storage";
+import { loadTree, saveTree, clearTree, backupTree } from "../lib/storage";
 import { syncNotifications } from "../lib/notifications";
 import {
   fetchGoalSuggestions,
@@ -73,6 +73,8 @@ import {
   applyEnrichToPath,
   type GoalSuggestion,
 } from "../lib/api";
+import { isCloudEnabled, getSupabase, getCloudStore, sendOtp, verifyOtp, signOut } from "../lib/supabase";
+import { SupabaseRepository } from "@lifeplanner/core/repository/supabaseRepo";
 
 // 时间注入（状态层，允许取当前时间——领域层才禁止）。
 const nowISO = (): string => new Date().toISOString();
@@ -157,6 +159,15 @@ interface AppValue {
   suggestGoals: () => Promise<GoalSuggestion[]>;
   suggestTasksForGoal: (goalId: string) => Promise<void>;
   suggestingTasksGoalId: string | null;
+  // 云同步（本地优先；登录可选）
+  cloudEnabled: boolean;
+  cloudUserId: string | null;
+  syncState: "off" | "synced" | "error";
+  lastSyncAt: string | null;
+  sendLoginCode: (email: string) => Promise<string | null>;
+  loginWithOtp: (email: string, token: string) => Promise<string | null>;
+  logout: () => Promise<void>;
+  retrySync: () => void;
 }
 
 const Ctx = createContext<AppValue | null>(null);
@@ -180,6 +191,64 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // 本地通知重排的去抖定时器（commit 高频，1.5s 合并）。
   const notifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ── 云同步（本地优先；登录可选，见 mobile/src/lib/supabase.ts）──
+  const [cloudUserId, setCloudUserId] = useState<string | null>(null); // null = 未登录
+  const [syncState, setSyncState] = useState<"off" | "synced" | "error">("off");
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  // ref 镜像 cloudUserId：commit() 的闭包（useCallback 依赖 []）需要读到最新登录态。
+  const cloudUserIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    cloudUserIdRef.current = cloudUserId;
+  }, [cloudUserId]);
+  // 云端保存的去抖定时器（与本地 notifTimer 分开管理；登出时必须显式取消，
+  // 否则可能在切换账号后仍以旧 userId 触发一次保存 —— RLS 会拒绝，且 repo.save 吞错会掩盖它）。
+  const cloudSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 当前登录用户对应的云仓库；SupabaseRepository 在构造时绑定 userId，
+  // 因此 userId 变化（登录/登出/切换账号）必须重建，只有 userId 相同才复用（镜像 web AppContext.tsx 的 cloudRepoRef）。
+  const cloudRepoRef = useRef<{ userId: string; repo: SupabaseRepository } | null>(null);
+  const cloudRepo = useCallback((uid: string | null): SupabaseRepository | null => {
+    if (!uid || !isCloudEnabled()) return null;
+    if (cloudRepoRef.current?.userId === uid) return cloudRepoRef.current.repo;
+    const store = getCloudStore();
+    if (!store) return null;
+    const repo = new SupabaseRepository(store, uid);
+    cloudRepoRef.current = { userId: uid, repo };
+    return repo;
+  }, []);
+  // 拉取云端树、与本地比较（updatedAt 更新者胜）、必要时覆盖本地（覆盖前先兜底备份）或把本地推上云。
+  const resolveCloud = useCallback(
+    async (uid: string) => {
+      const repo = cloudRepo(uid);
+      if (!repo) return;
+      try {
+        const cloudTree = await repo.load();
+        const local = treeRef.current;
+        if (cloudTree && local) {
+          if (Date.parse(cloudTree.updatedAt) > Date.parse(local.updatedAt)) {
+            await backupTree(local); // 云端更新 → 覆盖本地前先备份，防止数据丢失
+            setTree(cloudTree);
+            treeRef.current = cloudTree;
+            void saveTree(cloudTree); // 只落盘，不走 commit()（避免立刻又把刚拉下来的树写回云端）
+          } else {
+            void repo.save(local); // 本地更新或打平 → 推上云
+          }
+        } else if (cloudTree && !local) {
+          setTree(cloudTree);
+          treeRef.current = cloudTree;
+          void saveTree(cloudTree);
+        } else if (!cloudTree && local) {
+          void repo.save(local);
+        }
+        // 云端为空且本地也为空：无事可做。
+        setSyncState("synced");
+        setLastSyncAt(new Date().toISOString());
+      } catch {
+        setSyncState("error"); // 本地数据不动
+      }
+    },
+    [cloudRepo],
+  );
+
   // 启动：加载存档（可能为 null → 未引导，Gate 显示 onboarding）。不再自动生成默认树。
   useEffect(() => {
     let alive = true;
@@ -187,13 +256,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const loaded = await loadTree();
       if (!alive) return;
       setTree(loaded);
+      treeRef.current = loaded; // 立即同步（下面 resolveCloud 要读最新本地树，不等 effect 那一轮）
       setReady(true);
       if (loaded) void syncNotifications(loaded, todayStr());
+      // 本地会话检测：只读 AsyncStorage 缓存的 session，绝不发网络请求
+      // （getCurrentUserId() 会发请求验证，开机不能用它）。
+      const { data } = (await getSupabase()?.auth.getSession()) ?? { data: { session: null } };
+      if (!alive) return;
+      const uid = data.session?.user?.id ?? null;
+      if (uid) {
+        setCloudUserId(uid);
+        void resolveCloud(uid);
+      }
     })();
     return () => {
       alive = false;
     };
-  }, []);
+  }, [resolveCloud]);
 
   // 回到前台时刷新「今天」（对应 web 的 visibilitychange/focus）。
   useEffect(() => {
@@ -204,14 +283,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // 任一变更后持久化（仅在初始化完成后；避免用起始树覆盖刚读到的存档）。
-  const commit = useCallback((next: LifeTree) => {
-    setTree(next);
-    treeRef.current = next;
-    void saveTree(next);
-    // 去抖重排本地通知（取消旧的 → 排未来几天已排时间的提醒）。
-    if (notifTimer.current) clearTimeout(notifTimer.current);
-    notifTimer.current = setTimeout(() => void syncNotifications(next, todayStr()), 1500);
-  }, []);
+  const commit = useCallback(
+    (next: LifeTree) => {
+      setTree(next);
+      treeRef.current = next;
+      void saveTree(next);
+      // 去抖重排本地通知（取消旧的 → 排未来几天已排时间的提醒）。
+      if (notifTimer.current) clearTimeout(notifTimer.current);
+      notifTimer.current = setTimeout(() => void syncNotifications(next, todayStr()), 1500);
+      // 去抖云端保存（仅登录时；未登录/未配置云同步 → cloudRepo 返回 null，早退）。
+      const uid = cloudUserIdRef.current;
+      if (uid) {
+        if (cloudSaveTimer.current) clearTimeout(cloudSaveTimer.current);
+        cloudSaveTimer.current = setTimeout(() => {
+          // repo.save 内部吞错并 resolve；这里把 resolve 当成功（其契约就是隐藏失败）。
+          cloudRepo(uid)
+            ?.save(next)
+            .then(() => {
+              setSyncState("synced");
+              setLastSyncAt(new Date().toISOString());
+            })
+            .catch(() => setSyncState("error"));
+        }, 800);
+      }
+    },
+    [cloudRepo],
+  );
 
   const bumpNudge = useCallback((title: string, delta: number) => {
     nudgeId.current += 1;
@@ -692,12 +789,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const reset = useCallback(() => {
+    const uid = cloudUserIdRef.current;
+    if (uid) void cloudRepo(uid)?.clear(); // fire-and-forget：清云端那一行（吞错，不阻塞本地重置）
     void (async () => {
       await clearTree();
       setTree(null);
       treeRef.current = null;
     })();
+  }, [cloudRepo]);
+
+  // ── 云同步动作（登录可跳过；见 mobile/src/lib/supabase.ts 的 OTP 流）──
+  const sendLoginCode = useCallback(async (email: string): Promise<string | null> => {
+    return sendOtp(email);
   }, []);
+
+  const loginWithOtp = useCallback(
+    async (email: string, token: string): Promise<string | null> => {
+      const err = await verifyOtp(email, token);
+      if (err) return err;
+      const { data } = (await getSupabase()?.auth.getSession()) ?? { data: { session: null } };
+      const uid = data.session?.user?.id ?? null;
+      if (uid) {
+        setCloudUserId(uid);
+        void resolveCloud(uid);
+      }
+      return null;
+    },
+    [resolveCloud],
+  );
+
+  const logout = useCallback(async (): Promise<void> => {
+    // 先取消任何待触发的云端保存 —— 否则登出后可能仍以旧 userId 触发一次保存，
+    // RLS 会拒绝写入，而 repo.save 内部吞错会让这次失败悄无声息。
+    if (cloudSaveTimer.current) {
+      clearTimeout(cloudSaveTimer.current);
+      cloudSaveTimer.current = null;
+    }
+    await signOut();
+    setCloudUserId(null);
+    setSyncState("off");
+    cloudRepoRef.current = null; // 本地数据不动，只是不再指向旧用户的云仓库
+  }, []);
+
+  const retrySync = useCallback(() => {
+    if (cloudUserId) void resolveCloud(cloudUserId);
+  }, [cloudUserId, resolveCloud]);
 
   const shiftViewDate = useCallback((delta: number) => {
     setViewDate((d) => addDays(d, delta));
@@ -810,6 +946,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       suggestGoals,
       suggestTasksForGoal,
       suggestingTasksGoalId,
+      cloudEnabled: isCloudEnabled(),
+      cloudUserId,
+      syncState,
+      lastSyncAt,
+      sendLoginCode,
+      loginWithOtp,
+      logout,
+      retrySync,
     };
   }, [
     tree,
@@ -855,6 +999,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     suggestGoals,
     suggestTasksForGoal,
     suggestingTasksGoalId,
+    cloudUserId,
+    syncState,
+    lastSyncAt,
+    sendLoginCode,
+    loginWithOtp,
+    logout,
+    retrySync,
   ]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
