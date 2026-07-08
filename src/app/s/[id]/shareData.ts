@@ -33,10 +33,10 @@ function sanitizePayload(raw: unknown): SharePayload | null {
   const r = raw as Record<string, unknown>;
   if (!isShareKind(r.kind) || typeof r.title !== "string" || r.title.length === 0) return null;
 
-  const payload: SharePayload = { kind: r.kind, title: r.title };
-  if (typeof r.subtitle === "string" && r.subtitle.length > 0) payload.subtitle = r.subtitle;
-  if (typeof r.name === "string" && r.name.length > 0) payload.name = r.name;
-  if (typeof r.quote === "string" && r.quote.length > 0) payload.quote = r.quote;
+  const payload: SharePayload = { kind: r.kind, title: r.title.slice(0, 80) };
+  if (typeof r.subtitle === "string" && r.subtitle.length > 0) payload.subtitle = r.subtitle.slice(0, 60);
+  if (typeof r.name === "string" && r.name.length > 0) payload.name = r.name.slice(0, 60);
+  if (typeof r.quote === "string" && r.quote.length > 0) payload.quote = r.quote.slice(0, 200);
 
   if (Array.isArray(r.items)) {
     const items: ShareItem[] = [];
@@ -44,9 +44,10 @@ function sanitizePayload(raw: unknown): SharePayload | null {
       if (!raw || typeof raw !== "object") continue;
       const it = raw as Record<string, unknown>;
       if (typeof it.label !== "string" || it.label.length === 0) continue;
+      const label = it.label.slice(0, 60);
       const feasibility =
         typeof it.feasibility === "number" && Number.isFinite(it.feasibility) ? it.feasibility : undefined;
-      items.push(feasibility === undefined ? { label: it.label } : { label: it.label, feasibility });
+      items.push(feasibility === undefined ? { label } : { label, feasibility });
       if (items.length >= 3) break;
     }
     if (items.length > 0) payload.items = items;

@@ -20,9 +20,10 @@ import { colors, space } from "../../src/theme";
 
 const QUICK = ["你后悔走这条路吗？", "当时最难的坎怎么熬过来的？", "给现在的我一句话"];
 
-// 分享用：引言截断到 ≤120 字，避免分享文案过长。
+// 分享用：引言截断到 ≤120 字，避免分享文案过长（按码点截断，避免切断 surrogate pair）。
 function trimQuote(s: string, max = 120): string {
-  return s.length > max ? s.slice(0, max - 1) + "…" : s;
+  const chars = Array.from(s);
+  return chars.length <= max ? s : chars.slice(0, max - 1).join("") + "…";
 }
 
 export default function ChatScreen() {
@@ -126,7 +127,7 @@ export default function ChatScreen() {
                       void shareCard(
                         {
                           kind: "future-self",
-                          title: "来自未来的我",
+                          title: "未来的我说",
                           quote: trimQuote(m.content),
                           name: tree?.profile.name || undefined,
                         },

@@ -29,6 +29,8 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 import type { LifePath } from "@lifeplanner/core/types";
+import { isEnriched } from "@lifeplanner/core/pathEnriched";
+import { effectiveFeasibility } from "@lifeplanner/core/feasibility";
 import { layoutMap } from "../lib/mapLayout";
 import { shareCard } from "../lib/shareCard";
 import { useApp } from "../state/store";
@@ -200,13 +202,16 @@ export default function TreeScreen() {
   const choices = tree.paths.filter((p) => p.kind === "choice");
   const name = tree.profile.name || "你";
 
-  // 晒人生树：取可行度最高的前 3 条选择路（都没算出可行度时退化成前 3 条的标签）。
+  // 晒人生树：取可行度最高的前 3 条选择路。
+  // 只把 AI 已确认的路带可行度上卡（与详情页的展示口径一致：eff.value 含行动加成）；
+  // 一条都没推演过 → 退化为只有标签、不带百分比（本地占位可行度绝不外泄）。
   const handleShareTree = () => {
-    const ranked = choices
-      .filter((p) => typeof p.feasibility === "number")
-      .sort((a, b) => (b.feasibility ?? 0) - (a.feasibility ?? 0))
+    const enriched = choices.filter((p) => isEnriched(p));
+    const ranked = enriched
+      .map((p) => ({ p, v: effectiveFeasibility(tree, p)?.value ?? p.feasibility ?? 0 }))
+      .sort((a, b) => b.v - a.v)
       .slice(0, 3)
-      .map((p) => ({ label: p.choiceLabel, feasibility: p.feasibility }));
+      .map(({ p, v }) => ({ label: p.choiceLabel, feasibility: v }));
     const top = ranked.length > 0 ? ranked : choices.slice(0, 3).map((p) => ({ label: p.choiceLabel }));
     void shareCard(
       { kind: "tree", title: "我的人生树", name: tree.profile.name || undefined, items: top },

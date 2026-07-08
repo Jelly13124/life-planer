@@ -101,7 +101,9 @@ export interface SharePayload {
   quote?: string; // future-self 卡
 }
 
-export const SHARE_BASE_URL = "https://life-planer-opal.vercel.app";
+// 分享域名：与 web 的 src/lib/shareConfig.ts 保持一致（换正式域名时两处一起改，或都走 env）。
+export const SHARE_BASE_URL =
+  (process.env.EXPO_PUBLIC_SHARE_DOMAIN ?? "").trim() || "https://life-planer-opal.vercel.app";
 export function shareUrl(id: string): string {
   return `${SHARE_BASE_URL}/s/${id}`;
 }
