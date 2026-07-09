@@ -1,7 +1,18 @@
 # Task Plan — Life Planner (人生树 / decision + planning app)
 
-## ▶ CURRENT — 2026-07-02 状态快照（过夜大改 + 多轮真机修复/迭代，全部已部署）
-Branch `feat/goal-planning-mainline` @ `26ed3ff`, master fast-forwarded + pushed. web 全绿（tsc 0 / 499 vitest / build ok）。mobile tsc 干净。**已部署：手机多轮 OTA（最新 `5e86cf6d`）、网页/服务端随 master→Vercel。** full session log in `progress.md` (top entries)。
+## ▶ CURRENT — 2026-07-03 状态快照（审计差距补强 P1-P3 全部交付）
+Branch `feat/goal-planning-mainline` @ `f4929e0`, master fast-forwarded + pushed. web 全绿（tsc 0 / 507 vitest / build ok）。mobile tsc 干净。**已部署：P1 OTA `1b3276ea` · P2 OTA `0289e4f6` · P3 OTA `cae9cfef`；网页（/s/[id] 卡片页）随 master→Vercel。**
+
+**刚完成（2026-07-03 竞品审计 → P1-P3 补强，subagent-driven 全流程两段审查）** —— spec/plan `docs/superpowers/*/2026-07-03-p123-sync-retention-share*`
+- **竞品审计（2 个研究 agent + 综合）**：主打闭环（预测+未来自我+可行度爬升）全球无对手但无技术壁垒；致命差距=手机云同步/留存引擎/社交病毒/变现。对标：TickTick（执行层）、Finch（留存）、16Personalities（漏斗）。6 期路线图，P1-P3 本轮交付。
+- **P1 云同步+账号（`d5e515a`→`fa1d309`, OTA `1b3276ea`）**：手机 supabase 客户端（纯 JS 可 OTA；邮箱 OTP 验证码流，无深链）+ store 同步接线（updatedAt 新者胜、覆盖前备份 `lifeplanner.tree.backup`、防抖 800ms 云写、**绕开吞错 repo 直用抛错 CloudStore**——区分"云端空"和"拉取失败"防跨设备覆盖丢数据）+ 「我」页登录卡（可跳过、本地优先）。审查修复：auth 监听自愈（离线冷启动恢复）、adopt 防覆盖 mid-await 编辑、OTP 错误中文化。**EAS env 已注册 EXPO_PUBLIC_SUPABASE_URL/ANON_KEY**（anon key 从网页 bundle 提取——公开钥匙）。
+- **P2 留存引擎（`06eb37f`→`fc96ab6`, OTA `0289e4f6`）**：core `streak.ts`（TDD 8 测试：`freezeDays`/`currentStreakWithFreeze`/`applyAutoFreeze` 每月 2 张自动补签）+ 手机接线（开屏/回前台自动补签+提示、树页连击条+火焰+补签卡数、脉冲动画）+ 每日推送 `syncDailyDigest`（作息窗+2h、任务数+连击文案、「我」页开关 `dailyDigest`）。审查修复：**补签提交盖 updatedAt**（否则被云同步新者胜丢掉）+ 云端采纳后重补签 + 前台刷新推送文案。
+- **P3 可晒卡（`1251dfe`→`f4929e0`, OTA `cae9cfef`）**：网页公开卡片页 `/s/[id]`（Supabase `shares` 表 REST 拉取、OG 图 next/og、CTA 导流回 onboarding/测试——16Personalities 打法）+ 手机三入口（路线详情「分享这条路」/聊天气泡「分享」/树页「晒我的人生树」→ `createShare` 需登录 → 系统分享面板发链接）。payload 严格脱敏（仅 kind/title/subtitle/name/items≤3/quote）。审查修复：**晒树只带 AI 确认的可行度**（不泄本地占位%）、字符串长度钳制防 OG 爆、分享域名 env 化、surrogate-safe 截断。
+- **流程**：本轮全程 spec→plan→subagent+两段审查（用户点名后补齐 Skill 形式）。审查累计抓住 3 个数据丢失级 bug（云覆盖、补签被合并丢弃、reset 复活旧树）。
+
+**待用户（验收清单见最新对话）**
+- Supabase 后台两件事：①Email 模板加 `{{ .Token }}`（P1 登录前置）②SQL Editor 执行 shares 建表（P3 分享前置，SQL 在 plan/对话里）。
+- 真机验收 P1/P2/P3 + 网页 /s/ 卡片页微信预览。
 
 **刚完成（2026-07-02 真机反馈修复 + 迭代轮，全部已 OTA/部署）**
 - **OTA env 修复（关键，见 memory `mobile-ota-first`）**：`eas update` 不吃 `eas.json build.env` → 之前几次 OTA 丢了 `EXPO_PUBLIC_API_BASE_URL` → 真 AI 静默关闭。已 `eas env:create` 注册进 EAS 生产环境，之后 OTA 自动带上（发 OTA 时仍顺手 inline 一份保险）。
