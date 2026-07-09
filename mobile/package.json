@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@bacons/apple-targets": "^4.0.7",
     "@expo/vector-icons": "^15.0.2",
     "@lifeplanner/core": "*",
     "@react-native-async-storage/async-storage": "2.2.0",

@@ -71,6 +71,7 @@ import {
 
 import { loadTree, saveTree, clearTree, backupTree } from "../lib/storage";
 import { syncNotifications, syncDailyDigest } from "../lib/notifications";
+import { writeWidgetSnapshot } from "../lib/widgetSnapshot";
 import { initPurchases } from "../lib/purchases";
 import {
   fetchGoalSuggestions,
@@ -339,6 +340,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         void (async () => {
           await syncNotifications(next, todayStr());
           await syncDailyDigest(next, todayStr());
+          // iOS 主屏小组件快照（非 iOS / Expo Go / 旧构建里内部 no-op）。
+          writeWidgetSnapshot(next, todayStr());
         })();
       }, 1500);
       // 去抖云端保存（仅登录时；未登录/未配置云同步 → getCloudStore 返回 null，早退）。
@@ -399,6 +402,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           await syncNotifications(loaded, todayStr());
           await syncDailyDigest(loaded, todayStr());
         })();
+        // 开机就刷一次小组件快照（跨天后连击/今日任务数已变，即使用户不做任何编辑）。
+        writeWidgetSnapshot(loaded, todayStr());
         // 自动补签：开机时先于任何用户交互桥接漏签的缺口天（见 packages/core/src/streak.ts）。
         const day = todayStr();
         const { tree: frozenTree, frozen } = applyAutoFreeze(loaded, day);

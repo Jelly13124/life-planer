@@ -7,13 +7,18 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "runtimeVersion": { "policy": "appVersion" },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "updates": {
       "url": "https://u.expo.dev/bbb6f73c-30ed-4eb9-b2c6-97289c3bcac9"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.jelly13124.lifeplanner",
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.jelly13124.lifeplanner"]
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -33,7 +38,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-notifications"
+      "expo-notifications",
+      "@bacons/apple-targets"
     ],
     "extra": {
       "router": {},
