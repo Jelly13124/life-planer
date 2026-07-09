@@ -4,24 +4,15 @@
 // 任何一步失败（id 不是合法 UUID / 环境变量缺失 / 网络错误 / 查无此行 / payload 形状不对）
 // 一律返回 null，调用方统一 notFound()——绝不抛错、绝不让页面崩溃。
 import { cache } from "react";
+import type { ShareItem, ShareKind, SharePayload } from "@/domain/share";
+
+// 类型定义在共享核心（@/domain/share，即 packages/core/src/share.ts）——手机端建卡用的是
+// 同一份类型，避免两端各自维护一份同形状的类型、靠注释承诺同步。这里重新导出，让本文件
+// 内的其他函数与页面/OG 组件（如 ./ShareCard 的 `import type { SharePayload } from "./shareData"`）
+// 无需改动导入路径。
+export type { ShareItem, ShareKind, SharePayload };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export interface ShareItem {
-  label: string;
-  feasibility?: number;
-}
-
-export type ShareKind = "tree" | "future-self" | "path";
-
-export interface SharePayload {
-  kind: ShareKind;
-  title: string;
-  subtitle?: string;
-  name?: string;
-  items?: ShareItem[];
-  quote?: string;
-}
 
 function isShareKind(v: unknown): v is ShareKind {
   return v === "tree" || v === "future-self" || v === "path";

@@ -6,6 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { LifeTree } from "@lifeplanner/core/types";
 import type { CloudStore } from "@lifeplanner/core/repository/supabaseRepo";
+import type { SharePayload } from "@lifeplanner/core/share";
 
 const SUPA_URL = (process.env.EXPO_PUBLIC_SUPABASE_URL ?? "").trim();
 const SUPA_ANON = (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
@@ -90,16 +91,11 @@ export async function signOut(): Promise<void> {
   if (sb) await sb.auth.signOut().catch(() => {});
 }
 
-// 分享卡 payload —— 必须和网页 /s/[id] 页面的契约一致：只允许这几个字段，
-// 绝不能带完整 tree/goals/tasks（隐私 + 页面本来也读不出别的字段）。
-export interface SharePayload {
-  kind: "tree" | "future-self" | "path";
-  title: string;
-  subtitle?: string;
-  name?: string; // 昵称（可空——只传 profile.name，不传其他隐私）
-  items?: { label: string; feasibility?: number }[]; // 至多 3 条
-  quote?: string; // future-self 卡
-}
+// 分享卡 payload：类型定义在共享核心（@lifeplanner/core/share），与网页 /s/[id] 页面
+// 共用同一份契约（TypeScript 强制同步，而非注释承诺）。这里重新导出，调用方
+// （如 ./shareCard.ts）无需改动导入路径。绝不能带完整 tree/goals/tasks——
+// 只允许 SharePayload 允许的几个字段（隐私 + 页面本来也读不出别的字段）。
+export type { SharePayload };
 
 // 分享域名：与 web 的 src/lib/shareConfig.ts 保持一致（换正式域名时两处一起改，或都走 env）。
 export const SHARE_BASE_URL =

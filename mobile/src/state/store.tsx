@@ -237,10 +237,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // 云端保存的去抖定时器（与本地 notifTimer 分开管理；登出时必须显式取消，
   // 否则可能在切换账号后仍以旧 userId 触发一次保存 —— RLS 会拒绝写入）。
   const cloudSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 取消任何待触发的云端保存（采用云端树前 / 登出 / 重置时都要调用，避免旧树在之后被误写回云端）。
+  const cancelPendingCloudSave = useCallback(() => {
+    if (cloudSaveTimer.current) {
+      clearTimeout(cloudSaveTimer.current);
+      cloudSaveTimer.current = null;
+    }
+  }, []);
   // 拉取云端树、与本地比较（updatedAt 更新者胜）、必要时覆盖本地（覆盖前先兜底备份）或把本地推上云。
   // 直接用会抛错的 CloudStore（而非会吞错的 SupabaseRepository）：
   // getTree 只有「行不存在」才返回 null，网络/RLS 失败一律 throw —— 这样才能区分
   // 「云端确实没有」和「拉取失败」，避免把失败误判成「云端为空」而把本地（可能更旧）推上去覆盖云端。
+  // 采纳一棵云端树：先取消待触发的云端保存（防止旧本地树在采用后又被写回云端），重新自动
+  // 补签（本地刚补的签可能被这棵新树顶掉；补签幂等，直接对新树再跑一次），只落盘不走 commit()
+  // （避免立刻又把刚采用的树写回云端）。resolveCloud 的两处「采纳云端」分支共用此逻辑。
+  const adoptCloudTree = useCallback(
+    (cloudTree: LifeTree, day: string) => {
+      cancelPendingCloudSave();
+      const { tree: refrozen, frozen } = applyAutoFreeze(cloudTree, day);
+      const next = frozen.length > 0 ? { ...refrozen, updatedAt: nowISO() } : cloudTree;
+      setTree(next);
+      treeRef.current = next;
+      void saveTree(next);
+      if (frozen.length > 0) {
+        setFreezeNotice(`补签卡帮你保住了 ${currentStreakWithFreeze(next, day)} 天连击`);
+      }
+    },
+    [cancelPendingCloudSave],
+  );
+
   const resolveCloud = useCallback(async (uid: string) => {
     const store = getCloudStore();
     if (!store) return;
@@ -265,27 +290,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setSyncState("error");
             return;
           }
-          // 确认没有并发编辑后才真正采用：先取消待触发的云端保存（防止旧本地树在采用
-          // 云端树之后又被写回云端——这必须在 bail 之后做，否则备份期间用户新编辑
-          // 排的定时器会被误取消，导致那次编辑再也不会被推上云）。
-          if (cloudSaveTimer.current) {
-            clearTimeout(cloudSaveTimer.current);
-            cloudSaveTimer.current = null;
-          }
-          // 采纳云端树后重新自动补签（本地刚补的签可能被更新的云端树顶掉；补签幂等，直接对新树再跑一次）。
-          const day1 = todayStr();
-          const { tree: refrozen1, frozen: frozen1 } = applyAutoFreeze(cloudTree, day1);
-          if (frozen1.length > 0) {
-            const stamped1 = { ...refrozen1, updatedAt: nowISO() };
-            setTree(stamped1);
-            treeRef.current = stamped1;
-            void saveTree(stamped1); // 只落盘，不走 commit()（避免立刻又把刚拉下来的树写回云端）
-            setFreezeNotice(`补签卡帮你保住了 ${currentStreakWithFreeze(stamped1, day1)} 天连击`);
-          } else {
-            setTree(cloudTree);
-            treeRef.current = cloudTree;
-            void saveTree(cloudTree); // 只落盘，不走 commit()（避免立刻又把刚拉下来的树写回云端）
-          }
+          // 确认没有并发编辑后才真正采用（bail 之后再取消定时器，否则备份期间用户新编辑
+          // 排的定时器会被误取消，导致那次编辑再也不会被推上云——见 adoptCloudTree 内部）。
+          adoptCloudTree(cloudTree, todayStr());
         } else {
           await store.putTree(uid, local); // 本地更新或打平 → 推上云
         }
@@ -295,24 +302,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setSyncState("error");
           return;
         }
-        if (cloudSaveTimer.current) {
-          clearTimeout(cloudSaveTimer.current);
-          cloudSaveTimer.current = null;
-        }
-        // 采纳云端树后重新自动补签（本地刚补的签可能被更新的云端树顶掉；补签幂等，直接对新树再跑一次）。
-        const day2 = todayStr();
-        const { tree: refrozen2, frozen: frozen2 } = applyAutoFreeze(cloudTree, day2);
-        if (frozen2.length > 0) {
-          const stamped2 = { ...refrozen2, updatedAt: nowISO() };
-          setTree(stamped2);
-          treeRef.current = stamped2;
-          void saveTree(stamped2);
-          setFreezeNotice(`补签卡帮你保住了 ${currentStreakWithFreeze(stamped2, day2)} 天连击`);
-        } else {
-          setTree(cloudTree);
-          treeRef.current = cloudTree;
-          void saveTree(cloudTree);
-        }
+        adoptCloudTree(cloudTree, todayStr());
       } else if (local) {
         await store.putTree(uid, local);
       }
@@ -322,7 +312,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch {
       setSyncState("error"); // 推送失败：本地数据不动，UI 给重试
     }
-  }, []);
+  }, [adoptCloudTree]);
 
   // 任一变更后持久化（仅在初始化完成后；避免用起始树覆盖刚读到的存档）。
   // 提到 boot effect 之前声明：boot effect 里自动补签命中时要 commit(frozenTree)，
@@ -959,10 +949,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const reset = useCallback(() => {
     // 先取消任何待触发的云端保存 —— 否则编辑→800ms 内 reset 会让旧树在清空云端行之后
     // 又被去抖定时器写回去，复活刚清掉的云端数据。
-    if (cloudSaveTimer.current) {
-      clearTimeout(cloudSaveTimer.current);
-      cloudSaveTimer.current = null;
-    }
+    cancelPendingCloudSave();
     const uid = cloudUserIdRef.current;
     const store = getCloudStore();
     if (uid && store) void store.deleteTree(uid).catch(() => {}); // fire-and-forget：清云端那一行（吞错，不阻塞本地重置）
@@ -971,7 +958,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTree(null);
       treeRef.current = null;
     })();
-  }, []);
+  }, [cancelPendingCloudSave]);
 
   // 每日摘要推送开关（undefined=默认开）。
   const setDailyDigest = useCallback(
@@ -1006,14 +993,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async (): Promise<void> => {
     // 先取消任何待触发的云端保存 —— 否则登出后可能仍以旧 userId 触发一次保存，
     // RLS 会拒绝写入（虽然现在会真实抛错/置 syncState error，但登出后这次写入本就不该发生）。
-    if (cloudSaveTimer.current) {
-      clearTimeout(cloudSaveTimer.current);
-      cloudSaveTimer.current = null;
-    }
+    cancelPendingCloudSave();
     await signOut();
     setCloudUserId(null);
     setSyncState("off");
-  }, []);
+  }, [cancelPendingCloudSave]);
 
   const retrySync = useCallback(() => {
     if (cloudUserId) void resolveCloud(cloudUserId);
