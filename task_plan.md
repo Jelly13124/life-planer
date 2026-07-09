@@ -10,7 +10,14 @@ Branch `feat/goal-planning-mainline` @ `f4929e0`, master fast-forwarded + pushed
 - **P3 可晒卡（`1251dfe`→`f4929e0`, OTA `cae9cfef`）**：网页公开卡片页 `/s/[id]`（Supabase `shares` 表 REST 拉取、OG 图 next/og、CTA 导流回 onboarding/测试——16Personalities 打法）+ 手机三入口（路线详情「分享这条路」/聊天气泡「分享」/树页「晒我的人生树」→ `createShare` 需登录 → 系统分享面板发链接）。payload 严格脱敏（仅 kind/title/subtitle/name/items≤3/quote）。审查修复：**晒树只带 AI 确认的可行度**（不泄本地占位%）、字符串长度钳制防 OG 爆、分享域名 env 化、surrogate-safe 截断。
 - **流程**：本轮全程 spec→plan→subagent+两段审查（用户点名后补齐 Skill 形式）。审查累计抓住 3 个数据丢失级 bug（云覆盖、补签被合并丢弃、reset 复活旧树）。
 
-**待用户（验收清单见最新对话）**
+**P4/P5 代码全部就绪（2026-07-03，`b08e974`→`9ac8052`，两段审查含 1 个 P0 修复）—— ⚠️ OTA 冻结中，等用户 ASC/RC 配置后发 1.1.0 build**
+- spec/plan `docs/superpowers/*/2026-07-03-p45-monetization-widget*`。内容：AI 用量制（免费 20 点/月，首次推演/维持现状不计；`aiOps` 随云同步）+ RevenueCat 订阅（`lp_pro_annual` ¥68/年 7 天试用 + `lp_pro_monthly` ¥12/月，entitlement `pro`，Paywall 合规：恢复购买/条款隐私链接/动态试用角标）+ 网页 /privacy /terms + iOS 17+ 桌面小组件（@bacons/apple-targets，App Group `group.com.jelly13124.lifeplanner`，key `widgetSnapshot`）。
+- **P0 已修**：`addScenario` 陈旧 cur 覆盖扣点（计数操作白嫖）→ spend 后重读 treeRef；扣点盖 updatedAt 防同步回滚。
+- **OTA 纪律**：RC/widget 原生代码已在分支 → **production(runtime 1.0.0) 冻结 OTA**，热修只能 cherry-pick `47fc268` 之前；一切随 1.1.0 build。
+- **Task 6（控制器，被用户阻塞）**：收到 RC key → `eas env:create EXPO_PUBLIC_REVENUECAT_IOS_KEY` → `expo install --check` → app.json 版本 1.1.0 → `eas build --platform ios --auto-submit` → TestFlight 沙盒验购买。
+
+**待用户**
+- **P4 前置（阻塞 build）**：①ASC Paid Apps 协议+银行税务 ②RevenueCat 建项目（bundle `com.jelly13124.lifeplanner`）发回 `appl_` key ③ASC 建两个订阅（annual ¥68+7天试用 / monthly ¥12）④RC 后台 entitlement `pro` + offering `default`；⑤ASC 元数据填 /privacy /terms URL。
 - Supabase 后台两件事：①Email 模板加 `{{ .Token }}`（P1 登录前置）②SQL Editor 执行 shares 建表（P3 分享前置，SQL 在 plan/对话里）。
 - 真机验收 P1/P2/P3 + 网页 /s/ 卡片页微信预览。
 
