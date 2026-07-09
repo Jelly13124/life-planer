@@ -360,6 +360,7 @@ export interface LifeTree {
   chosenPathId?: string | null; // 用户「正在走」的那条路（选定）；未选 = undefined/null
   freezeDays?: string[]; // 被补签卡保护的日期 YYYY-MM-DD（每月免费 2 张，自动使用）
   dailyDigest?: boolean; // 每日摘要推送开关（undefined=默认开，无需迁移）
+  aiOps?: { month: string; used: number }; // 本月已用 AI 点数（免费 20 点/月；Pro 不限）——随云同步跨设备一致
   createdAt: string;
   updatedAt: string;
 }
