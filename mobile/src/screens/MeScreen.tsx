@@ -1,11 +1,13 @@
 // 我 Tab：个人资料 + 账号/同步（邮箱验证码登录）+ 数据（重置）。
 import React from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FREE_AI_OPS_PER_MONTH } from "@lifeplanner/core/aiQuota";
 import { useApp } from "../state/store";
 import { Button, Card, Input, Muted, SectionTitle } from "../ui";
 import { colors, space } from "../theme";
 import { ensureNotifPermission } from "../lib/notifications";
+import { restorePro } from "../lib/purchases";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -35,6 +37,24 @@ export default function MeScreen() {
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [digestHint, setDigestHint] = React.useState<string | null>(null);
+  const [restoring, setRestoring] = React.useState(false);
+
+  const handleRestore = React.useCallback(async () => {
+    if (restoring) return;
+    setRestoring(true);
+    const { isPro, error: err } = await restorePro();
+    setRestoring(false);
+    if (err) {
+      Alert.alert("恢复失败", err);
+      return;
+    }
+    if (isPro) {
+      app.setIsPro(true);
+      Alert.alert("已恢复", "Pro 会员已恢复");
+    } else {
+      Alert.alert("未找到购买记录", "该账户没有可恢复的 Pro 购买");
+    }
+  }, [app, restoring]);
 
   const digestOn = app.tree?.dailyDigest !== false;
   const handleToggleDigest = React.useCallback(
@@ -120,6 +140,36 @@ export default function MeScreen() {
             <Muted>{p?.snapshot || "还没填写资料"}</Muted>
           </View>
         </View>
+      </Card>
+
+      <SectionTitle>会员</SectionTitle>
+      <Card>
+        {app.isPro ? (
+          <View>
+            <Text style={styles.cardTitle}>Pro 会员 · 无限 AI</Text>
+            <View style={styles.linkRow}>
+              <Pressable
+                hitSlop={8}
+                onPress={() => void Linking.openURL("https://apps.apple.com/account/subscriptions")}
+              >
+                <Text style={styles.link}>管理订阅</Text>
+              </Pressable>
+              <Pressable hitSlop={8} onPress={() => void handleRestore()}>
+                <Text style={styles.link}>{restoring ? "恢复中…" : "恢复购买"}</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <View>
+            <Text style={styles.cardTitle}>
+              免费版 · 本月 AI 额度剩 {app.aiQuotaLeft}/{FREE_AI_OPS_PER_MONTH}
+            </Text>
+            <Muted style={{ marginTop: 4, marginBottom: 12 }}>
+              升级 Pro 解锁无限 AI 推演、拆解目标与畅聊
+            </Muted>
+            <Button label="升级 Pro" onPress={app.openPaywall} />
+          </View>
+        )}
       </Card>
 
       <SectionTitle>账号与同步</SectionTitle>

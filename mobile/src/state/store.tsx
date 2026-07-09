@@ -71,6 +71,7 @@ import {
 
 import { loadTree, saveTree, clearTree, backupTree } from "../lib/storage";
 import { syncNotifications, syncDailyDigest } from "../lib/notifications";
+import { initPurchases } from "../lib/purchases";
 import {
   fetchGoalSuggestions,
   fetchGoalActions,
@@ -366,6 +367,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // 启动：加载存档（可能为 null → 未引导，Gate 显示 onboarding）。不再自动生成默认树。
   useEffect(() => {
     let alive = true;
+    // RevenueCat 初始化：读取/订阅 isPro 状态（fire-and-forget，失败静默，isPro 维持 false）。
+    void initPurchases(setIsPro);
     // 订阅 auth 状态变化：一次性 getSession() 只覆盖「冷启动即刻」这一刻；
     // 若冷启动时离线导致 token 刷新失败，cloudUserId 会一直为 null，且没有恢复路径。
     // 订阅事件作为恢复路径——联网后 Supabase SDK 触发 TOKEN_REFRESHED/SIGNED_IN，这里接住并补 resolveCloud。

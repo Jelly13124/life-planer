@@ -9,6 +9,7 @@ import { StatusBar } from "expo-status-bar";
 import { AppProvider, useApp } from "../src/state/store";
 import { Spinner } from "../src/ui";
 import OnboardingScreen from "../src/screens/OnboardingScreen";
+import { PaywallSheet } from "../src/components/PaywallSheet";
 
 function Gate() {
   const { ready, tree } = useApp();
@@ -17,12 +18,20 @@ function Gate() {
   return <Stack screenOptions={{ headerShown: false }} />;
 }
 
+// Paywall 挂载点：需在 AppProvider 内部才能读到 useApp()，故独立成一个子组件
+// （而非直接写进 RootLayout，RootLayout 本身在 Provider 外层）。全局仅挂一次。
+function PaywallHost() {
+  const { paywallOpen, closePaywall } = useApp();
+  return <PaywallSheet visible={paywallOpen} onClose={closePaywall} />;
+}
+
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AppProvider>
           <Gate />
+          <PaywallHost />
           <StatusBar style="dark" />
         </AppProvider>
       </SafeAreaProvider>
