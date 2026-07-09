@@ -40,6 +40,8 @@ import {
 } from "@lifeplanner/core/goalTree";
 import { goalProgress, completeGoal as domainCompleteGoal } from "@lifeplanner/core/goals";
 import { deriveAreas, buildSnapshot } from "@lifeplanner/core/profile";
+import { FREE_AI_OPS_PER_MONTH, aiOpsLeft, canUseAi, consumeAiOp } from "@lifeplanner/core/aiQuota";
+import { isEnriched } from "@lifeplanner/core/pathEnriched";
 import {
   localDay,
   addDays,
@@ -167,6 +169,15 @@ interface AppValue {
   suggestGoals: () => Promise<GoalSuggestion[]>;
   suggestTasksForGoal: (goalId: string) => Promise<void>;
   suggestingTasksGoalId: string | null;
+  // AI 用量配额（免费 20 点/自然月；Pro 不限）——见 @lifeplanner/core/aiQuota
+  aiQuotaLeft: number;
+  isPro: boolean;
+  setIsPro: (v: boolean) => void;
+  paywallOpen: boolean;
+  openPaywall: () => void;
+  closePaywall: () => void;
+  // 花费一个 AI 点：Pro 不扣；额度不足 → 打开 Paywall 并返回 false（调用方放弃本次 AI 调用）。
+  spendAiOp: () => boolean;
   // 云同步（本地优先；登录可选）
   cloudEnabled: boolean;
   cloudUserId: string | null;
@@ -200,6 +211,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [tree]);
   // 本地通知重排的去抖定时器（commit 高频，1.5s 合并）。
   const notifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── AI 用量配额 / Paywall（见 @lifeplanner/core/aiQuota；Task 4 会用 RevenueCat 驱动 setIsPro）──
+  const [isPro, setIsPro] = useState(false);
+  // ref 镜像 isPro：spendAiOp 的闭包（useCallback 依赖 [commit]）需要读到最新值。
+  const isProRef = useRef(false);
+  useEffect(() => {
+    isProRef.current = isPro;
+  }, [isPro]);
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const openPaywall = useCallback(() => setPaywallOpen(true), []);
+  const closePaywall = useCallback(() => setPaywallOpen(false), []);
 
   // ── 云同步（本地优先；登录可选，见 mobile/src/lib/supabase.ts）──
   const [cloudUserId, setCloudUserId] = useState<string | null>(null); // null = 未登录
@@ -680,6 +702,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [commit],
   );
 
+  // 花费一个 AI 点：Pro 不扣；额度不足 → 打开 Paywall 并返回 false（调用方直接放弃本次 AI 调用）。
+  const spendAiOp = useCallback((): boolean => {
+    const cur = treeRef.current;
+    if (!cur) return false;
+    const t = todayStr();
+    if (isProRef.current) return true;
+    if (!canUseAi(cur, t, false)) {
+      setPaywallOpen(true);
+      return false;
+    }
+    commit(consumeAiOp(cur, t));
+    return true;
+  }, [commit]);
+
   // 加一条人生选择分支：本地生成器立即出线；若后端可达 → 异步 AI 推演覆盖 summary/可行度/节点。
   const addChoiceBranch = useCallback(
     (label: string) => {
@@ -747,6 +783,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (basePathId: string, scenario: Scenario) => {
       const cur = treeRef.current;
       if (!cur) return;
+      // 计费点：非 likely 情景变体的 AI 推演算 1 点（仅在有后端时才需要，离线本地生成免费）；
+      // 在 addScenarioVariant 之前拦截，额度不足时不生成未推演的变体（避免半成品分支）。
+      if (hasBackend() && !spendAiOp()) return;
       const next = addScenarioVariant(cur, basePathId, scenario, localGenerator, nowISO());
       if (next === cur) return; // 变体已存在，addScenarioVariant 原样返回 → 不重复推演
       const variant = next.paths[next.paths.length - 1];
@@ -767,7 +806,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           .finally(() => setEnriching(false));
       }
     },
-    [commit],
+    [commit, spendAiOp],
   );
 
   const choosePath = useCallback(
@@ -795,6 +834,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const path = cur.paths.find((p) => p.id === pathId);
       if (!path) return; // 「维持现状」也可拆计划（它也是一条可选路线）
       if (!hasBackend()) return;
+      if (!spendAiOp()) return; // 计费点：拆目标每次调用算 1 点
 
       let drafts: { area: LifeArea; title: string; why: string }[] = [];
       setDecomposing(true);
@@ -824,11 +864,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         commit(next);
       }
     },
-    [commit],
+    [commit, spendAiOp],
   );
 
   // 重试某条路的 AI 推演（用于「重试推演」按钮）：离线时静默不做（按钮仍保留，供用户联网后再点）；
   // 成功则把结果叠加进路径并标记 enriched；失败保留原样，不删已持久化的内容。
+  // 计费：「维持现状」或「首次推演一条 likely 基线分支」免费（onboarding/addChoiceBranch 的延续）；
+  // 已推演过、或重试的是非 likely 情景变体 → 算 1 点。
   const retryEnrich = useCallback(
     (pathId: string) => {
       const cur = treeRef.current;
@@ -836,6 +878,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const path = cur.paths.find((p) => p.id === pathId);
       if (!path) return;
       if (!hasBackend()) return;
+      const counted = path.kind !== "status-quo" && (isEnriched(path) || path.scenario !== "likely");
+      if (counted && !spendAiOp()) return;
       setEnriching(true);
       void enrichPath(cur, path)
         .then((result) => {
@@ -969,6 +1013,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const suggestGoals = useCallback(async (): Promise<GoalSuggestion[]> => {
     const cur = treeRef.current;
     if (!cur) return [];
+    if (!spendAiOp()) return []; // 计费点：AI 建议目标每次调用算 1 点
     const choices = Array.from(
       new Set(cur.paths.filter((p) => p.kind === "choice").map((p) => p.choiceLabel)),
     );
@@ -978,7 +1023,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // 网络 / AI 失败：返回空列表，调用方显示「暂无建议」，绝不抛到 UI。
       return [];
     }
-  }, []);
+  }, [spendAiOp]);
 
   // 给某个目标 AI 建议几条任务并直接加入其任务清单（对应 web 的「AI 建议任务」）。
   // 离线 / 请求失败 / 返回空 → 不生成任何任务（不虚构本地兜底），按钮保持可点，用户可重试。
@@ -989,6 +1034,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const goal = longGoals(cur).concat(standaloneShortGoals(cur)).find((g) => g.id === goalId);
       if (!goal) return;
       if (!hasBackend()) return;
+      if (!spendAiOp()) return; // 计费点：AI 建议任务每次调用算 1 点
 
       setSuggestingTasksGoalId(goalId);
       try {
@@ -1010,7 +1056,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setSuggestingTasksGoalId(null);
       }
     },
-    [commit],
+    [commit, spendAiOp],
   );
 
   const value = useMemo<AppValue>(() => {
@@ -1076,6 +1122,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       suggestGoals,
       suggestTasksForGoal,
       suggestingTasksGoalId,
+      aiQuotaLeft: t ? aiOpsLeft(t, today) : FREE_AI_OPS_PER_MONTH,
+      isPro,
+      setIsPro,
+      paywallOpen,
+      openPaywall,
+      closePaywall,
+      spendAiOp,
       cloudEnabled: isCloudEnabled(),
       cloudUserId,
       syncState,
@@ -1132,6 +1185,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     suggestGoals,
     suggestTasksForGoal,
     suggestingTasksGoalId,
+    isPro,
+    paywallOpen,
+    openPaywall,
+    closePaywall,
+    spendAiOp,
     cloudUserId,
     syncState,
     lastSyncAt,

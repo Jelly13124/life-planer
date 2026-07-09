@@ -28,7 +28,7 @@ function trimQuote(s: string, max = 120): string {
 
 export default function ChatScreen() {
   const { pathId } = useLocalSearchParams<{ pathId: string }>();
-  const { tree } = useApp();
+  const { tree, spendAiOp } = useApp();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -52,6 +52,8 @@ export default function ChatScreen() {
       setInput("");
       return;
     }
+    // 计费点：每条用户消息算 1 点；额度不足 → spendAiOp 打开 Paywall 并返回 false，本次不发送。
+    if (!spendAiOp()) return;
     const next: ChatMessage[] = [...messages, { role: "user", content: t }];
     setMessages(next);
     setInput("");
