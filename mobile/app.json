@@ -3,7 +3,7 @@
     "name": "人生树",
     "slug": "mobile",
     "scheme": "lifeplanner",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,6 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
+      "appleTeamId": "7V9VP73GQK",
       "bundleIdentifier": "com.jelly13124.lifeplanner",
       "entitlements": {
         "com.apple.security.application-groups": ["group.com.jelly13124.lifeplanner"]
