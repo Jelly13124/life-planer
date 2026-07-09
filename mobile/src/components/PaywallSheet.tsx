@@ -147,9 +147,9 @@ export function PaywallSheet({ visible, onClose }: { visible: boolean; onClose: 
               <View style={{ marginTop: 4 }}>
                 {packages.map((pkg) => (
                   <Card key={pkg.id} style={pkg.isAnnual ? styles.pkgCardHighlight : undefined}>
-                    {pkg.isAnnual ? (
+                    {pkg.trialLabel ? (
                       <View style={styles.badge}>
-                        <Text style={styles.badgeText}>7 天免费试用</Text>
+                        <Text style={styles.badgeText}>{pkg.trialLabel}</Text>
                       </View>
                     ) : null}
                     <View style={styles.pkgRow}>
@@ -158,7 +158,13 @@ export function PaywallSheet({ visible, onClose }: { visible: boolean; onClose: 
                         <Text style={styles.pkgPrice}>{pkg.priceString}</Text>
                       </View>
                       <Button
-                        label={buyingId === pkg.id ? "处理中…" : "购买"}
+                        label={
+                          buyingId === pkg.id
+                            ? "处理中…"
+                            : pkg.trialLabel
+                              ? "开始免费试用"
+                              : "立即订阅"
+                        }
                         onPress={() => void handleBuy(pkg)}
                         loading={buyingId === pkg.id}
                         disabled={buyingId !== null}

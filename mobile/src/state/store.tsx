@@ -720,7 +720,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setPaywallOpen(true);
       return false;
     }
-    commit(consumeAiOp(cur, t));
+    commit({ ...consumeAiOp(cur, t), updatedAt: nowISO() });
     return true;
   }, [commit]);
 
@@ -794,8 +794,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // 计费点：非 likely 情景变体的 AI 推演算 1 点（仅在有后端时才需要，离线本地生成免费）；
       // 在 addScenarioVariant 之前拦截，额度不足时不生成未推演的变体（避免半成品分支）。
       if (hasBackend() && !spendAiOp()) return;
-      const next = addScenarioVariant(cur, basePathId, scenario, localGenerator, nowISO());
-      if (next === cur) return; // 变体已存在，addScenarioVariant 原样返回 → 不重复推演
+      // spendAiOp 内部已同步 commit 扣费后的树（更新 treeRef）；必须重新读取，
+      // 否则下面基于陈旧 cur 构建的 next 一提交，会把刚才扣的额度覆盖回去（扣费变免费）。
+      const cur2 = treeRef.current;
+      if (!cur2) return;
+      const next = addScenarioVariant(cur2, basePathId, scenario, localGenerator, nowISO());
+      if (next === cur2) return; // 变体已存在：不重复推演（已扣的 1 点算防御性成本，正常路径由调用方 variantFor 先挡）
       const variant = next.paths[next.paths.length - 1];
       commit(next);
       if (hasBackend()) {

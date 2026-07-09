@@ -34,9 +34,9 @@ export default function TermsPage() {
           </h2>
           <p>
             Pro
-            为自动续订订阅，提供年度（含
-            7 天免费试用）与月度两种周期，费用通过你的 Apple
-            账户扣款。订阅将在当前周期到期前
+            为自动续订订阅，提供年度与月度两种周期，费用通过你的 Apple
+            账户扣款。年度订阅可能包含免费试用（以 App Store
+            购买页展示为准）。订阅将在当前周期到期前
             24 小时内自动续订，你可以随时在系统「设置 →
             订阅」中查看或取消。退款依据 Apple
             的官方政策处理，请通过 Apple
@@ -97,7 +97,8 @@ export default function TermsPage() {
             projections&quot; for reflection — not predictions, fortune
             telling, or professional (medical, legal, financial) advice; you
             act on them at your own risk. Pro is an auto-renewable
-            subscription (annual with a 7-day free trial, or monthly),
+            subscription (annual or monthly); the annual plan may include a
+            free trial as shown on the App Store purchase screen. It is
             charged via your Apple account and renewed within 24 hours before
             the end of each period unless cancelled in Settings &gt;
             Subscriptions; refunds follow Apple&apos;s policy and must be

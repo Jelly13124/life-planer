@@ -52,7 +52,18 @@ export interface ProPackage {
   title: string; // 我们自己的展示名（年度/月度）
   priceString: string; // RC 本地化价格串
   isAnnual: boolean;
+  trialLabel: string | null; // 由 product.introPrice 推导；无免费试用报价 → null（不展示徽标）
   raw: RCPackage; // 原始 package，购买时传回
+}
+
+// 从 RC 的 introPrice 推导中文试用文案；仅当报价确实是 0 元（免费试用）才返回文案，
+// 付费的「优惠价」intro offer（price>0）不算「免费试用」，不展示徽标。
+function deriveTrialLabel(p: RCPackage): string | null {
+  const intro = p.product.introPrice;
+  if (!intro || intro.price !== 0) return null;
+  if (intro.periodUnit === "DAY") return `${intro.periodNumberOfUnits} 天免费试用`;
+  if (intro.periodUnit === "WEEK") return `${intro.periodNumberOfUnits * 7} 天免费试用`;
+  return "含免费试用";
 }
 
 export async function getProPackages(): Promise<ProPackage[]> {
@@ -66,6 +77,7 @@ export async function getProPackages(): Promise<ProPackage[]> {
       isAnnual: p.packageType === P.PACKAGE_TYPE.ANNUAL,
       title: p.packageType === P.PACKAGE_TYPE.ANNUAL ? "年度会员" : "月度会员",
       priceString: p.product.priceString,
+      trialLabel: deriveTrialLabel(p),
       raw: p,
     }));
   } catch {

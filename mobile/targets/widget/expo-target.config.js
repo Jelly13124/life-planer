@@ -12,7 +12,9 @@ module.exports = (config) => ({
   type: "widget",
   name: "widget",
   displayName: "人生树",
-  // deploymentTarget 不设 → 插件默认 18.0（README 默认值）。
+  // 插件默认 18.0；显式设为 17.0 以覆盖 iOS 17 用户 —— index.swift 里用到的
+  // containerBackground(for:)/foregroundStyle 均为 iOS 17+ API，无需 18。
+  deploymentTarget: "17.0",
   colors: {
     // 生成的 Info.plist 会引用（小组件编辑态背景/强调色）。
     $widgetBackground: "#FFFFFF",

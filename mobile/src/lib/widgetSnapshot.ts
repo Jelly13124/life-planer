@@ -57,13 +57,14 @@ export function writeWidgetSnapshot(tree: LifeTree, today: string): void {
     if (!loaded) return;
     try {
       const chosen = tree.paths.find((p) => p.id === tree.chosenPathId) ?? null;
+      // 未选路线 / 路线确实没有可行度数据时应是 null（前端渲染「暂无数据」），
+      // 用 ?? 0 兜底会把「无数据」和「0%」混为一谈，在小组件上误显示「约 0%」。
+      const v = chosen ? (effectiveFeasibility(tree, chosen)?.value ?? chosen.feasibility ?? null) : null;
       const snapshot: WidgetSnapshot = {
         streak: currentStreakWithFreeze(tree, today),
         todayCount: todayItems(tree, today).length,
         chosenLabel: chosen?.choiceLabel ?? null,
-        chosenFeasibility: chosen
-          ? Math.round(effectiveFeasibility(tree, chosen)?.value ?? chosen.feasibility ?? 0)
-          : null,
+        chosenFeasibility: v == null ? null : Math.round(v),
         updatedAt: new Date().toISOString(),
       };
       loaded.storage.set(SNAPSHOT_KEY, JSON.stringify(snapshot));

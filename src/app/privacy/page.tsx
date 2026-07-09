@@ -49,7 +49,17 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="mb-2 text-base font-semibold text-[var(--fg)]">
-            4. 分享卡
+            4. 订阅购买
+          </h2>
+          <p>
+            订阅购买由 Apple 与 RevenueCat（订阅管理服务商）处理，我们不接触你的支付信息；RevenueCat
+            会收到匿名的购买与设备标识用于订阅状态校验。
+          </p>
+        </section>
+
+        <section>
+          <h2 className="mb-2 text-base font-semibold text-[var(--fg)]">
+            5. 分享卡
           </h2>
           <p>
             只有当你主动点击「分享」时，我们才会生成一张脱敏后的分享卡片（仅包含标题、昵称、百分比、寄语等你选择公开的内容），并生成一个可公开访问的链接。未经你主动操作，任何数据都不会被公开。
@@ -58,7 +68,7 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="mb-2 text-base font-semibold text-[var(--fg)]">
-            5. 数据删除
+            6. 数据删除
           </h2>
           <p>
             你可以随时在应用内使用「重置数据」功能，清除本地与云端保存的全部数据；也可以通过邮件联系我们，请求删除你的账号及关联数据。
@@ -67,7 +77,7 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="mb-2 text-base font-semibold text-[var(--fg)]">
-            6. 推送通知
+            7. 推送通知
           </h2>
           <p>
             本地通知仅在你主动开启提醒时由你的设备本地调度触发，不经过我们的服务器，也不会被用于追踪。
@@ -76,7 +86,7 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="mb-2 text-base font-semibold text-[var(--fg)]">
-            7. 联系我们
+            8. 联系我们
           </h2>
           <p>
             如对本政策有任何疑问，或希望删除账号与数据，请发送邮件至{" "}
@@ -100,7 +110,11 @@ export default function PrivacyPage() {
             data is encrypted in transit and stored in Supabase, protected by
             row-level security so only your account can access it. AI
             predictions are generated server-side from a summary of your data,
-            never used for model training, and never sold. Share cards are
+            never used for model training, and never sold. Subscription
+            purchases are processed by Apple and RevenueCat (our subscription
+            management provider); we never see your payment details, and
+            RevenueCat receives anonymized purchase and device identifiers to
+            validate subscription status. Share cards are
             only created and made public when you explicitly tap Share. You
             can delete all local and cloud data anytime via in-app Reset Data,
             or by emailing ruizheyuan3487@gmail.com. Local notifications, when
