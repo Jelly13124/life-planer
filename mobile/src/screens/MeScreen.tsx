@@ -7,7 +7,7 @@ import { useApp } from "../state/store";
 import { Button, Card, Input, Muted, SectionTitle } from "../ui";
 import { colors, space } from "../theme";
 import { ensureNotifPermission } from "../lib/notifications";
-import { restorePro } from "../lib/purchases";
+import { restorePro, MONETIZATION_ENABLED } from "../lib/purchases";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -142,6 +142,9 @@ export default function MeScreen() {
         </View>
       </Card>
 
+      {/* 商品化暂缓（MONETIZATION_ENABLED=false）：整卡隐藏，开启后原样恢复 */}
+      {MONETIZATION_ENABLED ? (
+        <>
       <SectionTitle>会员</SectionTitle>
       <Card>
         {app.isPro ? (
@@ -171,6 +174,8 @@ export default function MeScreen() {
           </View>
         )}
       </Card>
+        </>
+      ) : null}
 
       <SectionTitle>账号与同步</SectionTitle>
       <Card>

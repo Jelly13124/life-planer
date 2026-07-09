@@ -5,6 +5,10 @@
 import { Platform } from "react-native";
 import type { CustomerInfo, PurchasesPackage as RCPackage } from "react-native-purchases";
 
+// 商品化总开关：暂缓商品化（2026-07-03 决定）。置 false 时——配额不扣、Paywall 永不触发、
+// 「我」页不显示会员卡、不初始化 RevenueCat。重新开启：置 true + 配好 ASC 订阅/RC 后台 + EAS env 里的 RC key。
+export const MONETIZATION_ENABLED = false;
+
 const KEY = (process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? "").trim();
 
 export function purchasesAvailable(): boolean {

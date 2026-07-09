@@ -72,7 +72,7 @@ import {
 import { loadTree, saveTree, clearTree, backupTree } from "../lib/storage";
 import { syncNotifications, syncDailyDigest } from "../lib/notifications";
 import { writeWidgetSnapshot } from "../lib/widgetSnapshot";
-import { initPurchases } from "../lib/purchases";
+import { initPurchases, MONETIZATION_ENABLED } from "../lib/purchases";
 import {
   fetchGoalSuggestions,
   fetchGoalActions,
@@ -371,7 +371,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let alive = true;
     // RevenueCat 初始化：读取/订阅 isPro 状态（fire-and-forget，失败静默，isPro 维持 false）。
-    void initPurchases(setIsPro);
+    if (MONETIZATION_ENABLED) void initPurchases(setIsPro);
     // 订阅 auth 状态变化：一次性 getSession() 只覆盖「冷启动即刻」这一刻；
     // 若冷启动时离线导致 token 刷新失败，cloudUserId 会一直为 null，且没有恢复路径。
     // 订阅事件作为恢复路径——联网后 Supabase SDK 触发 TOKEN_REFRESHED/SIGNED_IN，这里接住并补 resolveCloud。
@@ -711,7 +711,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   // 花费一个 AI 点：Pro 不扣；额度不足 → 打开 Paywall 并返回 false（调用方直接放弃本次 AI 调用）。
+  // 商品化总开关关闭时直接放行（不扣点、不弹 Paywall）——见 purchases.ts 的 MONETIZATION_ENABLED。
   const spendAiOp = useCallback((): boolean => {
+    if (!MONETIZATION_ENABLED) return true;
     const cur = treeRef.current;
     if (!cur) return false;
     const t = todayStr();
