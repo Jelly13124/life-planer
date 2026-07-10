@@ -48,12 +48,18 @@ const EnrichOut = z.object({
 });
 export type EnrichOut = z.infer<typeof EnrichOut>;
 
+function isValidDecisionStyleScore(value: number): boolean {
+  return Number.isFinite(value) && value >= 0 && value <= 100;
+}
+
 export function buildDecisionStyleContext(summary: DecisionStyleSummary | undefined): string {
   if (summary?.version !== 2) return "";
 
   const { tempo, focus, engine, drive } = summary.scores;
+  if (![tempo, focus, engine, drive].every(isValidDecisionStyleScore)) return "";
+
   return [
-    "Decision-style context (low weight): self-reported, not fact.",
+    "Decision-style context (low weight): self-reported decision style summary, not a fact, personality assessment, or judgment.",
     `Numeric tendencies only: tempo: ${tempo}/100; focus: ${focus}/100; engine: ${engine}/100; drive: ${drive}/100.`,
     "Do not infer location, occupation, identity, finances, relationships, illness, or future events from this context.",
   ].join(" ");

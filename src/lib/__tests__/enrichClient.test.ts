@@ -107,12 +107,42 @@ describe("decision-style AI boundary", () => {
     expect(context).toContain("focus: 64/100");
     expect(context).toContain("engine: 82/100");
     expect(context).toContain("drive: 91/100");
-    expect(context).toContain("self-reported, not fact");
+    expect(context).toContain("self-reported decision style summary");
+    expect(context).toContain("not a fact, personality assessment, or judgment");
     expect(context).toContain("location, occupation, identity, finances, relationships, illness, or future events");
     for (const forbidden of [...allDecisionStyleTypes().map((type) => type.label), "answers", "tieBreaks", "evidence", "localDetail"]) {
       expect(context).not.toContain(forbidden);
     }
     expect(buildDecisionStyleContext({ ...summary, version: 1 } as never)).toBe("");
+  });
+
+  it.each([
+    ["quick", "balanced"],
+    ["full", "aggressive"],
+  ] as const)("preserves a user-selected risk appetite for %s summaries in the enrichment request", (source, riskAppetite) => {
+    const tree = {
+      profile: {
+        ...profile,
+        riskAppetite,
+        decisionStyle: { ...summary, source },
+      },
+      horizonYears: 10,
+    } as LifeTree;
+
+    const request = buildEnrichmentRequest(tree, makePath({}));
+
+    expect(request.profile.riskAppetite).toBe(riskAppetite);
+    expect(request.profile.decisionStyle).toEqual({ ...summary, source });
+  });
+
+  it("returns no decision-style context for malformed v2 numeric summaries", () => {
+    const malformed = {
+      ...summary,
+      scores: { tempo: Number.NaN, focus: 64, engine: 101, drive: Number.POSITIVE_INFINITY },
+    };
+
+    expect(() => buildDecisionStyleContext(malformed)).not.toThrow();
+    expect(buildDecisionStyleContext(malformed)).toBe("");
   });
 
   it("whitelists the style summary in the client enrichment request", () => {
