@@ -1,6 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, expectTypeOf } from "vitest";
 import { deriveAreas, buildSnapshot } from "@/domain/profile";
 import { LIFE_AREAS, type Profile } from "@/domain/types";
+import type { DecisionStyleSummary } from "@/domain/decisionStyle";
 
 type Inputs = Omit<Profile, "areas" | "snapshot">;
 
@@ -66,5 +67,29 @@ describe("buildSnapshot", () => {
     expect(s).toContain("做自媒体");
     expect(s).toContain("跑步");
     expect(s).toContain("28 岁");
+  });
+});
+
+describe("Profile decision style", () => {
+  it("accepts a v2 decision-style summary without changing explicit risk appetite", () => {
+    const summary: DecisionStyleSummary = {
+      version: 2,
+      source: "full",
+      code: "FDBG",
+      scores: { tempo: 76, focus: 64, engine: 82, drive: 91 },
+      completedAt: "2026-07-10T09:00:00.000Z",
+    };
+    const profile: Pick<Profile, "decisionStyle" | "riskAppetite"> = {
+      decisionStyle: summary,
+      riskAppetite: "conservative",
+    };
+
+    expect(profile).toEqual({ decisionStyle: summary, riskAppetite: "conservative" });
+    expectTypeOf<Profile["decisionStyle"]>().toEqualTypeOf<DecisionStyleSummary | undefined>();
+  });
+
+  it("does not expose retired life-path fields on Profile", () => {
+    expectTypeOf<Profile>().not.toHaveProperty("lifePathCode");
+    expectTypeOf<Profile>().not.toHaveProperty("lifePathAnswers");
   });
 });

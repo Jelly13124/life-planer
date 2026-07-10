@@ -1,6 +1,7 @@
 // 领域模型 —— 见 docs/superpowers/specs/2026-06-15-life-planner-design.md 第 4 节
 
 import type { IcsEvent } from "./ics";
+import type { DecisionStyleSummary } from "./decisionStyle";
 export type { IcsEvent };
 
 export type LifeArea =
@@ -68,9 +69,7 @@ export interface Profile {
   assets?: string;        // 资产（自由文本，如 房/车/股票）
   family?: FamilyResponsibility; // 家庭责任
   riskAppetite?: RiskAppetite;   // 风险偏好
-  // 职场人格测试结果（可选；旧数据无此字段，optional 即 backfill，无需迁移）
-  lifePathCode?: string;         // 4 字母码，如 "FDBV"
-  lifePathAnswers?: { statementId: string; value: number }[]; // 原始答案（便于复算/回显）
+  decisionStyle?: DecisionStyleSummary;
 }
 
 export interface MetricPoint {

@@ -4,6 +4,7 @@
 // 没有 DEEPSEEK_API_KEY 或调用失败时返回 null，调用方回退到本地文案。
 import { z } from "zod";
 import type { CurveShape, PathKind, Profile } from "@/domain/types";
+import type { DecisionStyleSummary } from "@/domain/decisionStyle";
 import {
   EDUCATION_LABELS,
   RELATIONSHIP_LABELS,
@@ -46,6 +47,17 @@ const EnrichOut = z.object({
   ),
 });
 export type EnrichOut = z.infer<typeof EnrichOut>;
+
+export function buildDecisionStyleContext(summary: DecisionStyleSummary | undefined): string {
+  if (summary?.version !== 2) return "";
+
+  const { tempo, focus, engine, drive } = summary.scores;
+  return [
+    "Decision-style context (low weight): self-reported, not fact.",
+    `Numeric tendencies only: tempo: ${tempo}/100; focus: ${focus}/100; engine: ${engine}/100; drive: ${drive}/100.`,
+    "Do not infer location, occupation, identity, finances, relationships, illness, or future events from this context.",
+  ].join(" ");
+}
 
 export interface EnrichInput {
   profile: Profile;
@@ -134,15 +146,8 @@ function buildUserPrompt(input: EnrichInput): string {
   lines.push(`主角姓名：${p.name}（全程用这个名字）。`);
   lines.push(`他现在 ${now} 岁${p.location ? `，生活在${p.location}` : ""}${p.status ? `，身份/阶段：${p.status}` : ""}。`);
   lines.push(`现状（既定事实，推演不能与之矛盾）：${facts.join("；")}。`);
-  // 职场人格倾向（软性背景）：影响他更可能做的选择与走向，但不得凌驾真实事实，也不得写成"必然"。
-  if (p.lifePathCode) {
-    const hint = styleHintForCode(p.lifePathCode);
-    if (hint) {
-      lines.push(
-        `职场决策风格（软性倾向，仅供参考）：${hint}。把它当作他更可能的倾向，影响选择与走向；但绝不可凌驾于真实事实（年龄/收入/签证/所在地）之上，也不可写成「因为他是某型所以必然如何」。`,
-      );
-    }
-  }
+  const decisionStyleContext = buildDecisionStyleContext(p.decisionStyle);
+  if (decisionStyleContext) lines.push(decisionStyleContext);
   if (isUSVisa(p)) lines.push(VISA_US_FACTS);
   lines.push("");
   if (input.note?.trim()) {

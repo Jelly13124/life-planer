@@ -7,6 +7,7 @@ import {
   type Mood,
   type PathNode,
 } from "@/domain/types";
+import type { DecisionStyleSummary } from "@/domain/decisionStyle";
 import { currentLocale } from "@/i18n/locale";
 
 export interface EnrichResult {
@@ -30,6 +31,40 @@ function canRetime(path: LifePath): boolean {
   return path.kind === "choice" && path.parentId == null && path.scenario === "likely";
 }
 
+function serializeDecisionStyle(summary: DecisionStyleSummary | undefined): DecisionStyleSummary | undefined {
+  if (summary?.version !== 2) return undefined;
+  return {
+    version: 2,
+    source: summary.source,
+    code: summary.code,
+    scores: {
+      tempo: summary.scores.tempo,
+      focus: summary.scores.focus,
+      engine: summary.scores.engine,
+      drive: summary.scores.drive,
+    },
+    completedAt: summary.completedAt,
+  };
+}
+
+export function buildEnrichmentRequest(tree: LifeTree, path: LifePath) {
+  const { decisionStyle: rawDecisionStyle, ...profile } = tree.profile;
+  const decisionStyle = serializeDecisionStyle(rawDecisionStyle);
+  return {
+    profile: decisionStyle ? { ...profile, decisionStyle } : profile,
+    currentAge: tree.profile.age,
+    startAge: path.forkAge ?? tree.profile.age,
+    horizonYears: tree.horizonYears,
+    choiceLabel: path.choiceLabel,
+    kind: path.kind,
+    curve: path.curve,
+    scenario: path.scenario,
+    canRetime: canRetime(path),
+    lang: currentLocale(),
+    note: path.note,
+  };
+}
+
 // 向后端请求某条路径的文案 + 分叉时机；失败/未接入则返回 null。
 export async function fetchEnrichment(
   tree: LifeTree,
@@ -39,19 +74,7 @@ export async function fetchEnrichment(
     const res = await fetch("/api/enrich", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        profile: tree.profile,
-        currentAge: tree.profile.age,
-        startAge: path.forkAge ?? tree.profile.age,
-        horizonYears: tree.horizonYears,
-        choiceLabel: path.choiceLabel,
-        kind: path.kind,
-        curve: path.curve,
-        scenario: path.scenario,
-        canRetime: canRetime(path),
-        lang: currentLocale(),
-        note: path.note,
-      }),
+      body: JSON.stringify(buildEnrichmentRequest(tree, path)),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as { result: EnrichResult | null };

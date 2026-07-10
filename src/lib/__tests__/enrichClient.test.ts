@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { applyEnrichment, type EnrichResult } from "@/lib/enrichClient";
-import type { LifeArea, LifePath, MetricPoint } from "@/domain/types";
+import { allDecisionStyleTypes } from "@/domain/decisionStyle";
+import { buildDecisionStyleContext } from "@/lib/enrich";
+import { applyEnrichment, buildEnrichmentRequest, type EnrichResult } from "@/lib/enrichClient";
+import type { LifeArea, LifePath, LifeTree, MetricPoint, Profile } from "@/domain/types";
 
 const emptyMetrics = {} as Record<LifeArea, MetricPoint[]>;
 
@@ -79,5 +81,58 @@ describe("applyEnrichment — AI decides the fork timing", () => {
     const path = makePath({ parentId: null, kind: "choice", scenario: "conservative", forkAge: 32 });
     const out = applyEnrichment(path, result(5, [33, 36, 39, 42]), CURRENT_AGE, HORIZON);
     expect(out.forkAge).toBe(32); // conservative variant must inherit forkAge, not re-time
+  });
+});
+
+describe("decision-style AI boundary", () => {
+  const summary = {
+    version: 2 as const,
+    source: "full" as const,
+    code: "FDBG" as const,
+    scores: { tempo: 76, focus: 64, engine: 82, drive: 91 },
+    completedAt: "2026-07-10T09:00:00.000Z",
+  };
+
+  const profile: Profile = {
+    name: "Ming", age: 28, education: "bachelor", major: "", occupation: "", salary: "5to10",
+    hasSideHustle: false, sideHustle: "", hobbies: "", relationship: "single", location: "", status: "",
+    snapshot: "", areas: { career: 50, wealth: 50, relationships: 50, health: 50, growth: 50 }, crossroad: "",
+    riskAppetite: "conservative", decisionStyle: summary,
+  };
+
+  it("adds only numeric self-reported v2 tendencies and guardrails to AI context", () => {
+    const context = buildDecisionStyleContext(summary);
+
+    expect(context).toContain("tempo: 76/100");
+    expect(context).toContain("focus: 64/100");
+    expect(context).toContain("engine: 82/100");
+    expect(context).toContain("drive: 91/100");
+    expect(context).toContain("self-reported, not fact");
+    expect(context).toContain("location, occupation, identity, finances, relationships, illness, or future events");
+    for (const forbidden of [...allDecisionStyleTypes().map((type) => type.label), "answers", "tieBreaks", "evidence", "localDetail"]) {
+      expect(context).not.toContain(forbidden);
+    }
+    expect(buildDecisionStyleContext({ ...summary, version: 1 } as never)).toBe("");
+  });
+
+  it("whitelists the style summary in the client enrichment request", () => {
+    const contaminatedProfile = {
+      ...profile,
+      decisionStyle: {
+        ...summary,
+        answers: [{ questionId: "tempo-1", value: 2 }],
+        tieBreaks: { tempo: "a" },
+        evidence: [{ questionId: "tempo-1" }],
+        localDetail: { secret: "device-only" },
+      },
+    } as Profile;
+    const tree = { profile: contaminatedProfile, horizonYears: 10 } as LifeTree;
+    const body = JSON.stringify(buildEnrichmentRequest(tree, makePath({})));
+
+    expect(JSON.parse(body).profile.decisionStyle).toEqual(summary);
+    expect(body).not.toContain("tempo-1");
+    expect(body).not.toContain("tieBreaks");
+    expect(body).not.toContain("evidence");
+    expect(body).not.toContain("localDetail");
   });
 });

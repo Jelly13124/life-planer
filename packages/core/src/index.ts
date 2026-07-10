@@ -10,3 +10,4 @@
 // `goalById` in both goals.ts and goalTree.ts), which would create barrel
 // ambiguity. Deep-import those modules directly instead.
 export * from "./types";
+export * from "./decisionStyle";

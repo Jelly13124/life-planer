@@ -11,6 +11,7 @@ import type {
   SalaryBand,
   SavingsBand,
 } from "@/domain/types";
+import type { DecisionStyleSummary } from "@/domain/decisionStyle";
 import {
   buildSnapshot,
   deriveAreas,
@@ -22,7 +23,6 @@ import {
   SALARY_OPTIONS,
   SAVINGS_OPTIONS,
 } from "@/domain/profile";
-import { scoreQuiz, riskAppetiteFromAxes, type QuizAnswer } from "@/domain/lifePathCode";
 import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { Button } from "./ui/Button";
@@ -38,25 +38,39 @@ const debtOpts = [{ value: "" as DebtBand | "", label: "(暂不填)" }, ...DEBT_
 const familyOpts = [{ value: "" as FamilyResponsibility | "", label: "(暂不填)" }, ...FAMILY_OPTIONS];
 const riskOpts = [{ value: "" as RiskAppetite | "", label: "(暂不填)" }, ...RISK_OPTIONS];
 
+const STYLE_SUMMARY_KEY = "lifeplanner.decision-style.v2.summary";
+
+function readPendingDecisionStyle(): DecisionStyleSummary | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(STYLE_SUMMARY_KEY) ?? "") as DecisionStyleSummary;
+    const { scores } = parsed;
+    if (
+      parsed.version !== 2 ||
+      (parsed.source !== "quick" && parsed.source !== "full") ||
+      typeof parsed.code !== "string" ||
+      typeof parsed.completedAt !== "string" ||
+      !scores ||
+      ![scores.tempo, scores.focus, scores.engine, scores.drive].every(Number.isFinite)
+    ) return undefined;
+    return {
+      version: 2,
+      source: parsed.source,
+      code: parsed.code,
+      scores: { tempo: scores.tempo, focus: scores.focus, engine: scores.engine, drive: scores.drive },
+      completedAt: parsed.completedAt,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 export function Onboarding() {
   const { completeOnboarding } = useApp();
   const { t } = useT();
   const [step, setStep] = useState(0);
 
-  // 职场人格测试结果（从 /test 跳来时由 sessionStorage 一次性带入；纯读取，无 effect-setState）。
-  const [pendingLifePath] = useState<{ code: string; answers: QuizAnswer[] } | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const raw = sessionStorage.getItem("lp.lifePath");
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as { code: string; answers: QuizAnswer[] };
-      return parsed?.code ? parsed : null;
-    } catch {
-      return null;
-    }
-  });
-  const lifePathCode = pendingLifePath?.code;
-  const lifePathAnswers = pendingLifePath?.answers;
+  const [pendingDecisionStyle] = useState(readPendingDecisionStyle);
 
   const [name, setName] = useState("");
   const [age, setAge] = useState(28);
@@ -75,9 +89,7 @@ export function Onboarding() {
   const [debt, setDebt] = useState<DebtBand | "">("");
   const [assets, setAssets] = useState("");
   const [family, setFamily] = useState<FamilyResponsibility | "">("");
-  const [riskAppetite, setRiskAppetite] = useState<RiskAppetite | "">(
-    pendingLifePath ? riskAppetiteFromAxes(scoreQuiz(pendingLifePath.answers).axes) : "",
-  );
+  const [riskAppetite, setRiskAppetite] = useState<RiskAppetite | "">("");
 
   const [relationship, setRelationship] = useState<RelationshipStatus>("single");
   const [hobbies, setHobbies] = useState("");
@@ -86,13 +98,13 @@ export function Onboarding() {
 
   // 读取后清掉一次性载荷（仅清外部存储，effect 不调用 setState）。
   useEffect(() => {
-    if (!pendingLifePath) return;
+    if (!pendingDecisionStyle) return;
     try {
-      sessionStorage.removeItem("lp.lifePath");
+      sessionStorage.removeItem(STYLE_SUMMARY_KEY);
     } catch {
       /* 忽略 */
     }
-  }, [pendingLifePath]);
+  }, [pendingDecisionStyle]);
 
   const step0Valid = name.trim().length > 0 && age >= 10 && age <= 100;
   // 单线起手：岔路改为可选——不再要求填、也不再自动分叉（之后能在「我的规划」里变成目标）。
@@ -119,8 +131,7 @@ export function Onboarding() {
       assets: assets.trim() || undefined,
       family: family || undefined,
       riskAppetite: riskAppetite || undefined,
-      lifePathCode,
-      lifePathAnswers,
+      decisionStyle: pendingDecisionStyle,
     };
     const profile: Profile = {
       ...inputs,
