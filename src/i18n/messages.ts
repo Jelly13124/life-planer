@@ -9,21 +9,6 @@ export const EN: Record<string, string> = {
   "点底部分享按钮，选「添加到主屏幕」": "Tap the Share button, then “Add to Home Screen”",
   知道了: "Got it",
 
-  // ── 职场人格测试 / 人生路径码 ──
-  "职场人格测试 · 我的结果": "Career Type Test · My result",
-  职场人格测试: "Career Type Test",
-  光: "Up",
-  影: "Down",
-  打法: "Play",
-  这条路现实可行度: "How reachable this path is",
-  "约 {n}%": "~{n}%",
-  保存这张卡: "Save this card",
-  "28 题测你的": "Take the 28-question test",
-  "填完整资料，生成你真正的人生树 →": "Fill in your details → grow your real life tree →",
-  "← 上一题": "← Back",
-  "先 28 题测你的职场人格 →": "First, a 28-question career-type test →",
-  看看你是哪型: "Find your type",
-
   // ── 引导 Onboarding ──
   "先认识一下": "First, meet ",
   真实的你: "the real you",

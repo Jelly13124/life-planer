@@ -88,8 +88,4 @@ describe("Profile decision style", () => {
     expectTypeOf<Profile["decisionStyle"]>().toEqualTypeOf<DecisionStyleSummary | undefined>();
   });
 
-  it("does not expose retired life-path fields on Profile", () => {
-    expectTypeOf<Profile>().not.toHaveProperty("lifePathCode");
-    expectTypeOf<Profile>().not.toHaveProperty("lifePathAnswers");
-  });
 });
