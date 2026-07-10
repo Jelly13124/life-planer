@@ -14,7 +14,8 @@ import React, {
 } from "react";
 import { AppState } from "react-native";
 
-import type { GoalArea, Goal, LifeTree, Profile, Task, Scenario, LifeArea, LifePath } from "@lifeplanner/core/types";
+import type { GoalArea, Goal, LifeTree, Profile, Task, Scenario, LifeArea } from "@lifeplanner/core/types";
+import { mergeDecisionStyleSummary, type DecisionStyleSummary } from "@lifeplanner/core/decisionStyle";
 import {
   createTree,
   addPath,
@@ -70,6 +71,7 @@ import {
 } from "@lifeplanner/core/schedule";
 
 import { loadTree, saveTree, clearTree, backupTree } from "../lib/storage";
+import { clearDecisionStyleDetail } from "../lib/decisionStyleStorage";
 import { syncNotifications, syncDailyDigest } from "../lib/notifications";
 import { writeWidgetSnapshot } from "../lib/widgetSnapshot";
 import { initPurchases, MONETIZATION_ENABLED } from "../lib/purchases";
@@ -165,6 +167,7 @@ interface AppValue {
   enriching: boolean;
   retryEnrich: (pathId: string) => void;
   onboard: (inputs: ProfileInputs, win?: { start: string; end: string }) => void;
+  setDecisionStyleSummary: (summary: DecisionStyleSummary) => void;
   reset: () => void;
   setDailyDigest: (on: boolean) => void; // 每日摘要推送开关（undefined=默认开）
   // 后端（AI 建议；离线返回 []）
@@ -900,7 +903,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         })
         .finally(() => setEnriching(false));
     },
-    [commit],
+    [commit, spendAiOp],
   );
 
   // 删除一条分支（级联删其后代；维持现状不可删，由领域层保证）。
@@ -946,6 +949,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [commit],
   );
 
+  const setDecisionStyleSummary = useCallback(
+    (summary: DecisionStyleSummary) => {
+      const cur = treeRef.current;
+      if (!cur) return;
+      commit({
+        ...cur,
+        profile: {
+          ...cur.profile,
+          decisionStyle: mergeDecisionStyleSummary(cur.profile.decisionStyle, summary),
+        },
+        updatedAt: nowISO(),
+      });
+    },
+    [commit],
+  );
+
   const reset = useCallback(() => {
     // 先取消任何待触发的云端保存 —— 否则编辑→800ms 内 reset 会让旧树在清空云端行之后
     // 又被去抖定时器写回去，复活刚清掉的云端数据。
@@ -955,6 +974,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (uid && store) void store.deleteTree(uid).catch(() => {}); // fire-and-forget：清云端那一行（吞错，不阻塞本地重置）
     void (async () => {
       await clearTree();
+      await clearDecisionStyleDetail();
       setTree(null);
       treeRef.current = null;
     })();
@@ -1115,6 +1135,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       enriching,
       retryEnrich,
       onboard,
+      setDecisionStyleSummary,
       reset,
       setDailyDigest,
       suggestGoals,
@@ -1178,6 +1199,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     enriching,
     retryEnrich,
     onboard,
+    setDecisionStyleSummary,
     reset,
     setDailyDigest,
     suggestGoals,

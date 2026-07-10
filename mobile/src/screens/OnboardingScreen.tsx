@@ -27,6 +27,8 @@ import { useApp, type ProfileInputs } from "../state/store";
 import PredictingOverlay from "../components/PredictingOverlay";
 import { Button, Input, Muted } from "../ui";
 import { colors, radii, space } from "../theme";
+import DecisionStyleQuickTest from "../components/DecisionStyleQuickTest";
+import type { DecisionStyleSummary } from "@lifeplanner/core/decisionStyle";
 
 function ChipGroup<T extends string>({
   options,
@@ -100,6 +102,8 @@ export default function OnboardingScreen() {
   const [wake, setWake] = useState("07:00");
   const [sleep, setSleep] = useState("23:00");
   const [picker, setPicker] = useState<"wake" | "sleep" | null>(null);
+  const [styleSummary, setStyleSummary] = useState<DecisionStyleSummary | undefined>();
+  const [styleDone, setStyleDone] = useState(false);
 
   const ageNum = parseInt(age, 10);
   const valid = name.trim().length > 0 && Number.isFinite(ageNum) && ageNum >= 10 && ageNum <= 100;
@@ -142,6 +146,7 @@ export default function OnboardingScreen() {
       debt: debt || undefined,
       family: family || undefined,
       riskAppetite: riskAppetite || undefined,
+      decisionStyle: styleSummary,
     };
     onboard(inputs, { start: wake, end: sleep });
   };
@@ -307,6 +312,23 @@ export default function OnboardingScreen() {
       ),
     },
   ];
+
+  if (!styleDone) {
+    return (
+      <View style={{ flex: 1, paddingTop: insets.top }}>
+        <DecisionStyleQuickTest
+          onComplete={(summary) => {
+            setStyleSummary(summary);
+            setStyleDone(true);
+          }}
+          onSkip={() => {
+            setStyleSummary(undefined);
+            setStyleDone(true);
+          }}
+        />
+      </View>
+    );
+  }
 
   const cur = steps[step];
   const isLast = step === steps.length - 1;

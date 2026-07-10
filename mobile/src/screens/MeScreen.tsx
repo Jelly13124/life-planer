@@ -8,6 +8,7 @@ import { Button, Card, Input, Muted, SectionTitle } from "../ui";
 import { colors, space } from "../theme";
 import { ensureNotifPermission } from "../lib/notifications";
 import { restorePro, MONETIZATION_ENABLED } from "../lib/purchases";
+import DecisionStyleQuickTest from "../components/DecisionStyleQuickTest";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -38,6 +39,7 @@ export default function MeScreen() {
   const [error, setError] = React.useState<string | null>(null);
   const [digestHint, setDigestHint] = React.useState<string | null>(null);
   const [restoring, setRestoring] = React.useState(false);
+  const [styleRetake, setStyleRetake] = React.useState(false);
 
   const handleRestore = React.useCallback(async () => {
     if (restoring) return;
@@ -141,6 +143,40 @@ export default function MeScreen() {
           </View>
         </View>
       </Card>
+
+      <SectionTitle>职业决策风格</SectionTitle>
+      {styleRetake ? (
+        <DecisionStyleQuickTest
+          onComplete={(summary) => {
+            app.setDecisionStyleSummary(summary);
+            setStyleRetake(false);
+          }}
+          onSkip={() => setStyleRetake(false)}
+        />
+      ) : (
+        <Card>
+          {p?.decisionStyle ? (
+            <>
+              <Text style={styles.cardTitle}>
+                {p.decisionStyle.code} · {p.decisionStyle.source === "full" ? "完整" : "快测"}
+              </Text>
+              <Muted style={{ marginTop: 4 }}>当前倾向，不是固定人格</Muted>
+              <View style={styles.styleScoreRow}>
+                {Object.entries(p.decisionStyle.scores).map(([axis, score]) => (
+                  <Text key={axis} style={styles.styleScore}>{axis} {score}</Text>
+                ))}
+              </View>
+            </>
+          ) : (
+            <Muted>还没有测试结果，可以稍后补测。</Muted>
+          )}
+          <Button
+            label={p?.decisionStyle ? "重新测试" : "开始快测"}
+            kind="ghost"
+            onPress={() => setStyleRetake(true)}
+          />
+        </Card>
+      )}
 
       {/* 商品化暂缓（MONETIZATION_ENABLED=false）：整卡隐藏，开启后原样恢复 */}
       {MONETIZATION_ENABLED ? (
@@ -309,6 +345,8 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 16, fontWeight: "700", color: colors.fg, marginBottom: 6 },
   errorText: { color: colors.danger, marginBottom: 10 },
+  styleScoreRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginVertical: 12 },
+  styleScore: { color: colors.fgMuted, fontSize: 13 },
   linkRow: { flexDirection: "row", gap: 20, marginTop: 12 },
   link: { fontSize: 14, fontWeight: "600", color: colors.accent },
 });
