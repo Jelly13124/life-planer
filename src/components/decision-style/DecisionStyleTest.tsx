@@ -128,11 +128,19 @@ export function DecisionStyleTest({
   }
 
   if (draftState.stage === "result" && completedSummary) {
+    const continueToTree = () => {
+      if (tree && !applyDecisionStyleSummary) {
+        window.location.assign("/");
+        return;
+      }
+      onContinueToTree();
+    };
+
     return (
       <DecisionStyleResult
         summary={completedSummary}
         evidence={completedEvidence}
-        onContinue={onContinueToTree}
+        onContinue={continueToTree}
         onRestart={restart}
       />
     );
