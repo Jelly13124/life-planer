@@ -5,6 +5,7 @@ import { FULL_QUESTIONS, TIE_BREAKERS, scoreDecisionStyle, type DecisionStyleAns
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useApp } from "@/state/AppContext";
+import type { LifeTree } from "@/domain/types";
 import {
   clearDecisionStyleDraft,
   clearDecisionStyleLocalData,
@@ -14,6 +15,7 @@ import {
   saveDecisionStyleSummaryHandoff,
 } from "@/lib/decisionStyleStorage";
 import { DecisionStyleResult } from "./DecisionStyleResult";
+import { persistDecisionStyleSummary } from "@/lib/decisionStyleTreeBridge";
 
 type Stage = "intro" | "questions" | "tieBreakers" | "result";
 
@@ -62,7 +64,11 @@ export function DecisionStyleTest({
 }: {
   onContinueToTree: () => void;
 }) {
-  const { tree, applyDecisionStyleSummary } = useApp();
+  const app = useApp() as unknown as {
+    tree: LifeTree | null;
+    applyDecisionStyleSummary?: (summary: DecisionStyleSummary) => void;
+  };
+  const { tree, applyDecisionStyleSummary } = app;
   const [draftState, setDraftState] = useState(buildInitialState);
   const [completedSummary, setCompletedSummary] = useState<DecisionStyleSummary | null>(null);
   const [completedEvidence, setCompletedEvidence] = useState<ReturnType<typeof scoreDecisionStyle>["evidence"]>([]);
@@ -102,7 +108,10 @@ export function DecisionStyleTest({
 
     saveDecisionStyleDetail(draftState.detail);
     clearDecisionStyleDraft();
-    if (tree) applyDecisionStyleSummary(summary);
+    if (tree) {
+      if (applyDecisionStyleSummary) applyDecisionStyleSummary(summary);
+      else persistDecisionStyleSummary(summary, tree);
+    }
     else saveDecisionStyleSummaryHandoff(summary);
     setCompletedSummary(summary);
     setCompletedEvidence(next.evidence);

@@ -2,7 +2,11 @@
 
 import type { DecisionStyleLocalDetail, DecisionStyleSummary } from "@/domain/decisionStyle";
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { mergeDecisionStyleSummaryIntoTree } from "@/state/useAppApi";
+import {
+  mergeDecisionStyleSummaryIntoTree,
+  persistDecisionStyleSummary,
+} from "@/lib/decisionStyleTreeBridge";
+import { LocalStorageRepository } from "@/domain/repository/localStorageRepo";
 import type { LifeTree } from "@/domain/types";
 import {
   STYLE_DETAIL_KEY,
@@ -77,9 +81,9 @@ function makeTree(summary?: DecisionStyleSummary): LifeTree {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   sessionStorage.clear();
   localStorage.clear();
-  vi.restoreAllMocks();
 });
 
 describe("decisionStyleStorage", () => {
@@ -144,6 +148,24 @@ describe("decisionStyleStorage", () => {
     expect(() => saveDecisionStyleSummaryHandoff(quickSummary)).not.toThrow();
     expect(() => clearDecisionStyleLocalData()).not.toThrow();
   });
+
+  it("returns safely when browser storage property getters throw", () => {
+    const sessionStorageGetter = vi.spyOn(window, "sessionStorage", "get").mockImplementation(() => {
+      throw new Error("session storage blocked");
+    });
+
+    expect(loadDecisionStyleDraft()).toBeNull();
+    expect(() => saveDecisionStyleDraft(detail)).not.toThrow();
+    sessionStorageGetter.mockRestore();
+
+    const localStorageGetter = vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
+      throw new Error("local storage blocked");
+    });
+
+    expect(loadDecisionStyleDetail()).toBeNull();
+    expect(() => saveDecisionStyleDetail(detail)).not.toThrow();
+    localStorageGetter.mockRestore();
+  });
 });
 
 describe("mergeDecisionStyleSummaryIntoTree", () => {
@@ -164,5 +186,15 @@ describe("mergeDecisionStyleSummaryIntoTree", () => {
     const merged = mergeDecisionStyleSummaryIntoTree(current, quickSummary);
 
     expect(merged.profile.decisionStyle).toEqual(fullSummary);
+  });
+
+  it("persists a merged summary into an existing tree", () => {
+    const current = makeTree(quickSummary);
+
+    persistDecisionStyleSummary(fullSummary, current);
+
+    const persisted = new LocalStorageRepository().load();
+    expect(persisted?.profile.decisionStyle).toEqual(fullSummary);
+    expect(persisted?.profile.riskAppetite).toBe(current.profile.riskAppetite);
   });
 });

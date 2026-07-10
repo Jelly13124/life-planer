@@ -59,44 +59,55 @@ function removeKey(storage: Storage, key: string) {
   }
 }
 
+function resolveBrowserStorage(kind: "sessionStorage" | "localStorage"): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window[kind];
+  } catch {
+    return null;
+  }
+}
+
 export function loadDecisionStyleDraft(): DecisionStyleLocalDetail | null {
-  if (typeof window === "undefined") return null;
-  return readJson(window.sessionStorage, STYLE_DRAFT_KEY, isDecisionStyleDetail);
+  const storage = resolveBrowserStorage("sessionStorage");
+  return storage ? readJson(storage, STYLE_DRAFT_KEY, isDecisionStyleDetail) : null;
 }
 
 export function saveDecisionStyleDraft(detail: DecisionStyleLocalDetail) {
-  if (typeof window === "undefined") return;
-  writeJson(window.sessionStorage, STYLE_DRAFT_KEY, detail);
+  const storage = resolveBrowserStorage("sessionStorage");
+  if (storage) writeJson(storage, STYLE_DRAFT_KEY, detail);
 }
 
 export function clearDecisionStyleDraft() {
-  if (typeof window === "undefined") return;
-  removeKey(window.sessionStorage, STYLE_DRAFT_KEY);
+  const storage = resolveBrowserStorage("sessionStorage");
+  if (storage) removeKey(storage, STYLE_DRAFT_KEY);
 }
 
 export function loadDecisionStyleDetail(): DecisionStyleLocalDetail | null {
-  if (typeof window === "undefined") return null;
-  return readJson(window.localStorage, STYLE_DETAIL_KEY, isDecisionStyleDetail);
+  const storage = resolveBrowserStorage("localStorage");
+  return storage ? readJson(storage, STYLE_DETAIL_KEY, isDecisionStyleDetail) : null;
 }
 
 export function saveDecisionStyleDetail(detail: DecisionStyleLocalDetail) {
-  if (typeof window === "undefined") return;
-  writeJson(window.localStorage, STYLE_DETAIL_KEY, detail);
+  const storage = resolveBrowserStorage("localStorage");
+  if (storage) writeJson(storage, STYLE_DETAIL_KEY, detail);
 }
 
 export function loadDecisionStyleSummaryHandoff(): DecisionStyleSummary | null {
-  if (typeof window === "undefined") return null;
-  return readJson(window.sessionStorage, STYLE_SUMMARY_KEY, isDecisionStyleSummary);
+  const storage = resolveBrowserStorage("sessionStorage");
+  return storage ? readJson(storage, STYLE_SUMMARY_KEY, isDecisionStyleSummary) : null;
 }
 
 export function saveDecisionStyleSummaryHandoff(summary: DecisionStyleSummary) {
-  if (typeof window === "undefined") return;
-  writeJson(window.sessionStorage, STYLE_SUMMARY_KEY, summary);
+  const storage = resolveBrowserStorage("sessionStorage");
+  if (storage) writeJson(storage, STYLE_SUMMARY_KEY, summary);
 }
 
 export function clearDecisionStyleLocalData() {
-  if (typeof window === "undefined") return;
-  removeKey(window.sessionStorage, STYLE_DRAFT_KEY);
-  removeKey(window.sessionStorage, STYLE_SUMMARY_KEY);
-  removeKey(window.localStorage, STYLE_DETAIL_KEY);
+  const session = resolveBrowserStorage("sessionStorage");
+  if (session) {
+    removeKey(session, STYLE_DRAFT_KEY);
+    removeKey(session, STYLE_SUMMARY_KEY);
+  }
+  const local = resolveBrowserStorage("localStorage");
+  if (local) removeKey(local, STYLE_DETAIL_KEY);
 }
