@@ -81,12 +81,18 @@ export function scoreDecisionStyle(
   const code = pendingTieBreaks.length === 0
     ? AXIS_KEYS.map((axis) => letterFor(axis, scores[axis] === 50 ? tieBreaks[axis]! : scores[axis] > 50 ? "a" : "b")).join("") as DecisionStyleCode
     : undefined;
-  const evidence = evidenceCandidates
+  const rankedEvidence = evidenceCandidates
     .sort((left, right) => Math.abs(right.value) - Math.abs(left.value) || left.index - right.index)
-    .reduce<(DecisionStyleEvidence & { index: number })[]>((selected, candidate) => {
-      if (selected.length < 3 && !selected.some((item) => item.axis === candidate.axis)) selected.push(candidate);
-      return selected;
-    }, [])
+  const selectedEvidence: (DecisionStyleEvidence & { index: number })[] = [];
+  for (const candidate of rankedEvidence) {
+    if (!selectedEvidence.some((item) => item.axis === candidate.axis)) selectedEvidence.push(candidate);
+    if (selectedEvidence.length === 3) break;
+  }
+  for (const candidate of rankedEvidence) {
+    if (selectedEvidence.length === 3) break;
+    if (!selectedEvidence.includes(candidate)) selectedEvidence.push(candidate);
+  }
+  const evidence = selectedEvidence
     .map(({ index: _index, ...item }) => item);
 
   return {

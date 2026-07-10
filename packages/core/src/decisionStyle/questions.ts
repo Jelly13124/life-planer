@@ -4,20 +4,20 @@ export type DecisionStyleAnswerValue = -2 | -1 | 0 | 1 | 2;
 export type DecisionStyleSource = "quick" | "full";
 
 export interface DecisionStyleQuestion {
-  id: string;
-  axis: DecisionStyleAxis;
-  prompt: string;
-  left: { pole: DecisionStylePole; label: string };
-  right: { pole: DecisionStylePole; label: string };
-  quick: boolean;
+  readonly id: string;
+  readonly axis: DecisionStyleAxis;
+  readonly prompt: string;
+  readonly left: { readonly pole: DecisionStylePole; readonly label: string };
+  readonly right: { readonly pole: DecisionStylePole; readonly label: string };
+  readonly quick: boolean;
 }
 
 const question = (
   id: string, axis: DecisionStyleAxis, prompt: string,
-  left: { pole: DecisionStylePole; label: string }, right: { pole: DecisionStylePole; label: string }, quick: boolean,
-): DecisionStyleQuestion => ({ id, axis, prompt, left, right, quick });
+  left: DecisionStyleQuestion["left"], right: DecisionStyleQuestion["right"], quick: boolean,
+): DecisionStyleQuestion => Object.freeze({ id, axis, prompt, left: Object.freeze(left), right: Object.freeze(right), quick });
 
-export const FULL_QUESTIONS: DecisionStyleQuestion[] = [
+export const FULL_QUESTIONS: readonly DecisionStyleQuestion[] = Object.freeze([
   question("tempo-1", "tempo", "回想最近一次信息还不完整的职业机会，你通常会：", { pole: "a", label: "先做一个小范围尝试，再根据反馈调整" }, { pole: "b", label: "先补齐关键事实，再决定是否行动" }, true),
   question("tempo-2", "tempo", "最近需要推进一个陌生任务时，你更常见的起步方式是：", { pole: "b", label: "先列出要验证的问题和判断标准" }, { pole: "a", label: "先完成可执行的第一步，再暴露问题" }, true),
   question("tempo-3", "tempo", "面对一个有时效的合作邀约，你近几次更倾向于：", { pole: "a", label: "先约一次沟通或试合作，边做边判断" }, { pole: "b", label: "先确认边界、资源和风险，再回复" }, true),
@@ -49,13 +49,13 @@ export const FULL_QUESTIONS: DecisionStyleQuestion[] = [
   question("drive-5", "drive", "最近规划下一步时，你更常先问：", { pole: "a", label: "它能否支持我想维持的生活和责任" }, { pole: "b", label: "它是否靠近我真正想解决的问题" }, false),
   question("drive-6", "drive", "当一项工作有意义但条件一般时，你通常：", { pole: "b", label: "会认真评估是否值得为意义调整安排" }, { pole: "a", label: "会优先确认保障条件是否能够承受" }, false),
   question("drive-7", "drive", "回顾近几次重要决定，你更希望结果带来：", { pole: "a", label: "更稳妥的回报和安全余量" }, { pole: "b", label: "更强的认同感和实现感" }, false),
-];
+]);
 
-export const QUICK_QUESTIONS = FULL_QUESTIONS.filter((item) => item.quick);
+export const QUICK_QUESTIONS: readonly DecisionStyleQuestion[] = Object.freeze(FULL_QUESTIONS.filter((item) => item.quick));
 
-export const TIE_BREAKERS: DecisionStyleQuestion[] = [
+export const TIE_BREAKERS: readonly DecisionStyleQuestion[] = Object.freeze([
   question("tempo-tie", "tempo", "信息还不完整、成本也可控时，你这次更愿意：", { pole: "a", label: "先试一次再调整" }, { pole: "b", label: "先验证再行动" }, false),
   question("focus-tie", "focus", "接下来一个月，你更愿意把额外时间放在：", { pole: "a", label: "一个主线的深入推进" }, { pole: "b", label: "几条方向的并行探索" }, false),
   question("engine-tie", "engine", "需要启动新计划时，你这次更想优先：", { pole: "a", label: "自己掌控关键安排" }, { pole: "b", label: "借助已有平台和协作" }, false),
   question("drive-tie", "drive", "两种选择难分高下时，你这次更优先：", { pole: "a", label: "保障回报和稳定" }, { pole: "b", label: "实现意义和认同" }, false),
-];
+]);

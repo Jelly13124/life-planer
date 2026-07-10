@@ -1,17 +1,17 @@
 import type { DecisionStyleCode } from "./axes";
 
 export interface DecisionStyleType {
-  code: DecisionStyleCode;
-  label: string;
-  strength: string;
-  cost: string;
-  advice: string;
-  tension: string;
+  readonly code: DecisionStyleCode;
+  readonly label: string;
+  readonly strength: string;
+  readonly cost: string;
+  readonly advice: string;
+  readonly tension: string;
 }
 
-const type = (code: DecisionStyleCode, label: string, strength: string, cost: string, advice: string, tension: string): DecisionStyleType => ({ code, label, strength, cost, advice, tension });
+const type = (code: DecisionStyleCode, label: string, strength: string, cost: string, advice: string, tension: string): DecisionStyleType => Object.freeze({ code, label, strength, cost, advice, tension });
 
-const TYPES: DecisionStyleType[] = [
+const TYPES: readonly DecisionStyleType[] = Object.freeze([
   type("FDBG", "务实攻坚者", "在目标清晰且需要快速推进时，能把注意力集中到关键动作。", "过度追求速度和确定回报时，可能忽略需要沉淀的关系与判断。", "重大选择前补一次反方验证，确认短期推进不会挤掉重要后手。", "想快速掌控结果，与为保障留出验证空间之间的拉扯。"),
   type("FDBV", "信念开拓者", "在尚无现成答案时，能围绕重视的方向主动开路。", "过度依靠个人推动时，可能低估协作和现实约束带来的成本。", "保留一位能提供不同视角的同伴，定期校准投入边界。", "想按内在方向快进，与长期独自承担不确定性之间的拉扯。"),
   type("FDLG", "借势攀登者", "能在明确主线中迅速行动，并把现有资源转化为进展。", "过度追逐节奏和资源时，可能把自己的判断交给外部安排。", "在关键节点写下自己的选择标准，避免只跟随眼前机会。", "快速前进与借助既有结构之间的拉扯。"),
@@ -28,10 +28,10 @@ const TYPES: DecisionStyleType[] = [
   type("SWBV", "自在探索者", "能在谨慎节奏中探索多种可能，同时照顾自己的认同感。", "过度保留选择时，可能让重要想法一直停留在准备阶段。", "为最在意的一条线设定一次可承担的实际行动。", "保持从容与让探索真正发生之间的拉扯。"),
   type("SWLG", "稳健多栖者", "能利用现有资源维持多种选择，并保持较好的安全余量。", "过度依赖外部安排时，可能使自己的优先级逐渐模糊。", "区分哪些连接真正支持你，哪些只是消耗注意力。", "多重保障与自主取舍之间的拉扯。"),
   type("SWLV", "从容连接者", "能在多元协作中保持审慎，关注关系和事情带来的意义。", "过度顾及各方时，可能推迟自己需要做出的明确选择。", "在下个决定前先写出个人优先级，再寻求协作方案。", "照顾多方连接与清晰表达个人方向之间的拉扯。"),
-];
+]);
 
-export function allDecisionStyleTypes(): DecisionStyleType[] {
-  return TYPES.slice();
+export function allDecisionStyleTypes(): readonly DecisionStyleType[] {
+  return TYPES;
 }
 
 export function decisionStyleTypeByCode(code: string): DecisionStyleType | undefined {

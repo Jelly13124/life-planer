@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   AXES,
   AXIS_KEYS,
@@ -47,10 +47,24 @@ describe("decisionStyle inventory", () => {
     }
   });
 
-  it("defines only the five supported answer values and all valid codes", () => {
-    const values: DecisionStyleAnswerValue[] = [-2, -1, 0, 1, 2];
-    expect(values).toEqual([-2, -1, 0, 1, 2]);
-    for (const type of allDecisionStyleTypes()) expect(type.code).toMatch(/^[FS][DW][BL][GV]$/);
+  it("exports immutable inventories and exact type content keys", () => {
+    for (const inventory of [AXIS_KEYS, AXES, FULL_QUESTIONS, QUICK_QUESTIONS, TIE_BREAKERS]) {
+      expect(Object.isFrozen(inventory)).toBe(true);
+    }
+    for (const question of [...FULL_QUESTIONS, ...TIE_BREAKERS]) {
+      expect(Object.isFrozen(question)).toBe(true);
+      expect(Object.isFrozen(question.left)).toBe(true);
+      expect(Object.isFrozen(question.right)).toBe(true);
+    }
+    for (const type of allDecisionStyleTypes()) {
+      expect(Object.keys(type).sort()).toEqual(["advice", "code", "cost", "label", "strength", "tension"]);
+      expect(Object.isFrozen(type)).toBe(true);
+      expect(type.code).toMatch(/^[FS][DW][BL][GV]$/);
+    }
+  });
+
+  it("limits answer values to the public five-value union", () => {
+    expectTypeOf<DecisionStyleAnswerValue>().toEqualTypeOf<-2 | -1 | 0 | 1 | 2>();
   });
 });
 
@@ -68,6 +82,12 @@ describe("decisionStyle scoring", () => {
     expect(complete.code).toBe("FWBV");
   });
 
+  it("requests tie-breaks only for axes that remain balanced", () => {
+    const result = scoreDecisionStyle("full", [{ questionId: "tempo-1", value: -2 }]);
+    expect(result.pendingTieBreaks).toEqual(["focus", "engine", "drive"]);
+    expect(result.scores.tempo).toBeGreaterThan(50);
+  });
+
   it("scores A and B extremes, including reversed visual poles", () => {
     const allA = FULL_QUESTIONS.map((question) => ({
       questionId: question.id,
@@ -83,14 +103,14 @@ describe("decisionStyle scoring", () => {
     expect(scoreDecisionStyle("full", allB).code).toBe("SWLV");
   });
 
-  it("clamps scores and labels the inclusive 45/55 band as slight", () => {
+  it("clamps duplicate/excess answers and labels the inclusive 45/55 band as slight", () => {
     const tempo = FULL_QUESTIONS.filter((question) => question.axis === "tempo");
     const answers = [
       ...tempo.map((question) => ({
         questionId: question.id,
         value: (question.left.pole === "a" ? -2 : 2) as DecisionStyleAnswerValue,
       })),
-      { questionId: "unknown", value: -2 as const },
+      ...Array.from({ length: 4 }, () => ({ questionId: tempo[0].id, value: -2 as const })),
     ];
     const result = scoreDecisionStyle("full", answers, { focus: "a", engine: "a", drive: "a" });
     expect(result.scores.tempo).toBe(100);
@@ -114,6 +134,25 @@ describe("decisionStyle scoring", () => {
     expect(evidence.map((item) => item.questionId)).toEqual(["tempo-1", "focus-1", "engine-1"]);
     expect(new Set(evidence.map((item) => item.axis)).size).toBe(3);
     expect(evidence.every((item) => item.choiceLabel.length > 0)).toBe(true);
+  });
+
+  it("fills all three evidence slots when eligible answers are concentrated in one axis", () => {
+    const evidence = scoreDecisionStyle("full", [
+      { questionId: "tempo-1", value: -2 },
+      { questionId: "tempo-2", value: -2 },
+      { questionId: "tempo-3", value: -2 },
+    ]).evidence;
+    expect(evidence.map((item) => item.questionId)).toEqual(["tempo-1", "tempo-2", "tempo-3"]);
+  });
+
+  it("fills remaining evidence slots after selecting strongest distinct axes", () => {
+    const evidence = scoreDecisionStyle("full", [
+      { questionId: "tempo-1", value: -2 },
+      { questionId: "tempo-2", value: -2 },
+      { questionId: "focus-1", value: -2 },
+      { questionId: "focus-2", value: -2 },
+    ]).evidence;
+    expect(evidence.map((item) => item.questionId)).toEqual(["tempo-1", "focus-1", "tempo-2"]);
   });
 
   it("keeps the strongest completed summary by source and completion time", () => {
