@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { allDecisionStyleTypes } from "@/domain/decisionStyle";
 import { buildDecisionStyleContext } from "@/lib/enrich";
 import { applyEnrichment, buildEnrichmentRequest, type EnrichResult } from "@/lib/enrichClient";
+import { buildOnboardingProfile } from "@/lib/onboardingProfile";
 import type { LifeArea, LifePath, LifeTree, MetricPoint, Profile } from "@/domain/types";
 
 const emptyMetrics = {} as Record<LifeArea, MetricPoint[]>;
@@ -119,13 +120,32 @@ describe("decision-style AI boundary", () => {
   it.each([
     ["quick", "balanced"],
     ["full", "aggressive"],
-  ] as const)("preserves a user-selected risk appetite for %s summaries in the enrichment request", (source, riskAppetite) => {
+  ] as const)("preserves a user-selected risk appetite through onboarding construction for %s summaries", (source, riskAppetite) => {
+    const onboardingProfile = buildOnboardingProfile({
+      name: "Ming",
+      age: 28,
+      education: "bachelor",
+      major: "",
+      location: "",
+      nationality: undefined,
+      occupation: "",
+      salary: "5to10",
+      hasSideHustle: false,
+      sideHustle: "",
+      hobbies: "",
+      relationship: "single",
+      status: "",
+      crossroad: "",
+      skills: undefined,
+      savings: undefined,
+      debt: undefined,
+      assets: undefined,
+      family: undefined,
+      riskAppetite,
+      decisionStyle: { ...summary, source },
+    });
     const tree = {
-      profile: {
-        ...profile,
-        riskAppetite,
-        decisionStyle: { ...summary, source },
-      },
+      profile: onboardingProfile,
       horizonYears: 10,
     } as LifeTree;
 
@@ -135,14 +155,15 @@ describe("decision-style AI boundary", () => {
     expect(request.profile.decisionStyle).toEqual({ ...summary, source });
   });
 
-  it("returns no decision-style context for malformed v2 numeric summaries", () => {
-    const malformed = {
-      ...summary,
-      scores: { tempo: Number.NaN, focus: 64, engine: 101, drive: Number.POSITIVE_INFINITY },
-    };
-
-    expect(() => buildDecisionStyleContext(malformed)).not.toThrow();
-    expect(buildDecisionStyleContext(malformed)).toBe("");
+  it.each([
+    [{ version: 2, source: "full", code: "FDBG", scores: null, completedAt: "2026-07-10T09:00:00.000Z" }],
+    [{ version: 2, source: "full", code: "FDBG", completedAt: "2026-07-10T09:00:00.000Z" }],
+    [{ version: 2, source: "full", code: "FDBG", scores: { tempo: 76, focus: 64, engine: 82 }, completedAt: "2026-07-10T09:00:00.000Z" }],
+    [{ version: 2, source: "full", code: "FDBG", scores: { tempo: Number.NaN, focus: 64, engine: 82, drive: 91 }, completedAt: "2026-07-10T09:00:00.000Z" }],
+    [{ version: 2, source: "full", code: "FDBG", scores: { tempo: 76, focus: 64, engine: 101, drive: Number.POSITIVE_INFINITY }, completedAt: "2026-07-10T09:00:00.000Z" }],
+  ] as const)("returns no decision-style context and never throws for malformed v2 summaries: %j", (malformed) => {
+    expect(() => buildDecisionStyleContext(malformed as never)).not.toThrow();
+    expect(buildDecisionStyleContext(malformed as never)).toBe("");
   });
 
   it("whitelists the style summary in the client enrichment request", () => {

@@ -24,3 +24,29 @@ Fix review follow-up:
   - PASS — `npm test -- src/lib/__tests__/enrichClient.test.ts packages/core/src/__tests__/profile.test.ts`
   - PASS — `npm run typecheck`
   - PASS — `npx tsc -p mobile/tsconfig.json --noEmit`
+
+Follow-up fix commit (remaining review findings):
+
+- Files:
+  - `src/components/Onboarding.tsx`
+  - `src/lib/onboardingProfile.ts`
+  - `src/lib/enrich.ts`
+  - `src/lib/__tests__/enrichClient.test.ts`
+
+- Root cause:
+  - the risk-independence test started from an already-built `Profile`, so it never exercised the real onboarding construction path
+  - `buildDecisionStyleContext` assumed `decisionStyle.scores` was a destructurable object once `version === 2`
+
+- TDD evidence:
+  - RED — `npm test -- src/lib/__tests__/enrichClient.test.ts` failed because `@/lib/onboardingProfile` did not exist yet, proving the production onboarding path was not extractable/testable
+  - GREEN — added a shared pure onboarding-profile builder used by `Onboarding`, then reran the same test file to passing
+
+- Tests added/adjusted:
+  - quick/full risk-appetite regression now builds the profile through the extracted onboarding constructor before creating the enrichment request
+  - malformed decision-style cases now cover `scores: null`, missing `scores`, missing axis values, non-finite numbers, and out-of-range values, all asserting empty context and no throw
+
+- Results:
+  - PASS — `npm test -- src/lib/__tests__/enrichClient.test.ts`
+  - PASS — `npm test -- src/lib/__tests__/enrichClient.test.ts packages/core/src/__tests__/profile.test.ts`
+  - PASS — `npm run typecheck`
+  - PASS — `npx tsc -p mobile/tsconfig.json --noEmit`

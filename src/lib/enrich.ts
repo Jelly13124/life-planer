@@ -52,11 +52,20 @@ function isValidDecisionStyleScore(value: number): boolean {
   return Number.isFinite(value) && value >= 0 && value <= 100;
 }
 
+function hasValidDecisionStyleScores(
+  scores: DecisionStyleSummary["scores"] | null | undefined,
+): scores is DecisionStyleSummary["scores"] {
+  if (!scores || typeof scores !== "object") return false;
+
+  const { tempo, focus, engine, drive } = scores;
+  return [tempo, focus, engine, drive].every(isValidDecisionStyleScore);
+}
+
 export function buildDecisionStyleContext(summary: DecisionStyleSummary | undefined): string {
   if (summary?.version !== 2) return "";
 
+  if (!hasValidDecisionStyleScores(summary.scores)) return "";
   const { tempo, focus, engine, drive } = summary.scores;
-  if (![tempo, focus, engine, drive].every(isValidDecisionStyleScore)) return "";
 
   return [
     "Decision-style context (low weight): self-reported decision style summary, not a fact, personality assessment, or judgment.",

@@ -13,8 +13,6 @@ import type {
 } from "@/domain/types";
 import type { DecisionStyleSummary } from "@/domain/decisionStyle";
 import {
-  buildSnapshot,
-  deriveAreas,
   DEBT_OPTIONS,
   EDUCATION_OPTIONS,
   FAMILY_OPTIONS,
@@ -23,6 +21,7 @@ import {
   SALARY_OPTIONS,
   SAVINGS_OPTIONS,
 } from "@/domain/profile";
+import { buildOnboardingProfile } from "@/lib/onboardingProfile";
 import { useApp } from "@/state/AppContext";
 import { useT } from "@/prefs/PreferencesContext";
 import { Button } from "./ui/Button";
@@ -133,11 +132,7 @@ export function Onboarding() {
       riskAppetite: riskAppetite || undefined,
       decisionStyle: pendingDecisionStyle,
     };
-    const profile: Profile = {
-      ...inputs,
-      snapshot: buildSnapshot(inputs),
-      areas: deriveAreas(inputs),
-    };
+    const profile: Profile = buildOnboardingProfile(inputs);
     completeOnboarding(profile);
   }
 
