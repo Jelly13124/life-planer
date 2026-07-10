@@ -62,7 +62,7 @@ beforeEach(() => {
 });
 
 describe("DecisionStyleTest", () => {
-  it("restores a saved draft after refresh, preserves back navigation state, and can restart with confirmation", () => {
+  it("restores a saved draft after refresh, preserves back navigation state, and can restart with confirmation", async () => {
     const onContinueToTree = vi.fn();
     const { unmount } = render(<DecisionStyleTest onContinueToTree={onContinueToTree} />);
 
@@ -86,7 +86,7 @@ describe("DecisionStyleTest", () => {
     unmount();
 
     render(<DecisionStyleTest onContinueToTree={onContinueToTree} />);
-    expect(screen.getByText(/第 2 \/ 28 题/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/第 2 \/ 28 题/)).toBeInTheDocument());
 
     vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
     fireEvent.click(screen.getByRole("button", { name: "重新测试" }));
@@ -123,7 +123,7 @@ describe("DecisionStyleTest", () => {
     expect(localStorage.getItem(STYLE_DETAIL_KEY)).toContain('"version":2');
   });
 
-  it("can resume from a persisted draft written outside the component", () => {
+  it("can resume from a persisted draft written outside the component", async () => {
     saveDecisionStyleDraft({
       version: 2,
       answers: [{ questionId: FULL_QUESTIONS[0].id, value: -2 }],
@@ -132,7 +132,7 @@ describe("DecisionStyleTest", () => {
 
     render(<DecisionStyleTest onContinueToTree={vi.fn()} />);
 
-    expect(screen.getByText(/第 2 \/ 28 题/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/第 2 \/ 28 题/)).toBeInTheDocument());
   });
 
   it("uses an inviter token only for the current completion flow, then clears invite state", async () => {

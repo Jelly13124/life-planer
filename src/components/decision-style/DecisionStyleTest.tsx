@@ -95,14 +95,18 @@ export function DecisionStyleTest({
     applyDecisionStyleSummary?: (summary: DecisionStyleSummary) => void;
   };
   const { tree, applyDecisionStyleSummary } = app;
-  const [draftState, setDraftState] = useState(buildInitialState);
+  // Keep the first render identical on the server and client. Draft storage is
+  // browser-only, so restore it after hydration instead of reading it in the
+  // state initializer.
+  const [draftState, setDraftState] = useState<DraftState>(() => ({
+    stage: "intro",
+    detail: { version: 2, answers: [], tieBreaks: {} },
+  }));
   const [completedSummary, setCompletedSummary] = useState<DecisionStyleSummary | null>(null);
   const [completedEvidence, setCompletedEvidence] = useState<ReturnType<typeof scoreDecisionStyle>["evidence"]>([]);
   const [compareError, setCompareError] = useState<string | null>(null);
   const analyticsStarted = useRef(false);
-  const [questionIndex, setQuestionIndex] = useState(() =>
-    Math.min(buildInitialState().detail.answers.length, FULL_QUESTIONS.length - 1),
-  );
+  const [questionIndex, setQuestionIndex] = useState(0);
 
   const scoring = useMemo(
     () => scoreDecisionStyle("full", draftState.detail.answers, draftState.detail.tieBreaks),
@@ -115,6 +119,19 @@ export function DecisionStyleTest({
 
   const activeQuestion = FULL_QUESTIONS[questionIndex];
   const activeTieBreaker = tieBreakQueue[0] ?? null;
+
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      const restored = buildInitialState();
+      setDraftState(restored);
+      setQuestionIndex(Math.min(restored.detail.answers.length, FULL_QUESTIONS.length - 1));
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (analyticsStarted.current) return;

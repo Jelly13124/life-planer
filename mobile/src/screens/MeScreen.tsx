@@ -55,7 +55,7 @@ export default function MeScreen() {
     } finally {
       setSharingStyle(false);
     }
-  }, [p?.decisionStyle, sharingStyle]);
+  }, [p, sharingStyle]);
 
   const handleRestore = React.useCallback(async () => {
     if (restoring) return;

@@ -1,4 +1,4 @@
-import { AXES, AXIS_KEYS, letterFor, type DecisionStyleAxis, type DecisionStyleCode, type DecisionStylePole } from "./axes";
+import { AXIS_KEYS, letterFor, type DecisionStyleAxis, type DecisionStyleCode, type DecisionStylePole } from "./axes";
 import { FULL_QUESTIONS, QUICK_QUESTIONS, type DecisionStyleAnswerValue, type DecisionStyleSource } from "./questions";
 
 export interface DecisionStyleAxisScores {
@@ -92,8 +92,12 @@ export function scoreDecisionStyle(
     if (selectedEvidence.length === 3) break;
     if (!selectedEvidence.includes(candidate)) selectedEvidence.push(candidate);
   }
-  const evidence = selectedEvidence
-    .map(({ index: _index, ...item }) => item);
+  const evidence = selectedEvidence.map(({ questionId, axis, choiceLabel, value }) => ({
+    questionId,
+    axis,
+    choiceLabel,
+    value,
+  }));
 
   return {
     scores,

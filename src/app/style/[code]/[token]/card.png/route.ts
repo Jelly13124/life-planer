@@ -11,10 +11,12 @@ export async function GET(
   {
     params,
   }: {
-    params: Promise<{ code: string; token: string }>;
+    params: Promise<unknown>;
   },
 ) {
-  const payload = await resolveDecisionStyleSharePayload(params);
+  const payload = await resolveDecisionStyleSharePayload(
+    params as Promise<{ code: string; token: string }>,
+  );
   if (!payload) return new Response("Not found", { status: 404 });
 
   return new ImageResponse(createElement(DecisionStyleShareCard, { payload }), {

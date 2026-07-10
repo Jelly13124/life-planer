@@ -1,18 +1,15 @@
 import { SHARE_BASE_URL } from "./supabase";
 
-const EVENTS = [
-  "style_view",
-  "style_start",
-  "style_skip",
-  "style_complete",
-  "style_share",
-  "style_share_open",
-  "style_compare_start",
-  "style_compare_complete",
-  "style_continue_tree",
-] as const;
-
-type DecisionStyleEvent = (typeof EVENTS)[number];
+type DecisionStyleEvent =
+  | "style_view"
+  | "style_start"
+  | "style_skip"
+  | "style_complete"
+  | "style_share"
+  | "style_share_open"
+  | "style_compare_start"
+  | "style_compare_complete"
+  | "style_continue_tree";
 type DecisionStyleSource = "direct" | "shared" | "compare";
 
 export async function trackAppDecisionStyleEvent(
