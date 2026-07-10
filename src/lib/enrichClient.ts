@@ -6,6 +6,7 @@ import {
   type LifeTree,
   type Mood,
   type PathNode,
+  type Profile,
 } from "@/domain/types";
 import type { DecisionStyleSummary } from "@/domain/decisionStyle";
 import { currentLocale } from "@/i18n/locale";
@@ -47,11 +48,38 @@ function serializeDecisionStyle(summary: DecisionStyleSummary | undefined): Deci
   };
 }
 
-export function buildEnrichmentRequest(tree: LifeTree, path: LifePath) {
-  const { decisionStyle: rawDecisionStyle, ...profile } = tree.profile;
-  const decisionStyle = serializeDecisionStyle(rawDecisionStyle);
+function serializeProfile(profile: Profile): Profile {
+  const decisionStyle = serializeDecisionStyle(profile.decisionStyle);
   return {
-    profile: decisionStyle ? { ...profile, decisionStyle } : profile,
+    name: profile.name,
+    age: profile.age,
+    education: profile.education,
+    major: profile.major,
+    occupation: profile.occupation,
+    salary: profile.salary,
+    hasSideHustle: profile.hasSideHustle,
+    sideHustle: profile.sideHustle,
+    hobbies: profile.hobbies,
+    relationship: profile.relationship,
+    location: profile.location,
+    nationality: profile.nationality,
+    status: profile.status,
+    snapshot: profile.snapshot,
+    areas: profile.areas,
+    crossroad: profile.crossroad,
+    skills: profile.skills,
+    savings: profile.savings,
+    debt: profile.debt,
+    assets: profile.assets,
+    family: profile.family,
+    riskAppetite: profile.riskAppetite,
+    decisionStyle,
+  };
+}
+
+export function buildEnrichmentRequest(tree: LifeTree, path: LifePath) {
+  return {
+    profile: serializeProfile(tree.profile),
     currentAge: tree.profile.age,
     startAge: path.forkAge ?? tree.profile.age,
     horizonYears: tree.horizonYears,

@@ -118,8 +118,10 @@ describe("decision-style AI boundary", () => {
   it("whitelists the style summary in the client enrichment request", () => {
     const contaminatedProfile = {
       ...profile,
+      decisionStyleLocalDetail: { secret: "device-only" },
       decisionStyle: {
         ...summary,
+        label: "务实攻坚者",
         answers: [{ questionId: "tempo-1", value: 2 }],
         tieBreaks: { tempo: "a" },
         evidence: [{ questionId: "tempo-1" }],
@@ -134,5 +136,7 @@ describe("decision-style AI boundary", () => {
     expect(body).not.toContain("tieBreaks");
     expect(body).not.toContain("evidence");
     expect(body).not.toContain("localDetail");
+    expect(body).not.toContain("decisionStyleLocalDetail");
+    expect(body).not.toContain("务实攻坚者");
   });
 });
