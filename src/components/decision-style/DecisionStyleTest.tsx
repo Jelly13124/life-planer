@@ -1,11 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FULL_QUESTIONS, TIE_BREAKERS, scoreDecisionStyle, type DecisionStyleAnswerValue, type DecisionStyleAxis, type DecisionStyleLocalDetail, type DecisionStyleQuestion, type DecisionStyleSummary } from "@/domain/decisionStyle";
+import {
+  FULL_QUESTIONS,
+  TIE_BREAKERS,
+  scoreDecisionStyle,
+  type DecisionStyleAnswerValue,
+  type DecisionStyleAxis,
+  type DecisionStyleLocalDetail,
+  type DecisionStyleQuestion,
+  type DecisionStyleSummary,
+} from "@/domain/decisionStyle";
+import type { LifeTree } from "@/domain/types";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { useApp } from "@/state/AppContext";
-import type { LifeTree } from "@/domain/types";
+import { requestDecisionStyleShareLink } from "@/lib/decisionStyleShareClient";
 import {
   clearDecisionStyleDraft,
   clearDecisionStyleLocalData,
@@ -14,8 +23,9 @@ import {
   saveDecisionStyleDraft,
   saveDecisionStyleSummaryHandoff,
 } from "@/lib/decisionStyleStorage";
-import { DecisionStyleResult } from "./DecisionStyleResult";
 import { persistDecisionStyleSummary } from "@/lib/decisionStyleTreeBridge";
+import { useApp } from "@/state/AppContext";
+import { DecisionStyleResult } from "./DecisionStyleResult";
 
 type Stage = "intro" | "questions" | "tieBreakers" | "result";
 
@@ -29,6 +39,7 @@ function buildInitialState(): DraftState {
   if (!draft) {
     return { stage: "intro", detail: { version: 2, answers: [], tieBreaks: {} } };
   }
+
   const result = scoreDecisionStyle("full", draft.answers, draft.tieBreaks);
   if (draft.answers.length < FULL_QUESTIONS.length) return { stage: "questions", detail: draft };
   if (result.code) return { stage: "result", detail: draft };
@@ -45,14 +56,22 @@ function intensityOptions(question: DecisionStyleQuestion) {
   ];
 }
 
-function updateAnswer(detail: DecisionStyleLocalDetail, questionId: string, value: DecisionStyleAnswerValue): DecisionStyleLocalDetail {
+function updateAnswer(
+  detail: DecisionStyleLocalDetail,
+  questionId: string,
+  value: DecisionStyleAnswerValue,
+): DecisionStyleLocalDetail {
   const answers = detail.answers.some((item) => item.questionId === questionId)
     ? detail.answers.map((item) => (item.questionId === questionId ? { ...item, value } : item))
     : [...detail.answers, { questionId, value }];
   return { ...detail, answers };
 }
 
-function updateTieBreak(detail: DecisionStyleLocalDetail, axis: DecisionStyleAxis, pole: "a" | "b"): DecisionStyleLocalDetail {
+function updateTieBreak(
+  detail: DecisionStyleLocalDetail,
+  axis: DecisionStyleAxis,
+  pole: "a" | "b",
+): DecisionStyleLocalDetail {
   return {
     ...detail,
     tieBreaks: { ...detail.tieBreaks, [axis]: pole },
@@ -61,8 +80,14 @@ function updateTieBreak(detail: DecisionStyleLocalDetail, axis: DecisionStyleAxi
 
 export function DecisionStyleTest({
   onContinueToTree,
+  inviteToken,
+  onCompareReady,
+  onInviteCleared,
 }: {
   onContinueToTree: () => void;
+  inviteToken?: string | null;
+  onCompareReady?: (path: string) => void;
+  onInviteCleared?: () => void;
 }) {
   const app = useApp() as unknown as {
     tree: LifeTree | null;
@@ -72,7 +97,10 @@ export function DecisionStyleTest({
   const [draftState, setDraftState] = useState(buildInitialState);
   const [completedSummary, setCompletedSummary] = useState<DecisionStyleSummary | null>(null);
   const [completedEvidence, setCompletedEvidence] = useState<ReturnType<typeof scoreDecisionStyle>["evidence"]>([]);
-  const [questionIndex, setQuestionIndex] = useState(() => Math.min(buildInitialState().detail.answers.length, FULL_QUESTIONS.length - 1));
+  const [compareError, setCompareError] = useState<string | null>(null);
+  const [questionIndex, setQuestionIndex] = useState(() =>
+    Math.min(buildInitialState().detail.answers.length, FULL_QUESTIONS.length - 1),
+  );
 
   const scoring = useMemo(
     () => scoreDecisionStyle("full", draftState.detail.answers, draftState.detail.tieBreaks),
@@ -91,7 +119,7 @@ export function DecisionStyleTest({
     setDraftState({ stage, detail });
   }
 
-  function finish() {
+  async function finish() {
     const next = scoreDecisionStyle("full", draftState.detail.answers, draftState.detail.tieBreaks);
     if (!next.code) {
       setDraftState((current) => ({ ...current, stage: "tieBreakers" }));
@@ -108,11 +136,26 @@ export function DecisionStyleTest({
 
     saveDecisionStyleDetail(draftState.detail);
     clearDecisionStyleDraft();
+    setCompareError(null);
+
     if (tree) {
       if (applyDecisionStyleSummary) applyDecisionStyleSummary(summary);
       else persistDecisionStyleSummary(summary, tree);
+    } else if (!inviteToken) {
+      saveDecisionStyleSummaryHandoff(summary);
     }
-    else saveDecisionStyleSummaryHandoff(summary);
+
+    if (inviteToken) {
+      try {
+        const signed = await requestDecisionStyleShareLink(summary);
+        onInviteCleared?.();
+        onCompareReady?.(`/compare/${inviteToken}/${signed.token}`);
+        return;
+      } catch {
+        setCompareError("对比暂时不可用，请稍后重试。");
+      }
+    }
+
     setCompletedSummary(summary);
     setCompletedEvidence(next.evidence);
     setDraftState((current) => ({ ...current, stage: "result" }));
@@ -121,10 +164,12 @@ export function DecisionStyleTest({
   function restart() {
     if (!window.confirm("确定要重新测试吗？")) return;
     clearDecisionStyleLocalData();
+    setCompareError(null);
     setCompletedSummary(null);
     setCompletedEvidence([]);
     setQuestionIndex(0);
     setDraftState({ stage: "intro", detail: { version: 2, answers: [], tieBreaks: {} } });
+    onInviteCleared?.();
   }
 
   if (draftState.stage === "result" && completedSummary) {
@@ -169,12 +214,14 @@ export function DecisionStyleTest({
           type="button"
           className="min-h-11"
           onClick={() => {
+            setCompareError(null);
             setQuestionIndex(Math.min(draftState.detail.answers.length, FULL_QUESTIONS.length - 1));
             setDraftState((current) => ({ ...current, stage: "questions" }));
           }}
         >
           开始测试
         </Button>
+        {compareError ? <p className="text-sm text-[var(--fg-dim)]">{compareError}</p> : null}
       </Card>
     );
   }
@@ -198,7 +245,8 @@ export function DecisionStyleTest({
                 name={activeTieBreaker.id}
                 value={option.pole}
                 checked={draftState.detail.tieBreaks[activeTieBreaker.axis] === option.pole}
-                onChange={() => persist(updateTieBreak(draftState.detail, activeTieBreaker.axis, option.pole), "tieBreakers")}
+                onChange={() =>
+                  persist(updateTieBreak(draftState.detail, activeTieBreaker.axis, option.pole), "tieBreakers")}
               />
               <span>{option.label}</span>
             </label>
@@ -212,11 +260,12 @@ export function DecisionStyleTest({
             type="button"
             className="min-h-11"
             disabled={!draftState.detail.tieBreaks[activeTieBreaker.axis]}
-            onClick={finish}
+            onClick={() => void finish()}
           >
             查看结果
           </Button>
         </div>
+        {compareError ? <p className="text-sm text-[var(--fg-dim)]">{compareError}</p> : null}
       </Card>
     );
   }
@@ -270,13 +319,15 @@ export function DecisionStyleTest({
           className="min-h-11"
           disabled={selectedValue === undefined}
           onClick={() => {
-            if (questionIndex === FULL_QUESTIONS.length - 1) finish();
+            setCompareError(null);
+            if (questionIndex === FULL_QUESTIONS.length - 1) void finish();
             else setQuestionIndex((current) => current + 1);
           }}
         >
           {questionIndex === FULL_QUESTIONS.length - 1 ? "查看结果" : "下一题"}
         </Button>
       </div>
+      {compareError ? <p className="text-sm text-[var(--fg-dim)]">{compareError}</p> : null}
     </Card>
   );
 }

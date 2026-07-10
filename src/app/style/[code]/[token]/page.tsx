@@ -3,10 +3,10 @@ import { decisionStyleTypeByCode, type DecisionStylePublicPayload } from "@/doma
 import { DecisionStyleShareCard } from "@/components/decision-style/DecisionStyleShareCard";
 import { getDecisionStyleShareSecret, verifyDecisionStyleToken } from "@/lib/decisionStyleToken.server";
 
-const FALLBACK_TITLE = "职业决策风格测试分享 | Life Planner";
-const FALLBACK_DESCRIPTION = "查看公开分享的四轴当前倾向，或重新测试后和朋友对比。";
+export const FALLBACK_TITLE = "职业决策风格测试分享 | Life Planner";
+export const FALLBACK_DESCRIPTION = "查看公开分享的四轴当前倾向，或重新测试后和朋友对比。";
 
-function SafeRetestEntry() {
+export function SafeRetestEntry() {
   return (
     <main
       style={{
@@ -101,6 +101,8 @@ export default async function Page({
   const payload = await resolveDecisionStyleSharePayload(params);
   if (!payload) return <SafeRetestEntry />;
 
+  const { token } = await params;
+
   return (
     <main
       style={{
@@ -123,7 +125,7 @@ export default async function Page({
       >
         <DecisionStyleShareCard payload={payload} />
         <a
-          href="/test"
+          href={`/test?invite=${encodeURIComponent(token)}`}
           style={{
             display: "inline-flex",
             alignItems: "center",
