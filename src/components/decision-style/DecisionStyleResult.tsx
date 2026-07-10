@@ -1,7 +1,20 @@
+"use client";
+
+import { useState } from "react";
 import { decisionStyleTypeByCode, scoreDecisionStyle, type DecisionStyleEvidence, type DecisionStyleSummary } from "@/domain/decisionStyle";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import {
+  copyDecisionStyleLink,
+  downloadDecisionStylePng,
+  requestDecisionStyleShareLink,
+  shareDecisionStyleLink,
+} from "@/lib/decisionStyleShareClient";
 import { DecisionStyleAxisBars } from "./DecisionStyleAxisBars";
+
+function messageFromError(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 
 export function DecisionStyleResult({
   summary,
@@ -16,8 +29,30 @@ export function DecisionStyleResult({
 }) {
   const type = decisionStyleTypeByCode(summary.code);
   const tendencies = scoreDecisionStyle(summary.source, [], {}).tendencies;
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<"share" | "copy" | "png" | null>(null);
+
   for (const [axis, score] of Object.entries(summary.scores)) {
     tendencies[axis as keyof typeof tendencies] = score >= 45 && score <= 55 ? "轻微倾向" : "明显倾向";
+  }
+
+  async function runSignedAction(
+    action: "share" | "copy" | "png",
+    handler: (signed: Awaited<ReturnType<typeof requestDecisionStyleShareLink>>) => Promise<string | void>,
+    fallback: string,
+  ) {
+    setBusyAction(action);
+    setStatusMessage(null);
+
+    try {
+      const signed = await requestDecisionStyleShareLink(summary);
+      const message = await handler(signed);
+      if (message) setStatusMessage(message);
+    } catch (error) {
+      setStatusMessage(messageFromError(error, fallback));
+    } finally {
+      setBusyAction(null);
+    }
   }
 
   return (
@@ -76,13 +111,57 @@ export function DecisionStyleResult({
       </Card>
 
       <div className="flex flex-col gap-3">
-        <Button type="button" disabled className="min-h-11">
+        <Button
+          type="button"
+          disabled={busyAction === "share"}
+          className="min-h-11"
+          onClick={() =>
+            void runSignedAction(
+              "share",
+              async (signed) => {
+                const outcome = await shareDecisionStyleLink(signed.url);
+                return outcome === "copied" ? "链接已复制" : "已打开系统分享";
+              },
+              "分享暂时不可用，请稍后重试",
+            )
+          }
+        >
           一键分享
         </Button>
-        <Button type="button" variant="subtle" disabled className="min-h-11">
+        <Button
+          type="button"
+          variant="subtle"
+          disabled={busyAction === "copy"}
+          className="min-h-11"
+          onClick={() =>
+            void runSignedAction(
+              "copy",
+              async (signed) => {
+                await copyDecisionStyleLink(signed.url);
+                return "链接已复制";
+              },
+              "复制失败，请稍后重试",
+            )
+          }
+        >
           复制链接
         </Button>
-        <Button type="button" variant="subtle" disabled className="min-h-11">
+        <Button
+          type="button"
+          variant="subtle"
+          disabled={busyAction === "png"}
+          className="min-h-11"
+          onClick={() =>
+            void runSignedAction(
+              "png",
+              async (signed) => {
+                await downloadDecisionStylePng(signed.pngUrl);
+                return "PNG 下载已开始";
+              },
+              "PNG 保存失败，请稍后重试",
+            )
+          }
+        >
           保存 PNG
         </Button>
         <Button type="button" variant="subtle" className="min-h-11" onClick={onContinue}>
@@ -92,6 +171,12 @@ export function DecisionStyleResult({
           重新测试
         </Button>
       </div>
+
+      {statusMessage ? (
+        <p aria-live="polite" className="text-sm text-[var(--fg-dim)]">
+          {statusMessage}
+        </p>
+      ) : null}
     </div>
   );
 }
