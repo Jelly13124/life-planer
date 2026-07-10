@@ -46,3 +46,26 @@ Concerns:
 
 - `npm run lint` still reports two pre-existing warnings in `packages/core/src/decisionStyle/scoring.ts` about unused variables; Task 5 did not modify that file.
 - The public page CTA currently links to `/test` only. Passing inviter context through that CTA belongs to Task 6.
+
+---
+
+Review fix: validate signed PNG downloads
+
+Updated:
+
+- `src/lib/decisionStyleShareClient.ts`
+  - `downloadDecisionStylePng()` now fetches the signed `card.png` URL first
+  - rejects on network failure, non-OK status, non-`image/png` responses, and missing Blob/object-URL APIs
+  - downloads the fetched blob through an object URL + anchor click so callers can surface failure instead of always reporting success
+- `src/lib/__tests__/decisionStyleShareClient.test.ts`
+  - added focused success coverage for blob download via object URL
+  - added focused failure coverage for 404 and network errors
+
+Focused verification for review fix:
+
+- `npm test -- src/lib/__tests__/decisionStyleShareClient.test.ts src/components/decision-style/__tests__/DecisionStyleResult.test.tsx`
+  - PASS (`2` files, `12` tests)
+- `npm run lint -- src/lib/decisionStyleShareClient.ts src/lib/__tests__/decisionStyleShareClient.test.ts`
+  - PASS
+- `npm run typecheck`
+  - PASS

@@ -2,6 +2,7 @@ import type { DecisionStylePublicPayload, DecisionStyleSummary } from "@/domain/
 
 export const SHARE_UNAVAILABLE_MESSAGE = "分享暂不可用，请联网后重试";
 export const INVALID_SHARE_RESPONSE_MESSAGE = "Invalid share token response";
+export const PNG_DOWNLOAD_FAILED_MESSAGE = "PNG download failed";
 
 export interface DecisionStyleSignedShareLink {
   token: string;
@@ -21,7 +22,10 @@ export interface ShareDecisionStyleLinkOptions {
 }
 
 export interface DownloadDecisionStylePngOptions {
+  fetchImpl?: typeof fetch;
   createAnchor?: () => HTMLAnchorElement;
+  createObjectUrl?: (blob: Blob) => string;
+  revokeObjectUrl?: (url: string) => void;
 }
 
 function toPublicPayload(summary: DecisionStyleSummary): DecisionStylePublicPayload {
@@ -119,11 +123,46 @@ export async function requestDecisionStyleShareLink(
 
 export async function downloadDecisionStylePng(
   pngUrl: string,
-  { createAnchor = () => document.createElement("a") }: DownloadDecisionStylePngOptions = {},
+  {
+    fetchImpl = globalThis.fetch,
+    createAnchor = () => document.createElement("a"),
+    createObjectUrl = globalThis.URL?.createObjectURL?.bind(globalThis.URL),
+    revokeObjectUrl = globalThis.URL?.revokeObjectURL?.bind(globalThis.URL),
+  }: DownloadDecisionStylePngOptions = {},
 ) {
+  if (!fetchImpl || typeof Blob === "undefined" || !createObjectUrl || !revokeObjectUrl) {
+    throw new Error(PNG_DOWNLOAD_FAILED_MESSAGE);
+  }
+
+  let response: Response;
+  try {
+    response = await fetchImpl(pngUrl);
+  } catch {
+    throw new Error(PNG_DOWNLOAD_FAILED_MESSAGE);
+  }
+
+  if (!response.ok) {
+    throw new Error(PNG_DOWNLOAD_FAILED_MESSAGE);
+  }
+
+  const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+  if (!contentType.startsWith("image/png")) {
+    throw new Error(PNG_DOWNLOAD_FAILED_MESSAGE);
+  }
+
+  const blob = await response.blob();
+  if (!blob) {
+    throw new Error(PNG_DOWNLOAD_FAILED_MESSAGE);
+  }
+
+  const objectUrl = createObjectUrl(blob);
   const anchor = createAnchor();
-  anchor.href = pngUrl;
-  anchor.download = "decision-style-card.png";
-  anchor.rel = "noopener";
-  anchor.click();
+  try {
+    anchor.href = objectUrl;
+    anchor.download = "decision-style-card.png";
+    anchor.rel = "noopener";
+    anchor.click();
+  } finally {
+    revokeObjectUrl(objectUrl);
+  }
 }

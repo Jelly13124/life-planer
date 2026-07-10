@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { DecisionStyleSummary } from "@/domain/decisionStyle";
 import {
   SHARE_UNAVAILABLE_MESSAGE,
+  downloadDecisionStylePng,
   isDecisionStyleNativeShareAvailable,
   requestDecisionStyleShareLink,
   shareDecisionStyleLink,
@@ -127,5 +128,61 @@ describe("decisionStyleShareClient", () => {
         origin: "https://lifeplanner.test",
       }),
     ).rejects.toThrow("Invalid share token response");
+  });
+
+  it("downloads the fetched PNG blob via an object URL when the response is ok and image/png", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(new Uint8Array([137, 80, 78, 71]), { status: 200, headers: { "content-type": "image/png" } }),
+    );
+    const anchor = { click: vi.fn() } as unknown as HTMLAnchorElement;
+    const createObjectUrl = vi.fn(() => "blob:decision-style");
+    const revokeObjectUrl = vi.fn();
+
+    await expect(
+      downloadDecisionStylePng("https://lifeplanner.test/style/FDBG/signed-token/card.png", {
+        fetchImpl,
+        createAnchor: () => anchor,
+        createObjectUrl,
+        revokeObjectUrl,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(fetchImpl).toHaveBeenCalledWith("https://lifeplanner.test/style/FDBG/signed-token/card.png");
+    expect(createObjectUrl).toHaveBeenCalledTimes(1);
+    const downloadBlob = (createObjectUrl.mock.calls as unknown[][])[0]?.[0];
+    expect(downloadBlob).toMatchObject({ type: "image/png" });
+    expect(anchor.href).toBe("blob:decision-style");
+    expect(anchor.download).toBe("decision-style-card.png");
+    expect(anchor.rel).toBe("noopener");
+    expect(anchor.click).toHaveBeenCalledTimes(1);
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:decision-style");
+  });
+
+  it("rejects non-ok PNG download responses so the caller can show a failure state", async () => {
+    const fetchImpl = vi.fn(async () => new Response("missing", { status: 404, headers: { "content-type": "text/plain" } }));
+
+    await expect(
+      downloadDecisionStylePng("https://lifeplanner.test/style/FDBG/signed-token/card.png", {
+        fetchImpl,
+        createAnchor: () => ({ click: vi.fn() } as unknown as HTMLAnchorElement),
+        createObjectUrl: vi.fn(() => "blob:decision-style"),
+        revokeObjectUrl: vi.fn(),
+      }),
+    ).rejects.toThrow("PNG download failed");
+  });
+
+  it("rejects network PNG download failures so the caller can show a failure state", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+
+    await expect(
+      downloadDecisionStylePng("https://lifeplanner.test/style/FDBG/signed-token/card.png", {
+        fetchImpl,
+        createAnchor: () => ({ click: vi.fn() } as unknown as HTMLAnchorElement),
+        createObjectUrl: vi.fn(() => "blob:decision-style"),
+        revokeObjectUrl: vi.fn(),
+      }),
+    ).rejects.toThrow("PNG download failed");
   });
 });
