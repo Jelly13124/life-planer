@@ -12,6 +12,7 @@ import {
 import { Button, Card, Muted } from "../ui";
 import { colors, radii, space } from "../theme";
 import { clearDecisionStyleDetail, loadDecisionStyleDetail, saveDecisionStyleDetail } from "../lib/decisionStyleStorage";
+import { trackAppDecisionStyleEvent } from "../lib/decisionStyleAnalytics";
 
 function options(question: (typeof QUICK_QUESTIONS)[number]) {
   return [
@@ -42,6 +43,7 @@ export default function DecisionStyleQuickTest({
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    void trackAppDecisionStyleEvent("style_view");
     void loadDecisionStyleDetail().then((saved) => {
       if (saved && saved.answers.length > 0) {
         setDetail(saved);
@@ -82,6 +84,7 @@ export default function DecisionStyleQuickTest({
       scores: result.scores,
       completedAt: new Date().toISOString(),
     };
+    void trackAppDecisionStyleEvent("style_complete");
     setSummary(nextSummary);
     setStage("result");
     setBusy(false);
@@ -112,8 +115,8 @@ export default function DecisionStyleQuickTest({
           <Text style={styles.title}>先做 12 题快测</Text>
           <Muted>本地计算，约 2 分钟。它描述当前倾向，不是固定人格或心理诊断。</Muted>
           <View style={styles.gap} />
-          <Button label="开始快测" onPress={() => setStage("questions")} />
-          <Button label="先跳过" kind="ghost" onPress={() => { void clearDecisionStyleDetail(); onSkip(); }} />
+          <Button label="开始快测" onPress={() => { void trackAppDecisionStyleEvent("style_start"); setStage("questions"); }} />
+          <Button label="先跳过" kind="ghost" onPress={() => { void trackAppDecisionStyleEvent("style_skip"); void clearDecisionStyleDetail(); onSkip(); }} />
         </Card>
       </ScrollView>
     );
@@ -189,7 +192,7 @@ export default function DecisionStyleQuickTest({
             else void finish(detail);
           }}
         />
-        <Button label="先跳过" kind="ghost" onPress={() => { void clearDecisionStyleDetail(); onSkip(); }} />
+        <Button label="先跳过" kind="ghost" onPress={() => { void trackAppDecisionStyleEvent("style_skip"); void clearDecisionStyleDetail(); onSkip(); }} />
       </Card>
     </ScrollView>
   );

@@ -120,3 +120,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 - `src/components/__tests__/CloudAuth.test.tsx` — flag 关时渲染 `null`；flag 开时魔法链接表单 / 已登录态。
 
 > 真实云端联通（魔法链接邮件、RLS、跨设备同步）需要你填了凭据后手动验一遍——单测覆盖不到真服务器。
+
+## 6. 职业决策风格测试的匿名统计
+
+`supabase/migrations/20260710000000_style_events.sql` 创建了一个只包含测试漏斗元数据的 `style_events` 表。它只保存事件名称、端（`web` / `app`）、来源（`direct` / `shared` / `compare`）、测试版本和服务端时间戳；不保存答案、分数、标签、分享码、姓名、账号、设备或流程标识。
+
+表启用 RLS，不给匿名或登录用户直接读写权限。Web API 使用仅存在于服务端的 `SUPABASE_SERVICE_ROLE_KEY` 做尽力写入；缺少配置或 Supabase 暂时不可用时，测试仍正常完成。迁移会在 `pg_cron` 可用时安排每日清理，删除 30 天以前的事件。

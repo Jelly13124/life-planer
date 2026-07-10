@@ -11,6 +11,7 @@ import {
   shareDecisionStyleLink,
 } from "@/lib/decisionStyleShareClient";
 import { DecisionStyleAxisBars } from "./DecisionStyleAxisBars";
+import { trackDecisionStyleEvent } from "@/lib/decisionStyleAnalytics";
 
 function messageFromError(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -119,6 +120,7 @@ export function DecisionStyleResult({
             void runSignedAction(
               "share",
               async (signed) => {
+                void trackDecisionStyleEvent("style_share", { source: "direct" });
                 const outcome = await shareDecisionStyleLink(signed.url);
                 return outcome === "copied" ? "链接已复制" : "已打开系统分享";
               },

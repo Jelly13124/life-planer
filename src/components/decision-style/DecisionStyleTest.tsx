@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FULL_QUESTIONS,
   TIE_BREAKERS,
@@ -15,6 +15,7 @@ import type { LifeTree } from "@/domain/types";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { requestDecisionStyleShareLink } from "@/lib/decisionStyleShareClient";
+import { trackDecisionStyleEvent } from "@/lib/decisionStyleAnalytics";
 import {
   clearDecisionStyleDraft,
   clearDecisionStyleLocalData,
@@ -98,6 +99,7 @@ export function DecisionStyleTest({
   const [completedSummary, setCompletedSummary] = useState<DecisionStyleSummary | null>(null);
   const [completedEvidence, setCompletedEvidence] = useState<ReturnType<typeof scoreDecisionStyle>["evidence"]>([]);
   const [compareError, setCompareError] = useState<string | null>(null);
+  const analyticsStarted = useRef(false);
   const [questionIndex, setQuestionIndex] = useState(() =>
     Math.min(buildInitialState().detail.answers.length, FULL_QUESTIONS.length - 1),
   );
@@ -113,6 +115,14 @@ export function DecisionStyleTest({
 
   const activeQuestion = FULL_QUESTIONS[questionIndex];
   const activeTieBreaker = tieBreakQueue[0] ?? null;
+
+  useEffect(() => {
+    if (analyticsStarted.current) return;
+    analyticsStarted.current = true;
+    const source = inviteToken ? "shared" : "direct";
+    void trackDecisionStyleEvent("style_view", { source });
+    if (inviteToken) void trackDecisionStyleEvent("style_compare_start", { source });
+  }, [inviteToken]);
 
   function persist(detail: DecisionStyleLocalDetail, stage = draftState.stage) {
     saveDecisionStyleDraft(detail);
@@ -133,6 +143,8 @@ export function DecisionStyleTest({
       scores: next.scores,
       completedAt: new Date().toISOString(),
     };
+
+    void trackDecisionStyleEvent("style_complete", { source: inviteToken ? "shared" : "direct" });
 
     saveDecisionStyleDetail(draftState.detail);
     clearDecisionStyleDraft();
@@ -189,7 +201,10 @@ export function DecisionStyleTest({
       <DecisionStyleResult
         summary={completedSummary}
         evidence={completedEvidence}
-        onContinue={continueToTree}
+        onContinue={() => {
+          void trackDecisionStyleEvent("style_continue_tree", { source: "direct" });
+          continueToTree();
+        }}
         onRestart={restart}
       />
     );
@@ -214,6 +229,7 @@ export function DecisionStyleTest({
           type="button"
           className="min-h-11"
           onClick={() => {
+            void trackDecisionStyleEvent("style_start", { source: inviteToken ? "shared" : "direct" });
             setCompareError(null);
             setQuestionIndex(Math.min(draftState.detail.answers.length, FULL_QUESTIONS.length - 1));
             setDraftState((current) => ({ ...current, stage: "questions" }));

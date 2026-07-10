@@ -9,6 +9,7 @@ import {
   type DecisionStylePublicPayload,
 } from "@/domain/decisionStyle";
 import { getDecisionStyleShareSecret, verifyDecisionStyleToken } from "@/lib/decisionStyleToken.server";
+import { DecisionStyleAnalyticsBeacon } from "@/components/decision-style/DecisionStyleAnalyticsBeacon";
 import {
   FALLBACK_DESCRIPTION,
   FALLBACK_TITLE,
@@ -121,6 +122,7 @@ export default async function Page({
           gap: 20,
         }}
       >
+        <DecisionStyleAnalyticsBeacon event="style_compare_complete" source="compare" />
         <section
           style={{
             display: "flex",

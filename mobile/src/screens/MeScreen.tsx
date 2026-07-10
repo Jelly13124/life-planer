@@ -10,6 +10,7 @@ import { ensureNotifPermission } from "../lib/notifications";
 import { restorePro, MONETIZATION_ENABLED } from "../lib/purchases";
 import DecisionStyleQuickTest from "../components/DecisionStyleQuickTest";
 import { shareDecisionStyle } from "../lib/decisionStyleShare";
+import { trackAppDecisionStyleEvent } from "../lib/decisionStyleAnalytics";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -47,6 +48,7 @@ export default function MeScreen() {
     if (!p?.decisionStyle || sharingStyle) return;
     setSharingStyle(true);
     try {
+      void trackAppDecisionStyleEvent("style_share");
       await shareDecisionStyle(p.decisionStyle);
     } catch {
       Alert.alert("暂时无法分享", "请联网后再试。");

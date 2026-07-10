@@ -100,6 +100,15 @@ export default function PrivacyPage() {
           </p>
         </section>
 
+        <section>
+          <h2 className="mb-2 text-base font-semibold text-[var(--fg)]">
+            9. 匿名的测试使用统计
+          </h2>
+          <p>
+            为了解职业决策风格测试是否被使用，我们可能记录匿名的测试事件。服务器只保存事件名称、端（web 或 app）、来源（direct、shared 或 compare）、测试版本和服务器生成的时间；不保存答案、分数、标签、分享码、姓名、账号、设备或流程标识。事件最多保留 30 天，并用于改进测试流程，不用于识别个人。
+          </p>
+        </section>
+
         <section className="border-t border-[var(--line)] pt-6">
           <h2 className="mb-2 text-base font-semibold text-[var(--fg)]">
             English summary

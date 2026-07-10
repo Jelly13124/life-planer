@@ -21,6 +21,10 @@ vi.mock("@/lib/decisionStyleShareClient", () => ({
   requestDecisionStyleShareLink,
 }));
 
+vi.mock("@/lib/decisionStyleAnalytics", () => ({
+  trackDecisionStyleEvent: vi.fn(),
+}));
+
 const mockApplyDecisionStyleSummary = vi.fn();
 const mockApp = {
   tree: null,

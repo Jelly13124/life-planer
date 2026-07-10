@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { decisionStyleTypeByCode, type DecisionStylePublicPayload } from "@/domain/decisionStyle";
 import { DecisionStyleShareCard } from "@/components/decision-style/DecisionStyleShareCard";
+import { DecisionStyleAnalyticsBeacon } from "@/components/decision-style/DecisionStyleAnalyticsBeacon";
 import { getDecisionStyleShareSecret, verifyDecisionStyleToken } from "@/lib/decisionStyleToken.server";
 
 export const FALLBACK_TITLE = "职业决策风格测试分享 | Life Planner";
@@ -123,6 +124,7 @@ export default async function Page({
           fontFamily: "sans-serif",
         }}
       >
+        <DecisionStyleAnalyticsBeacon event="style_share_open" source="shared" />
         <DecisionStyleShareCard payload={payload} />
         <a
           href={`/test?invite=${encodeURIComponent(token)}`}

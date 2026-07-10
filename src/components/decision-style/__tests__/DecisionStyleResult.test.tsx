@@ -28,6 +28,10 @@ vi.mock("@/lib/decisionStyleShareClient", () => ({
   downloadDecisionStylePng,
 }));
 
+vi.mock("@/lib/decisionStyleAnalytics", () => ({
+  trackDecisionStyleEvent: vi.fn(),
+}));
+
 const summary: DecisionStyleSummary = {
   version: 2,
   source: "full",
