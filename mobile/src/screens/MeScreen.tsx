@@ -9,6 +9,7 @@ import { colors, space } from "../theme";
 import { ensureNotifPermission } from "../lib/notifications";
 import { restorePro, MONETIZATION_ENABLED } from "../lib/purchases";
 import DecisionStyleQuickTest from "../components/DecisionStyleQuickTest";
+import { shareDecisionStyle } from "../lib/decisionStyleShare";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -40,6 +41,19 @@ export default function MeScreen() {
   const [digestHint, setDigestHint] = React.useState<string | null>(null);
   const [restoring, setRestoring] = React.useState(false);
   const [styleRetake, setStyleRetake] = React.useState(false);
+  const [sharingStyle, setSharingStyle] = React.useState(false);
+
+  const handleStyleShare = React.useCallback(async () => {
+    if (!p?.decisionStyle || sharingStyle) return;
+    setSharingStyle(true);
+    try {
+      await shareDecisionStyle(p.decisionStyle);
+    } catch {
+      Alert.alert("暂时无法分享", "请联网后再试。");
+    } finally {
+      setSharingStyle(false);
+    }
+  }, [p?.decisionStyle, sharingStyle]);
 
   const handleRestore = React.useCallback(async () => {
     if (restoring) return;
@@ -175,6 +189,14 @@ export default function MeScreen() {
             kind="ghost"
             onPress={() => setStyleRetake(true)}
           />
+          {p?.decisionStyle ? (
+            <Button
+              label={sharingStyle ? "准备分享中…" : "分享结果"}
+              kind="ghost"
+              loading={sharingStyle}
+              onPress={() => void handleStyleShare()}
+            />
+          ) : null}
         </Card>
       )}
 

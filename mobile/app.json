@@ -39,6 +39,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-sharing",
       "expo-notifications",
       "@bacons/apple-targets"
     ],
