@@ -23,7 +23,7 @@ describe("POST /api/style-share-token", () => {
     const result = await response.json();
 
     expect(response.status).toBe(200);
-    expect(result).toMatchObject({ path: expect.stringMatching(/^\/style\/FDBG\//), token: expect.any(String) });
+    expect(result).toEqual({ path: expect.stringMatching(/^\/style\/FDBG\//), token: expect.any(String) });
     expect(result.path).toBe(`/style/FDBG/${result.token}`);
   });
 
@@ -38,9 +38,24 @@ describe("POST /api/style-share-token", () => {
     expect((await post(JSON.stringify({ ...body, path: "/style/SWLV/x" }))).status).toBe(400);
   });
 
-  it("rejects over-limit and non-JSON request bodies", async () => {
+  it("accepts a valid JSON request at the 1 KiB limit", async () => {
     process.env.DECISION_STYLE_SHARE_SECRET = "test-secret";
-    expect((await post("x".repeat(1025))).status).toBe(400);
+    const json = JSON.stringify(body);
+    const exactLimit = `${json}${" ".repeat(1024 - new TextEncoder().encode(json).byteLength)}`;
+    expect(new TextEncoder().encode(exactLimit).byteLength).toBe(1024);
+    expect((await post(exactLimit)).status).toBe(200);
+  });
+
+  it("rejects valid JSON padded beyond the 1 KiB request limit", async () => {
+    process.env.DECISION_STYLE_SHARE_SECRET = "test-secret";
+    const json = JSON.stringify(body);
+    const overLimit = `${json}${" ".repeat(1025 - new TextEncoder().encode(json).byteLength)}`;
+    expect(new TextEncoder().encode(overLimit).byteLength).toBe(1025);
+    expect((await post(overLimit)).status).toBe(400);
+  });
+
+  it("rejects non-JSON request bodies", async () => {
+    process.env.DECISION_STYLE_SHARE_SECRET = "test-secret";
     expect((await post("not json")).status).toBe(400);
   });
 

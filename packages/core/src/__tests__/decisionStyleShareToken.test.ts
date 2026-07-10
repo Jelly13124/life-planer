@@ -33,13 +33,13 @@ describe("Decision Style public share payload", () => {
     expect(validateDecisionStylePublicPayload({ ...payload, code: "SWBG" })).toBeNull();
   });
 
-  it("preserves explicitly resolved code letters for tied scores without synthesizing one", () => {
-    const tied = {
-      version: 2,
-      source: "full",
-      code: "SWLV",
-      scores: { tempo: 50, focus: 0, engine: 50, drive: 0 },
-    } as const;
+  it.each([
+    ["tempo", "FDBG"], ["tempo", "SDBG"],
+    ["focus", "FDBG"], ["focus", "FWBG"],
+    ["engine", "FDBG"], ["engine", "FDLG"],
+    ["drive", "FDBG"], ["drive", "FDBV"],
+  ] as const)("preserves the explicit %s tie letter without synthesizing a default", (axis, code) => {
+    const tied = { ...payload, code, scores: { ...payload.scores, [axis]: 50 } };
     expect(validateDecisionStylePublicPayload(tied)).toEqual(tied);
   });
 
