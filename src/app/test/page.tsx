@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { AppProvider } from "@/state/AppContext";
 import { DecisionStyleTest } from "@/components/decision-style/DecisionStyleTest";
 
-export default function TestPage() {
+function TestContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inviteToken = searchParams.get("invite");
@@ -20,5 +21,13 @@ export default function TestPage() {
         />
       </main>
     </AppProvider>
+  );
+}
+
+export default function TestPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen" aria-busy="true" />}>
+      <TestContent />
+    </Suspense>
   );
 }
