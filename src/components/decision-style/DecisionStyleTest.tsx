@@ -133,6 +133,10 @@ export function DecisionStyleTest({
         window.location.assign("/");
         return;
       }
+      if (tree && applyDecisionStyleSummary) {
+        window.setTimeout(onContinueToTree, 900);
+        return;
+      }
       onContinueToTree();
     };
 
