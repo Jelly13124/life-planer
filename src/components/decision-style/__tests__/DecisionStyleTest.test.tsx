@@ -74,7 +74,6 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  vi.runOnlyPendingTimers();
   vi.useRealTimers();
   sessionStorage.clear();
   localStorage.clear();
@@ -99,10 +98,14 @@ describe("DecisionStyleTest", () => {
     expect(within(scale).getByText(first.right.label)).toBeInTheDocument();
     expect(within(scale).getAllByRole("button")).toHaveLength(5);
     for (const value of DECISION_STYLE_SCALE_VALUES) {
-      expect(within(scale).getByRole("button", {
+      const option = within(scale).getByRole("button", {
         name: decisionStyleScaleAccessibilityLabel(first, value),
-      })).toHaveAttribute("aria-pressed", "false");
+      });
+      expect(option).toHaveAttribute("aria-pressed", "false");
+      expect(option).toHaveClass("motion-reduce:transition-none");
     }
+    const progressTrack = screen.getByText("01 / 28").previousElementSibling;
+    expect(progressTrack?.firstElementChild).toHaveClass("motion-reduce:transition-none");
     expect(within(scale).queryByText(/强烈偏向|稍微偏向|两边差不多/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "下一题" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "查看结果" })).not.toBeInTheDocument();
@@ -120,6 +123,9 @@ describe("DecisionStyleTest", () => {
     });
 
     fireEvent.click(leftChoice);
+    for (const option of screen.getByRole("group", { name: first.prompt }).querySelectorAll("button")) {
+      expect(option).toBeDisabled();
+    }
     fireEvent.click(rightChoice);
     act(() => vi.advanceTimersByTime(199));
     expect(screen.getByText("01 / 28")).toBeInTheDocument();
@@ -139,6 +145,40 @@ describe("DecisionStyleTest", () => {
     expect(screen.getByRole("button", {
       name: decisionStyleScaleAccessibilityLabel(first, 2),
     })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("cancels a pending advance when restarting", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    await renderTest(<DecisionStyleTest onContinueToTree={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "开始测试" }));
+    fireEvent.click(screen.getByRole("button", {
+      name: decisionStyleScaleAccessibilityLabel(FULL_QUESTIONS[0], -2),
+    }));
+
+    fireEvent.click(screen.getByRole("button", { name: "重新测试" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "开始测试" }));
+    act(() => vi.advanceTimersByTime(200));
+    expect(screen.getByText("01 / 28")).toBeInTheDocument();
+    expect(screen.getByRole("button", {
+      name: decisionStyleScaleAccessibilityLabel(FULL_QUESTIONS[0], -2),
+    })).toBeEnabled();
+  });
+
+  it("clears a pending advance when unmounted", async () => {
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+    const clearTimeoutSpy = vi.spyOn(window, "clearTimeout");
+    const { unmount } = await renderTest(<DecisionStyleTest onContinueToTree={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "开始测试" }));
+    fireEvent.click(screen.getByRole("button", {
+      name: decisionStyleScaleAccessibilityLabel(FULL_QUESTIONS[0], -2),
+    }));
+
+    const advanceCallIndex = setTimeoutSpy.mock.calls.findLastIndex(([, delay]) => delay === 200);
+    const advanceTimerId = setTimeoutSpy.mock.results[advanceCallIndex]?.value;
+    expect(advanceTimerId).toBeDefined();
+    unmount();
+    expect(clearTimeoutSpy).toHaveBeenCalledWith(advanceTimerId);
   });
 
   it("restores a saved draft after refresh and can restart with confirmation", async () => {
@@ -184,7 +224,11 @@ describe("DecisionStyleTest", () => {
 
     expect(screen.getByText("加赛题")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "信息还不完整、成本也可控时，你这次更愿意：" })).toBeInTheDocument();
-    chooseTieAndFinish("先试一次再调整");
+    fireEvent.click(screen.getByRole("radio", { name: "先试一次再调整" }));
+    for (const option of screen.getAllByRole("radio")) expect(option).toBeDisabled();
+    act(() => vi.advanceTimersByTime(199));
+    expect(screen.getByText("加赛题")).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(1));
 
     expect(screen.getByText("本地结果依据")).toBeInTheDocument();
     expect(sessionStorage.getItem(STYLE_DRAFT_KEY)).toBeNull();

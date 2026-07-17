@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FULL_QUESTIONS,
   TIE_BREAKERS,
@@ -89,6 +89,15 @@ export function DecisionStyleTest({
   const analyticsStarted = useRef(false);
   const [questionIndex, setQuestionIndex] = useState(0);
   const advanceTimer = useRef<number | null>(null);
+  const pendingTieBreaker = useRef<DecisionStyleQuestion | null>(null);
+
+  const clearAdvanceTimer = useCallback(() => {
+    if (advanceTimer.current !== null) {
+      window.clearTimeout(advanceTimer.current);
+      advanceTimer.current = null;
+    }
+    pendingTieBreaker.current = null;
+  }, []);
 
   const scoring = useMemo(
     () => scoreDecisionStyle("full", draftState.detail.answers, draftState.detail.tieBreaks),
@@ -100,7 +109,7 @@ export function DecisionStyleTest({
     .filter((question): question is DecisionStyleQuestion => Boolean(question));
 
   const activeQuestion = FULL_QUESTIONS[questionIndex];
-  const activeTieBreaker = tieBreakQueue[0] ?? null;
+  const activeTieBreaker = tieBreakQueue[0] ?? pendingTieBreaker.current;
 
   useEffect(() => {
     let active = true;
@@ -123,9 +132,7 @@ export function DecisionStyleTest({
     if (inviteToken) void trackDecisionStyleEvent("style_compare_start", { source });
   }, [inviteToken]);
 
-  useEffect(() => () => {
-    if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
-  }, []);
+  useEffect(() => clearAdvanceTimer, [clearAdvanceTimer]);
 
   function persist(detail: DecisionStyleLocalDetail, stage = draftState.stage) {
     saveDecisionStyleDraft(detail);
@@ -177,7 +184,7 @@ export function DecisionStyleTest({
   }
 
   function chooseAnswer(value: DecisionStyleAnswerValue) {
-    if (advanceTimer.current) return;
+    if (advanceTimer.current !== null) return;
     const nextDetail = upsertDecisionStyleAnswer(draftState.detail, activeQuestion.id, value);
     persist(nextDetail, "questions");
     advanceTimer.current = window.setTimeout(() => {
@@ -188,17 +195,20 @@ export function DecisionStyleTest({
   }
 
   function chooseTie(axis: DecisionStyleAxis, pole: "a" | "b") {
-    if (advanceTimer.current) return;
+    if (advanceTimer.current !== null) return;
     const nextDetail = updateTieBreak(draftState.detail, axis, pole);
+    pendingTieBreaker.current = activeTieBreaker;
     persist(nextDetail, "tieBreakers");
     advanceTimer.current = window.setTimeout(() => {
       advanceTimer.current = null;
+      pendingTieBreaker.current = null;
       void finish(nextDetail);
     }, 200);
   }
 
   function restart() {
     if (!window.confirm("确定要重新测试吗？")) return;
+    clearAdvanceTimer();
     clearDecisionStyleLocalData();
     setCompareError(null);
     setCompletedSummary(null);
