@@ -45,4 +45,15 @@ describe("decision personality presentation", () => {
     const replaced = upsertDecisionStyleAnswer(first, "tempo-1", 2);
     expect(replaced.answers).toEqual([{ questionId: "tempo-1", value: 2 }]);
   });
+
+  it("preserves answer order while editing an earlier answer", () => {
+    const initial = { version: 2 as const, answers: [], tieBreaks: {} };
+    const first = upsertDecisionStyleAnswer(initial, "tempo-1", -2);
+    const second = upsertDecisionStyleAnswer(first, "focus-1", 1);
+    const edited = upsertDecisionStyleAnswer(second, "tempo-1", 2);
+    expect(edited.answers).toEqual([
+      { questionId: "tempo-1", value: 2 },
+      { questionId: "focus-1", value: 1 },
+    ]);
+  });
 });

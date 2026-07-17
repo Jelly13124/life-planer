@@ -4,34 +4,34 @@ import {
   QUICK_QUESTIONS,
   TIE_BREAKERS,
   scoreDecisionStyle,
+  upsertDecisionStyleAnswer,
   type DecisionStyleAnswerValue,
   type DecisionStyleAxis,
   type DecisionStyleLocalDetail,
+  type DecisionStyleQuestion,
   type DecisionStyleSummary,
 } from "@lifeplanner/core/decisionStyle";
 import { Button, Card, Muted } from "../ui";
 import { colors, radii, space } from "../theme";
 import { clearDecisionStyleDetail, loadDecisionStyleDetail, saveDecisionStyleDetail } from "../lib/decisionStyleStorage";
 import { trackAppDecisionStyleEvent } from "../lib/decisionStyleAnalytics";
-
-function options(question: (typeof QUICK_QUESTIONS)[number]) {
-  return [
-    { value: -2 as DecisionStyleAnswerValue, label: `${question.left.label}（明显）` },
-    { value: -1 as DecisionStyleAnswerValue, label: `${question.left.label}（略偏）` },
-    { value: 0 as DecisionStyleAnswerValue, label: "两边差不多" },
-    { value: 1 as DecisionStyleAnswerValue, label: `${question.right.label}（略偏）` },
-    { value: 2 as DecisionStyleAnswerValue, label: `${question.right.label}（明显）` },
-  ];
-}
+import { DecisionStyleScale } from "./DecisionStyleScale";
 
 function answerOf(detail: DecisionStyleLocalDetail, questionId: string) {
   return detail.answers.find((item) => item.questionId === questionId)?.value;
 }
 
+function TestFrame({ embedded, children }: { embedded: boolean; children: React.ReactNode }) {
+  if (embedded) return <View style={styles.content}>{children}</View>;
+  return <ScrollView contentContainerStyle={styles.scrollContent}>{children}</ScrollView>;
+}
+
 export default function DecisionStyleQuickTest({
+  embedded = false,
   onComplete,
   onSkip,
 }: {
+  embedded?: boolean;
   onComplete: (summary: DecisionStyleSummary) => void;
   onSkip: () => void;
 }) {
@@ -41,6 +41,8 @@ export default function DecisionStyleQuickTest({
   const [detail, setDetail] = useState<DecisionStyleLocalDetail>({ version: 2, answers: [], tieBreaks: {} });
   const [summary, setSummary] = useState<DecisionStyleSummary | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pendingTieBreaker, setPendingTieBreaker] = useState<DecisionStyleQuestion | null>(null);
+  const advanceTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     void trackAppDecisionStyleEvent("style_view");
@@ -54,6 +56,10 @@ export default function DecisionStyleQuickTest({
     });
   }, []);
 
+  useEffect(() => () => {
+    if (advanceTimer.current !== null) clearTimeout(advanceTimer.current);
+  }, []);
+
   const scoring = useMemo(
     () => scoreDecisionStyle("quick", detail.answers, detail.tieBreaks),
     [detail],
@@ -61,6 +67,7 @@ export default function DecisionStyleQuickTest({
   const tieQueue = scoring.pendingTieBreaks
     .map((axis) => TIE_BREAKERS.find((question) => question.axis === axis))
     .filter((question): question is (typeof TIE_BREAKERS)[number] => Boolean(question));
+  const activeTieBreaker = pendingTieBreaker ?? tieQueue[0];
 
   if (!ready) return null;
 
@@ -76,55 +83,64 @@ export default function DecisionStyleQuickTest({
       return;
     }
     setBusy(true);
-    await saveDecisionStyleDetail(nextDetail);
-    const nextSummary: DecisionStyleSummary = {
-      version: 2,
-      source: "quick",
-      code: result.code,
-      scores: result.scores,
-      completedAt: new Date().toISOString(),
-    };
-    void trackAppDecisionStyleEvent("style_complete");
-    setSummary(nextSummary);
-    setStage("result");
-    setBusy(false);
+    try {
+      await saveDecisionStyleDetail(nextDetail);
+      const nextSummary: DecisionStyleSummary = {
+        version: 2,
+        source: "quick",
+        code: result.code,
+        scores: result.scores,
+        completedAt: new Date().toISOString(),
+      };
+      void trackAppDecisionStyleEvent("style_complete");
+      setSummary(nextSummary);
+      setStage("result");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const updateAnswer = (value: DecisionStyleAnswerValue) => {
+  const chooseAnswer = (value: DecisionStyleAnswerValue) => {
+    if (advanceTimer.current !== null) return;
     const question = QUICK_QUESTIONS[index];
-    const next: DecisionStyleLocalDetail = {
-      ...detail,
-      answers: detail.answers.some((item) => item.questionId === question.id)
-        ? detail.answers.map((item) => (item.questionId === question.id ? { ...item, value } : item))
-        : [...detail.answers, { questionId: question.id, value }],
-    };
+    const next = upsertDecisionStyleAnswer(detail, question.id, value);
     save(next);
+    advanceTimer.current = setTimeout(() => {
+      advanceTimer.current = null;
+      if (index === QUICK_QUESTIONS.length - 1) void finish(next);
+      else setIndex((current) => current + 1);
+    }, 200);
   };
 
   const updateTie = (axis: DecisionStyleAxis, pole: "a" | "b") => {
+    if (advanceTimer.current !== null || !activeTieBreaker) return;
     const next = { ...detail, tieBreaks: { ...detail.tieBreaks, [axis]: pole } };
+    setPendingTieBreaker(activeTieBreaker);
     save(next);
-    if (tieQueue.length === 1) void finish(next);
+    advanceTimer.current = setTimeout(() => {
+      advanceTimer.current = null;
+      void finish(next).finally(() => setPendingTieBreaker(null));
+    }, 200);
   };
 
   if (stage === "intro") {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
+      <TestFrame embedded={embedded}>
         <Card>
-          <Text style={styles.eyebrow}>职业决策风格测试</Text>
-          <Text style={styles.title}>先做 12 题快测</Text>
-          <Muted>本地计算，约 2 分钟。它描述当前倾向，不是固定人格或心理诊断。</Muted>
+          <Text style={styles.eyebrow}>决策人格测试</Text>
+          <Text style={styles.title}>12 道选择题，看看你做重大决定时像哪种人</Text>
+          <Muted>按最近真实发生的选择回答。原始答案只保存在本机；结果描述当前倾向，不是固定人格或心理诊断。</Muted>
           <View style={styles.gap} />
           <Button label="开始快测" onPress={() => { void trackAppDecisionStyleEvent("style_start"); setStage("questions"); }} />
           <Button label="先跳过" kind="ghost" onPress={() => { void trackAppDecisionStyleEvent("style_skip"); void clearDecisionStyleDetail(); onSkip(); }} />
         </Card>
-      </ScrollView>
+      </TestFrame>
     );
   }
 
   if (stage === "result" && summary) {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
+      <TestFrame embedded={embedded}>
         <Card>
           <Text style={styles.eyebrow}>你的当前倾向</Text>
           <Text style={styles.title}>{summary.code}</Text>
@@ -139,71 +155,107 @@ export default function DecisionStyleQuickTest({
           </View>
           <Button label="继续填写资料" onPress={() => onComplete(summary)} />
         </Card>
-      </ScrollView>
+      </TestFrame>
     );
   }
 
-  if (stage === "ties" && tieQueue[0]) {
-    const question = tieQueue[0];
+  if (stage === "ties" && activeTieBreaker) {
+    const question = activeTieBreaker;
+    const locked = advanceTimer.current !== null || busy;
     return (
-      <ScrollView contentContainerStyle={styles.content}>
+      <TestFrame embedded={embedded}>
         <Card>
-          <Text style={styles.eyebrow}>需要一个平分追问</Text>
+          <Text style={styles.eyebrow}>加赛题</Text>
           <Text style={styles.title}>{question.prompt}</Text>
           {question.left && question.right ? [question.left, question.right].map((choice) => (
             <Pressable
               key={choice.pole}
               accessibilityRole="radio"
-              accessibilityState={{ selected: detail.tieBreaks[question.axis] === choice.pole }}
+              accessibilityState={{ selected: detail.tieBreaks[question.axis] === choice.pole, disabled: locked }}
+              disabled={locked}
               onPress={() => updateTie(question.axis, choice.pole)}
-              style={styles.option}
+              hitSlop={4}
+              style={({ pressed }) => [
+                styles.option,
+                detail.tieBreaks[question.axis] === choice.pole && styles.optionSelected,
+                pressed && !locked && styles.optionPressed,
+              ]}
             >
               <Text style={styles.optionText}>{choice.label}</Text>
             </Pressable>
           )) : null}
           {busy ? <Muted>正在保存…</Muted> : null}
         </Card>
-      </ScrollView>
+      </TestFrame>
     );
   }
 
   const question = QUICK_QUESTIONS[index];
+  const locked = advanceTimer.current !== null || busy;
+  const backDisabled = index === 0 || locked;
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <TestFrame embedded={embedded}>
       <Card>
-        <Text style={styles.eyebrow}>快测 · {index + 1} / {QUICK_QUESTIONS.length}</Text>
-        <Text style={styles.title}>{question.prompt}</Text>
-        {options(question).map((option) => (
+        <View style={styles.questionHeader}>
           <Pressable
-            key={option.value}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: answerOf(detail, question.id) === option.value }}
-            onPress={() => updateAnswer(option.value)}
-            style={styles.option}
+            accessibilityRole="button"
+            accessibilityLabel="上一题"
+            accessibilityState={{ disabled: backDisabled }}
+            disabled={backDisabled}
+            hitSlop={8}
+            onPress={() => {
+              if (advanceTimer.current !== null) return;
+              setIndex((current) => Math.max(0, current - 1));
+            }}
+            style={({ pressed }) => [
+              styles.back,
+              backDisabled && styles.backDisabled,
+              pressed && !backDisabled && styles.backPressed,
+            ]}
           >
-            <Text style={styles.optionText}>{option.label}</Text>
+            <Text style={styles.backText}>上一题</Text>
           </Pressable>
-        ))}
-        <Button
-          label={index === QUICK_QUESTIONS.length - 1 ? "完成快测" : "下一题"}
-          disabled={answerOf(detail, question.id) === undefined}
-          onPress={() => {
-            if (index < QUICK_QUESTIONS.length - 1) setIndex((current) => current + 1);
-            else void finish(detail);
-          }}
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${((index + 1) / QUICK_QUESTIONS.length) * 100}%` },
+              ]}
+            />
+          </View>
+          <Text style={styles.progressText}>
+            {String(index + 1).padStart(2, "0")} / {QUICK_QUESTIONS.length}
+          </Text>
+        </View>
+        <Text style={styles.title}>{question.prompt}</Text>
+        <DecisionStyleScale
+          question={question}
+          value={answerOf(detail, question.id)}
+          disabled={locked}
+          onChange={chooseAnswer}
         />
-        <Button label="先跳过" kind="ghost" onPress={() => { void trackAppDecisionStyleEvent("style_skip"); void clearDecisionStyleDetail(); onSkip(); }} />
       </Card>
-    </ScrollView>
+    </TestFrame>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, justifyContent: "center", padding: space },
+  content: { paddingVertical: space },
+  scrollContent: { flexGrow: 1, justifyContent: "center", padding: space },
   eyebrow: { color: colors.fgMuted, fontSize: 13, marginBottom: 8 },
   title: { color: colors.fg, fontSize: 26, fontWeight: "700", marginBottom: 12 },
   gap: { height: 16 },
-  option: { minHeight: 48, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line, borderRadius: radii.md, justifyContent: "center", padding: 14, marginTop: 10 },
+  questionHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 18 },
+  back: { minHeight: 44, justifyContent: "center" },
+  backDisabled: { opacity: 0.4 },
+  backPressed: { opacity: 0.75 },
+  backText: { color: colors.accent, fontSize: 14, fontWeight: "600" },
+  progressTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.line, overflow: "hidden" },
+  progressFill: { height: 4, borderRadius: 2, backgroundColor: colors.accent },
+  progressText: { color: colors.fgMuted, fontSize: 13, fontVariant: ["tabular-nums"] },
+  option: { minHeight: 56, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line, borderRadius: radii.md, justifyContent: "center", padding: 14, marginTop: 10, backgroundColor: colors.card },
+  optionSelected: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
+  optionPressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
   optionText: { color: colors.fg, fontSize: 15, lineHeight: 22 },
   scoreGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginVertical: 18 },
   scoreItem: { width: "47%", borderRadius: radii.sm, backgroundColor: colors.accentSoft, padding: 12 },
