@@ -1,6 +1,6 @@
 import React from "react";
 import { Image, StyleSheet, View } from "react-native";
-import type { DecisionStyleCode } from "@lifeplanner/core/decisionStyle";
+import { decisionPersonalityPresentationByCode, type DecisionStyleCode } from "@lifeplanner/core/decisionStyle";
 import { colors } from "../theme";
 
 const SOURCES = {
@@ -29,13 +29,18 @@ export function DecisionStyleCharacter({
   code: DecisionStyleCode;
   size?: number;
 }) {
-  const [failed, setFailed] = React.useState(false);
+  const presentation = decisionPersonalityPresentationByCode(code);
+  const [failedCharacterId, setFailedCharacterId] = React.useState<DecisionStyleCode | null>(null);
+  if (!presentation) return null;
 
-  if (failed) {
+  const { characterId } = presentation;
+  const source = SOURCES[characterId];
+
+  if (failedCharacterId === characterId) {
     return (
       <View
         accessible
-        accessibilityLabel={`${code} 人格角色`}
+        accessibilityLabel={`${characterId} 人格角色`}
         style={[styles.fallback, { width: size, height: size }]}
       />
     );
@@ -43,10 +48,10 @@ export function DecisionStyleCharacter({
 
   return (
     <Image
-      source={SOURCES[code]}
-      accessibilityLabel={`${code} 人格角色`}
+      source={source}
+      accessibilityLabel={`${characterId} 人格角色`}
       resizeMode="contain"
-      onError={() => setFailed(true)}
+      onError={() => setFailedCharacterId(characterId)}
       style={{ width: size, height: size }}
     />
   );

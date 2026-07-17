@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import type { DecisionStyleCode } from "@/domain/decisionStyle";
+import { decisionPersonalityPresentationByCode, type DecisionStyleCode } from "@/domain/decisionStyle";
 
 export function DecisionStyleCharacter({
   code,
@@ -13,13 +13,17 @@ export function DecisionStyleCharacter({
   size?: number;
   className?: string;
 }) {
-  const [failed, setFailed] = useState(false);
+  const presentation = decisionPersonalityPresentationByCode(code);
+  const [failedCharacterId, setFailedCharacterId] = useState<DecisionStyleCode | null>(null);
+  if (!presentation) return null;
 
-  if (failed) {
+  const { characterId } = presentation;
+
+  if (failedCharacterId === characterId) {
     return (
       <div
         role="img"
-        aria-label={`${code} 人格角色`}
+        aria-label={`${characterId} 人格角色`}
         className={className}
         style={{
           width: size,
@@ -33,12 +37,12 @@ export function DecisionStyleCharacter({
 
   return (
     <img
-      src={`/decision-style/characters/${code}.png`}
-      alt={`${code} 人格角色`}
+      src={`/decision-style/characters/${characterId}.png`}
+      alt={`${characterId} 人格角色`}
       width={size}
       height={size}
       className={className}
-      onError={() => setFailed(true)}
+      onError={() => setFailedCharacterId(characterId)}
     />
   );
 }
