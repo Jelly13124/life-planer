@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DECISION_STYLE_SCALE_VALUES,
   FULL_QUESTIONS,
+  TIE_BREAKERS,
   decisionStyleScaleAccessibilityLabel,
   type DecisionStyleAnswerValue,
 } from "@/domain/decisionStyle";
@@ -222,12 +223,22 @@ describe("DecisionStyleTest", () => {
       chooseAndAdvance(index, answerValue(index, choice));
     }
 
+    const tieBreaker = TIE_BREAKERS[0];
+    const selectedTie = screen.getByRole("radio", { name: tieBreaker.left.label });
+    const ignoredTie = screen.getByRole("radio", { name: tieBreaker.right.label });
     expect(screen.getByText("加赛题")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "信息还不完整、成本也可控时，你这次更愿意：" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("radio", { name: "先试一次再调整" }));
+    expect(screen.getByRole("heading", { name: tieBreaker.prompt })).toBeInTheDocument();
+    fireEvent.click(selectedTie);
     for (const option of screen.getAllByRole("radio")) expect(option).toBeDisabled();
+    fireEvent.click(ignoredTie);
+    expect(screen.getByRole("heading", { name: tieBreaker.prompt })).toBeInTheDocument();
+    expect(selectedTie).toBeChecked();
+    expect(ignoredTie).not.toBeChecked();
     act(() => vi.advanceTimersByTime(199));
     expect(screen.getByText("加赛题")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: tieBreaker.prompt })).toBeInTheDocument();
+    expect(selectedTie).toBeChecked();
+    expect(ignoredTie).not.toBeChecked();
     act(() => vi.advanceTimersByTime(1));
 
     fireEvent.click(screen.getByRole("button", { name: "看看我为什么是这个类型" }));

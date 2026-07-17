@@ -37,6 +37,10 @@ interface DraftState {
   detail: DecisionStyleLocalDetail;
 }
 
+interface PendingAdvance {
+  tieBreaker: DecisionStyleQuestion | null;
+}
+
 function buildInitialState(): DraftState {
   const draft = loadDecisionStyleDraft();
   if (!draft) {
@@ -89,14 +93,13 @@ export function DecisionStyleTest({
   const analyticsStarted = useRef(false);
   const [questionIndex, setQuestionIndex] = useState(0);
   const advanceTimer = useRef<number | null>(null);
-  const pendingTieBreaker = useRef<DecisionStyleQuestion | null>(null);
+  const [pendingAdvance, setPendingAdvance] = useState<PendingAdvance | null>(null);
 
   const clearAdvanceTimer = useCallback(() => {
     if (advanceTimer.current !== null) {
       window.clearTimeout(advanceTimer.current);
       advanceTimer.current = null;
     }
-    pendingTieBreaker.current = null;
   }, []);
 
   const scoring = useMemo(
@@ -109,7 +112,7 @@ export function DecisionStyleTest({
     .filter((question): question is DecisionStyleQuestion => Boolean(question));
 
   const activeQuestion = FULL_QUESTIONS[questionIndex];
-  const activeTieBreaker = tieBreakQueue[0] ?? pendingTieBreaker.current;
+  const activeTieBreaker = tieBreakQueue[0] ?? pendingAdvance?.tieBreaker;
 
   useEffect(() => {
     let active = true;
@@ -142,6 +145,7 @@ export function DecisionStyleTest({
   async function finish(detail = draftState.detail) {
     const next = scoreDecisionStyle("full", detail.answers, detail.tieBreaks);
     if (!next.code) {
+      setPendingAdvance(null);
       setDraftState({ stage: "tieBreakers", detail });
       return;
     }
@@ -172,12 +176,14 @@ export function DecisionStyleTest({
         const signed = await requestDecisionStyleShareLink(summary);
         onInviteCleared?.();
         onCompareReady?.(`/compare/${inviteToken}/${signed.token}`);
+        setPendingAdvance(null);
         return;
       } catch {
         setCompareError("对比暂时不可用，请稍后重试。");
       }
     }
 
+    setPendingAdvance(null);
     setCompletedSummary(summary);
     setCompletedEvidence(next.evidence);
     setDraftState({ stage: "result", detail });
@@ -187,21 +193,24 @@ export function DecisionStyleTest({
     if (advanceTimer.current !== null) return;
     const nextDetail = upsertDecisionStyleAnswer(draftState.detail, activeQuestion.id, value);
     persist(nextDetail, "questions");
+    setPendingAdvance({ tieBreaker: null });
     advanceTimer.current = window.setTimeout(() => {
       advanceTimer.current = null;
       if (questionIndex === FULL_QUESTIONS.length - 1) void finish(nextDetail);
-      else setQuestionIndex((current) => current + 1);
+      else {
+        setPendingAdvance(null);
+        setQuestionIndex((current) => current + 1);
+      }
     }, 200);
   }
 
   function chooseTie(axis: DecisionStyleAxis, pole: "a" | "b") {
     if (advanceTimer.current !== null) return;
     const nextDetail = updateTieBreak(draftState.detail, axis, pole);
-    pendingTieBreaker.current = activeTieBreaker;
     persist(nextDetail, "tieBreakers");
+    setPendingAdvance({ tieBreaker: activeTieBreaker });
     advanceTimer.current = window.setTimeout(() => {
       advanceTimer.current = null;
-      pendingTieBreaker.current = null;
       void finish(nextDetail);
     }, 200);
   }
@@ -209,6 +218,7 @@ export function DecisionStyleTest({
   function restart() {
     if (!window.confirm("确定要重新测试吗？")) return;
     clearAdvanceTimer();
+    setPendingAdvance(null);
     clearDecisionStyleLocalData();
     setCompareError(null);
     setCompletedSummary(null);
@@ -283,7 +293,7 @@ export function DecisionStyleTest({
           <div className="text-sm text-[var(--fg-dim)]">加赛题</div>
           <h2 className="text-2xl font-semibold text-[var(--fg)]">{activeTieBreaker.prompt}</h2>
         </div>
-        <fieldset className="space-y-3" disabled={advanceTimer.current !== null}>
+        <fieldset className="space-y-3" disabled={pendingAdvance !== null}>
           <legend className="sr-only">{activeTieBreaker.prompt}</legend>
           {[activeTieBreaker.left, activeTieBreaker.right].map((option) => (
             <label
@@ -338,7 +348,7 @@ export function DecisionStyleTest({
       <DecisionStyleScale
         question={activeQuestion}
         value={selectedValue}
-        disabled={advanceTimer.current !== null}
+        disabled={pendingAdvance !== null}
         onChange={chooseAnswer}
       />
 
