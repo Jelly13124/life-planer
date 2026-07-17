@@ -42,6 +42,7 @@ export default function DecisionStyleQuickTest({
   const [detail, setDetail] = useState<DecisionStyleLocalDetail>({ version: 2, answers: [], tieBreaks: {} });
   const [summary, setSummary] = useState<DecisionStyleSummary | null>(null);
   const [busy, setBusy] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
   const [pendingTieBreaker, setPendingTieBreaker] = useState<DecisionStyleQuestion | null>(null);
   const advanceTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -106,8 +107,10 @@ export default function DecisionStyleQuickTest({
     const question = QUICK_QUESTIONS[index];
     const next = upsertDecisionStyleAnswer(detail, question.id, value);
     save(next);
+    setAdvancing(true);
     advanceTimer.current = setTimeout(() => {
       advanceTimer.current = null;
+      setAdvancing(false);
       if (index === QUICK_QUESTIONS.length - 1) void finish(next);
       else setIndex((current) => current + 1);
     }, 200);
@@ -118,9 +121,13 @@ export default function DecisionStyleQuickTest({
     const next = { ...detail, tieBreaks: { ...detail.tieBreaks, [axis]: pole } };
     setPendingTieBreaker(activeTieBreaker);
     save(next);
+    setAdvancing(true);
     advanceTimer.current = setTimeout(() => {
       advanceTimer.current = null;
-      void finish(next).finally(() => setPendingTieBreaker(null));
+      void finish(next).finally(() => {
+        setAdvancing(false);
+        setPendingTieBreaker(null);
+      });
     }, 200);
   };
 
@@ -153,7 +160,9 @@ export default function DecisionStyleQuickTest({
 
   if (stage === "ties" && activeTieBreaker) {
     const question = activeTieBreaker;
-    const locked = advanceTimer.current !== null || busy;
+    const locked = advancing || busy;
+    const chooseTieA = () => updateTie(question.axis, "a");
+    const chooseTieB = () => updateTie(question.axis, "b");
     return (
       <TestFrame embedded={embedded}>
         <Card>
@@ -165,7 +174,7 @@ export default function DecisionStyleQuickTest({
               accessibilityRole="radio"
               accessibilityState={{ selected: detail.tieBreaks[question.axis] === choice.pole, disabled: locked }}
               disabled={locked}
-              onPress={() => updateTie(question.axis, choice.pole)}
+              onPress={choice.pole === "a" ? chooseTieA : chooseTieB}
               hitSlop={4}
               style={({ pressed }) => [
                 styles.option,
@@ -183,7 +192,7 @@ export default function DecisionStyleQuickTest({
   }
 
   const question = QUICK_QUESTIONS[index];
-  const locked = advanceTimer.current !== null || busy;
+  const locked = advancing || busy;
   const backDisabled = index === 0 || locked;
   return (
     <TestFrame embedded={embedded}>
