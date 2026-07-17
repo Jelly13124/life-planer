@@ -3,6 +3,7 @@ import { Image, StyleSheet, View } from "react-native";
 import { decisionPersonalityPresentationByCode, type DecisionStyleCode } from "@lifeplanner/core/decisionStyle";
 import { colors } from "../theme";
 
+/* eslint-disable @typescript-eslint/no-require-imports -- Metro resolves these static asset literals at bundle time. */
 const SOURCES = {
   FDBG: require("../../assets/decision-style/characters/FDBG.png"),
   FDBV: require("../../assets/decision-style/characters/FDBV.png"),
@@ -21,6 +22,7 @@ const SOURCES = {
   SWLG: require("../../assets/decision-style/characters/SWLG.png"),
   SWLV: require("../../assets/decision-style/characters/SWLV.png"),
 } satisfies Record<DecisionStyleCode, number>;
+/* eslint-enable @typescript-eslint/no-require-imports */
 
 export function DecisionStyleCharacter({
   code,
@@ -49,6 +51,7 @@ export function DecisionStyleCharacter({
   return (
     <Image
       source={source}
+      alt={`${characterId} 人格角色`}
       accessibilityLabel={`${characterId} 人格角色`}
       resizeMode="contain"
       onError={() => setFailedCharacterId(characterId)}
