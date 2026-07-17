@@ -23,6 +23,21 @@ const payload: DecisionStylePublicPayload = {
   code: "FDBG",
   scores: { tempo: 76, focus: 61, engine: 58, drive: 84 },
 };
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+async function expectPngDimensions(
+  response: Response,
+  width: number,
+  height: number,
+) {
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  expect(Array.from(bytes.subarray(0, PNG_SIGNATURE.length))).toEqual(PNG_SIGNATURE);
+  expect(new TextDecoder().decode(bytes.subarray(12, 16))).toBe("IHDR");
+
+  const header = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  expect(header.getUint32(16)).toBe(width);
+  expect(header.getUint32(20)).toBe(height);
+}
 
 function validParams() {
   const token = signDecisionStylePayload(payload, "test-secret");
@@ -115,11 +130,13 @@ describe("public Decision Style share route", () => {
 
     const og = await Image({ params: validParams() });
     expect(og.headers.get("content-type")).toContain(contentType);
+    await expectPngDimensions(og, 1200, 630);
 
     const png = await GET(new Request("http://localhost/style/FDBG/token/card.png"), {
       params: validParams(),
     });
     expect(png.headers.get("content-type")).toContain(contentType);
+    await expectPngDimensions(png, 1080, 1350);
 
     const invalidOg = await Image({ params: invalidParams() });
     expect(invalidOg.status).toBe(404);

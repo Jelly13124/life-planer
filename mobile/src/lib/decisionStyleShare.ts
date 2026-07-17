@@ -15,7 +15,13 @@ async function requestSignedShare(summary: DecisionStyleSummary): Promise<Signed
     body: JSON.stringify({ version: 2, source: summary.source, code: summary.code, scores: summary.scores }),
   });
   if (!response.ok) throw new Error("share-token-failed");
-  const signed = resolveSignedStyleShareResponse(await response.json(), SHARE_BASE_URL, summary.code);
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    throw new Error("share-token-failed");
+  }
+  const signed = resolveSignedStyleShareResponse(body, SHARE_BASE_URL, summary.code);
   if (!signed) throw new Error("share-token-failed");
   return signed;
 }
