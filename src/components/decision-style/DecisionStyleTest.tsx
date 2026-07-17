@@ -5,6 +5,7 @@ import {
   FULL_QUESTIONS,
   TIE_BREAKERS,
   scoreDecisionStyle,
+  upsertDecisionStyleAnswer,
   type DecisionStyleAnswerValue,
   type DecisionStyleAxis,
   type DecisionStyleLocalDetail,
@@ -27,6 +28,7 @@ import {
 import { persistDecisionStyleSummary } from "@/lib/decisionStyleTreeBridge";
 import { useApp } from "@/state/AppContext";
 import { DecisionStyleResult } from "./DecisionStyleResult";
+import { DecisionStyleScale } from "./DecisionStyleScale";
 
 type Stage = "intro" | "questions" | "tieBreakers" | "result";
 
@@ -45,27 +47,6 @@ function buildInitialState(): DraftState {
   if (draft.answers.length < FULL_QUESTIONS.length) return { stage: "questions", detail: draft };
   if (result.code) return { stage: "result", detail: draft };
   return { stage: "tieBreakers", detail: draft };
-}
-
-function intensityOptions(question: DecisionStyleQuestion) {
-  return [
-    { value: -2 as DecisionStyleAnswerValue, label: `${question.left.label}（非常符合）` },
-    { value: -1 as DecisionStyleAnswerValue, label: `${question.left.label}（比较符合）` },
-    { value: 0 as DecisionStyleAnswerValue, label: "两边都差不多" },
-    { value: 1 as DecisionStyleAnswerValue, label: `${question.right.label}（比较符合）` },
-    { value: 2 as DecisionStyleAnswerValue, label: `${question.right.label}（非常符合）` },
-  ];
-}
-
-function updateAnswer(
-  detail: DecisionStyleLocalDetail,
-  questionId: string,
-  value: DecisionStyleAnswerValue,
-): DecisionStyleLocalDetail {
-  const answers = detail.answers.some((item) => item.questionId === questionId)
-    ? detail.answers.map((item) => (item.questionId === questionId ? { ...item, value } : item))
-    : [...detail.answers, { questionId, value }];
-  return { ...detail, answers };
 }
 
 function updateTieBreak(
@@ -107,6 +88,7 @@ export function DecisionStyleTest({
   const [compareError, setCompareError] = useState<string | null>(null);
   const analyticsStarted = useRef(false);
   const [questionIndex, setQuestionIndex] = useState(0);
+  const advanceTimer = useRef<number | null>(null);
 
   const scoring = useMemo(
     () => scoreDecisionStyle("full", draftState.detail.answers, draftState.detail.tieBreaks),
@@ -141,15 +123,19 @@ export function DecisionStyleTest({
     if (inviteToken) void trackDecisionStyleEvent("style_compare_start", { source });
   }, [inviteToken]);
 
+  useEffect(() => () => {
+    if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
+  }, []);
+
   function persist(detail: DecisionStyleLocalDetail, stage = draftState.stage) {
     saveDecisionStyleDraft(detail);
     setDraftState({ stage, detail });
   }
 
-  async function finish() {
-    const next = scoreDecisionStyle("full", draftState.detail.answers, draftState.detail.tieBreaks);
+  async function finish(detail = draftState.detail) {
+    const next = scoreDecisionStyle("full", detail.answers, detail.tieBreaks);
     if (!next.code) {
-      setDraftState((current) => ({ ...current, stage: "tieBreakers" }));
+      setDraftState({ stage: "tieBreakers", detail });
       return;
     }
 
@@ -163,7 +149,7 @@ export function DecisionStyleTest({
 
     void trackDecisionStyleEvent("style_complete", { source: inviteToken ? "shared" : "direct" });
 
-    saveDecisionStyleDetail(draftState.detail);
+    saveDecisionStyleDetail(detail);
     clearDecisionStyleDraft();
     setCompareError(null);
 
@@ -187,7 +173,28 @@ export function DecisionStyleTest({
 
     setCompletedSummary(summary);
     setCompletedEvidence(next.evidence);
-    setDraftState((current) => ({ ...current, stage: "result" }));
+    setDraftState({ stage: "result", detail });
+  }
+
+  function chooseAnswer(value: DecisionStyleAnswerValue) {
+    if (advanceTimer.current) return;
+    const nextDetail = upsertDecisionStyleAnswer(draftState.detail, activeQuestion.id, value);
+    persist(nextDetail, "questions");
+    advanceTimer.current = window.setTimeout(() => {
+      advanceTimer.current = null;
+      if (questionIndex === FULL_QUESTIONS.length - 1) void finish(nextDetail);
+      else setQuestionIndex((current) => current + 1);
+    }, 200);
+  }
+
+  function chooseTie(axis: DecisionStyleAxis, pole: "a" | "b") {
+    if (advanceTimer.current) return;
+    const nextDetail = updateTieBreak(draftState.detail, axis, pole);
+    persist(nextDetail, "tieBreakers");
+    advanceTimer.current = window.setTimeout(() => {
+      advanceTimer.current = null;
+      void finish(nextDetail);
+    }, 200);
   }
 
   function restart() {
@@ -231,10 +238,10 @@ export function DecisionStyleTest({
     return (
       <Card pad="lg" className="space-y-5">
         <div className="space-y-2">
-          <div className="text-xs uppercase tracking-[0.2em] text-[var(--fg-faint)]">职业决策风格测试</div>
-          <h1 className="text-3xl font-semibold text-[var(--fg)]">28 题完整版</h1>
+          <div className="text-xs tracking-[0.18em] text-[var(--fg-faint)]">决策人格测试</div>
+          <h1 className="text-3xl font-semibold text-[var(--fg)]">28 道选择题，看看你做重大决定时像哪种人</h1>
           <p className="text-sm leading-6 text-[var(--fg-dim)]">
-            用最近的真实决策习惯看你现在的职业决策倾向。全程本地计算，不是心理诊断。
+            按最近真实发生的选择回答。原始答案只保存在本设备；结果描述当前倾向，不是固定人格或心理诊断。
           </p>
         </div>
         <ul className="space-y-2 text-sm text-[var(--fg-dim)]">
@@ -263,10 +270,10 @@ export function DecisionStyleTest({
     return (
       <Card pad="lg" className="space-y-5">
         <div className="space-y-2">
-          <div className="text-sm text-[var(--fg-dim)]">还需要 {tieBreakQueue.length} 个平分追问</div>
+          <div className="text-sm text-[var(--fg-dim)]">加赛题</div>
           <h2 className="text-2xl font-semibold text-[var(--fg)]">{activeTieBreaker.prompt}</h2>
         </div>
-        <fieldset className="space-y-3">
+        <fieldset className="space-y-3" disabled={advanceTimer.current !== null}>
           <legend className="sr-only">{activeTieBreaker.prompt}</legend>
           {[activeTieBreaker.left, activeTieBreaker.right].map((option) => (
             <label
@@ -278,26 +285,15 @@ export function DecisionStyleTest({
                 name={activeTieBreaker.id}
                 value={option.pole}
                 checked={draftState.detail.tieBreaks[activeTieBreaker.axis] === option.pole}
-                onChange={() =>
-                  persist(updateTieBreak(draftState.detail, activeTieBreaker.axis, option.pole), "tieBreakers")}
+                onChange={() => chooseTie(activeTieBreaker.axis, option.pole)}
               />
               <span>{option.label}</span>
             </label>
           ))}
         </fieldset>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button type="button" variant="ghost" className="min-h-11" onClick={restart}>
-            重新测试
-          </Button>
-          <Button
-            type="button"
-            className="min-h-11"
-            disabled={!draftState.detail.tieBreaks[activeTieBreaker.axis]}
-            onClick={() => void finish()}
-          >
-            查看结果
-          </Button>
-        </div>
+        <Button type="button" variant="ghost" className="min-h-11" onClick={restart}>
+          重新测试
+        </Button>
         {compareError ? <p className="text-sm text-[var(--fg-dim)]">{compareError}</p> : null}
       </Card>
     );
@@ -307,59 +303,38 @@ export function DecisionStyleTest({
 
   return (
     <Card pad="lg" className="space-y-5">
-      <div className="space-y-2">
-        <div className="text-sm text-[var(--fg-dim)]">第 {questionIndex + 1} / {FULL_QUESTIONS.length} 题</div>
-        <h2 className="text-2xl font-semibold text-[var(--fg)]">{activeQuestion.prompt}</h2>
-      </div>
-
-      <fieldset className="space-y-3">
-        <legend className="sr-only">{activeQuestion.prompt}</legend>
-        {intensityOptions(activeQuestion).map((option) => (
-          <label
-            key={option.label}
-            className="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-[var(--line)] px-4 py-3 text-sm text-[var(--fg)]"
-          >
-            <input
-              type="radio"
-              name={activeQuestion.id}
-              value={option.value}
-              checked={selectedValue === option.value}
-              onChange={() => persist(updateAnswer(draftState.detail, activeQuestion.id, option.value), "questions")}
-            />
-            <span>{option.label}</span>
-          </label>
-        ))}
-      </fieldset>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            className="min-h-11"
-            disabled={questionIndex === 0}
-            onClick={() => setQuestionIndex((current) => Math.max(0, current - 1))}
-          >
-            上一题
-          </Button>
-          <Button type="button" variant="ghost" className="min-h-11" onClick={restart}>
-            重新测试
-          </Button>
-        </div>
-
+      <div className="flex items-center gap-4">
         <Button
           type="button"
+          variant="ghost"
           className="min-h-11"
-          disabled={selectedValue === undefined}
-          onClick={() => {
-            setCompareError(null);
-            if (questionIndex === FULL_QUESTIONS.length - 1) void finish();
-            else setQuestionIndex((current) => current + 1);
-          }}
+          disabled={questionIndex === 0}
+          onClick={() => setQuestionIndex((current) => Math.max(0, current - 1))}
         >
-          {questionIndex === FULL_QUESTIONS.length - 1 ? "查看结果" : "下一题"}
+          上一题
         </Button>
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/8" aria-hidden="true">
+          <div
+            className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-200 motion-reduce:transition-none"
+            style={{ width: `${((questionIndex + 1) / FULL_QUESTIONS.length) * 100}%` }}
+          />
+        </div>
+        <span className="text-sm tabular-nums text-[var(--fg-dim)]">
+          {String(questionIndex + 1).padStart(2, "0")} / {FULL_QUESTIONS.length}
+        </span>
       </div>
+      <h2 className="text-2xl font-semibold text-[var(--fg)]">{activeQuestion.prompt}</h2>
+
+      <DecisionStyleScale
+        question={activeQuestion}
+        value={selectedValue}
+        disabled={advanceTimer.current !== null}
+        onChange={chooseAnswer}
+      />
+
+      <Button type="button" variant="ghost" className="min-h-11" onClick={restart}>
+        重新测试
+      </Button>
       {compareError ? <p className="text-sm text-[var(--fg-dim)]">{compareError}</p> : null}
     </Card>
   );

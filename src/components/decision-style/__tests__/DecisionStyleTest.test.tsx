@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { act, cleanup, fireEvent, render, screen, within, type RenderResult } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FULL_QUESTIONS } from "@/domain/decisionStyle";
+import {
+  DECISION_STYLE_SCALE_VALUES,
+  FULL_QUESTIONS,
+  decisionStyleScaleAccessibilityLabel,
+  type DecisionStyleAnswerValue,
+} from "@/domain/decisionStyle";
 import { DecisionStyleTest } from "@/components/decision-style/DecisionStyleTest";
 import {
   STYLE_DETAIL_KEY,
@@ -35,20 +41,41 @@ vi.mock("@/state/AppContext", () => ({
   useApp: () => mockApp,
 }));
 
-function answerQuestion(questionIndex: number, choice: "neutral" | "a") {
-  const question = FULL_QUESTIONS[questionIndex];
-  if (choice === "neutral") {
-    fireEvent.click(screen.getByLabelText("两边都差不多"));
-    return;
-  }
-  const label = question.left.pole === "a"
-    ? `${question.left.label}（非常符合）`
-    : `${question.right.label}（非常符合）`;
-  fireEvent.click(screen.getByLabelText(label));
+async function renderTest(ui: ReactElement): Promise<RenderResult> {
+  let result: RenderResult | undefined;
+  await act(async () => {
+    result = render(ui);
+  });
+  return result as RenderResult;
 }
+
+function answerValue(questionIndex: number, choice: "neutral" | "a"): DecisionStyleAnswerValue {
+  if (choice === "neutral") return 0;
+  return FULL_QUESTIONS[questionIndex].left.pole === "a" ? -2 : 2;
+}
+
+function chooseAndAdvance(questionIndex: number, value: DecisionStyleAnswerValue) {
+  fireEvent.click(screen.getByRole("button", {
+    name: decisionStyleScaleAccessibilityLabel(FULL_QUESTIONS[questionIndex], value),
+  }));
+  act(() => vi.advanceTimersByTime(200));
+}
+
+function chooseTieAndFinish(label: string) {
+  fireEvent.click(screen.getByRole("radio", { name: label }));
+  act(() => vi.advanceTimersByTime(200));
+}
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  mockApp.tree = null;
+  requestDecisionStyleShareLink.mockReset();
+});
 
 afterEach(() => {
   cleanup();
+  vi.runOnlyPendingTimers();
+  vi.useRealTimers();
   sessionStorage.clear();
   localStorage.clear();
   mockApplyDecisionStyleSummary.mockReset();
@@ -56,61 +83,108 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-beforeEach(() => {
-  mockApp.tree = null;
-  requestDecisionStyleShareLink.mockReset();
-});
-
 describe("DecisionStyleTest", () => {
-  it("restores a saved draft after refresh, preserves back navigation state, and can restart with confirmation", async () => {
-    const onContinueToTree = vi.fn();
-    const { unmount } = render(<DecisionStyleTest onContinueToTree={onContinueToTree} />);
+  it("renders the exact intro and a five-dot scale without visible intensity wording or question submit buttons", async () => {
+    await renderTest(<DecisionStyleTest onContinueToTree={vi.fn()} />);
+
+    expect(screen.getByText("决策人格测试")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "28 道选择题，看看你做重大决定时像哪种人" })).toBeInTheDocument();
+    expect(screen.getByText("按最近真实发生的选择回答。原始答案只保存在本设备；结果描述当前倾向，不是固定人格或心理诊断。")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始测试" }));
-    expect(screen.getByText(/第 1 \/ 28 题/)).toBeInTheDocument();
 
-    answerQuestion(0, "a");
-    fireEvent.click(screen.getByRole("button", { name: "下一题" }));
-    expect(screen.getByText(/第 2 \/ 28 题/)).toBeInTheDocument();
+    const first = FULL_QUESTIONS[0];
+    const scale = screen.getByRole("group", { name: first.prompt });
+    expect(within(scale).getByText(first.left.label)).toBeInTheDocument();
+    expect(within(scale).getByText(first.right.label)).toBeInTheDocument();
+    expect(within(scale).getAllByRole("button")).toHaveLength(5);
+    for (const value of DECISION_STYLE_SCALE_VALUES) {
+      expect(within(scale).getByRole("button", {
+        name: decisionStyleScaleAccessibilityLabel(first, value),
+      })).toHaveAttribute("aria-pressed", "false");
+    }
+    expect(within(scale).queryByText(/强烈偏向|稍微偏向|两边差不多/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "下一题" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "查看结果" })).not.toBeInTheDocument();
+  });
+
+  it("auto-advances once, ignores a second rapid choice, and preserves back edits", async () => {
+    await renderTest(<DecisionStyleTest onContinueToTree={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "开始测试" }));
+    const first = FULL_QUESTIONS[0];
+    const leftChoice = screen.getByRole("button", {
+      name: decisionStyleScaleAccessibilityLabel(first, -2),
+    });
+    const rightChoice = screen.getByRole("button", {
+      name: decisionStyleScaleAccessibilityLabel(first, 2),
+    });
+
+    fireEvent.click(leftChoice);
+    fireEvent.click(rightChoice);
+    act(() => vi.advanceTimersByTime(199));
+    expect(screen.getByText("01 / 28")).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.getByText("02 / 28")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "上一题" }));
-    expect(screen.getByRole("heading", { name: FULL_QUESTIONS[0].prompt })).toBeInTheDocument();
-    const checked = screen.getByLabelText(
-      FULL_QUESTIONS[0].left.pole === "a"
-        ? `${FULL_QUESTIONS[0].left.label}（非常符合）`
-        : `${FULL_QUESTIONS[0].right.label}（非常符合）`,
-    ) as HTMLInputElement;
-    expect(checked.checked).toBe(true);
+    expect(screen.getByRole("button", {
+      name: decisionStyleScaleAccessibilityLabel(first, -2),
+    })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", {
+      name: decisionStyleScaleAccessibilityLabel(first, 2),
+    })).toHaveAttribute("aria-pressed", "false");
 
-    fireEvent.click(screen.getByRole("button", { name: "下一题" }));
+    chooseAndAdvance(0, 2);
+    fireEvent.click(screen.getByRole("button", { name: "上一题" }));
+    expect(screen.getByRole("button", {
+      name: decisionStyleScaleAccessibilityLabel(first, 2),
+    })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("restores a saved draft after refresh and can restart with confirmation", async () => {
+    const onContinueToTree = vi.fn();
+    const { unmount } = await renderTest(<DecisionStyleTest onContinueToTree={onContinueToTree} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "开始测试" }));
+    expect(screen.getByText("01 / 28")).toBeInTheDocument();
+
+    const firstValue = answerValue(0, "a");
+    chooseAndAdvance(0, firstValue);
+    expect(screen.getByText("02 / 28")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "上一题" }));
+    expect(screen.getByRole("button", {
+      name: decisionStyleScaleAccessibilityLabel(FULL_QUESTIONS[0], firstValue),
+    })).toHaveAttribute("aria-pressed", "true");
+
+    chooseAndAdvance(0, firstValue);
     unmount();
 
-    render(<DecisionStyleTest onContinueToTree={onContinueToTree} />);
-    await waitFor(() => expect(screen.getByText(/第 2 \/ 28 题/)).toBeInTheDocument());
+    await renderTest(<DecisionStyleTest onContinueToTree={onContinueToTree} />);
+    expect(screen.getByText("02 / 28")).toBeInTheDocument();
 
     vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
     fireEvent.click(screen.getByRole("button", { name: "重新测试" }));
-    expect(screen.getByText(/第 2 \/ 28 题/)).toBeInTheDocument();
+    expect(screen.getByText("02 / 28")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "重新测试" }));
     expect(screen.getByRole("button", { name: "开始测试" })).toBeInTheDocument();
     expect(sessionStorage.getItem(STYLE_DRAFT_KEY)).toBeNull();
   });
 
-  it("runs intro to result, asks only for required tie-breakers, clears draft, saves local detail, and hands off to onboarding", () => {
+  it("runs intro to result, asks only for required tie-breakers, clears draft, saves local detail, and hands off to onboarding", async () => {
     const onContinueToTree = vi.fn();
-    render(<DecisionStyleTest onContinueToTree={onContinueToTree} />);
+    await renderTest(<DecisionStyleTest onContinueToTree={onContinueToTree} />);
 
     fireEvent.click(screen.getByRole("button", { name: "开始测试" }));
 
     for (let index = 0; index < FULL_QUESTIONS.length; index += 1) {
-      answerQuestion(index, FULL_QUESTIONS[index].axis === "tempo" ? "neutral" : "a");
-      fireEvent.click(screen.getByRole("button", { name: index === FULL_QUESTIONS.length - 1 ? "查看结果" : "下一题" }));
+      const choice = FULL_QUESTIONS[index].axis === "tempo" ? "neutral" : "a";
+      chooseAndAdvance(index, answerValue(index, choice));
     }
 
-    expect(screen.getByText("还需要 1 个平分追问")).toBeInTheDocument();
+    expect(screen.getByText("加赛题")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "信息还不完整、成本也可控时，你这次更愿意：" })).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText("先试一次再调整"));
-    fireEvent.click(screen.getByRole("button", { name: "查看结果" }));
+    chooseTieAndFinish("先试一次再调整");
 
     expect(screen.getByText("本地结果依据")).toBeInTheDocument();
     expect(sessionStorage.getItem(STYLE_DRAFT_KEY)).toBeNull();
@@ -130,9 +204,9 @@ describe("DecisionStyleTest", () => {
       tieBreaks: {},
     });
 
-    render(<DecisionStyleTest onContinueToTree={vi.fn()} />);
+    await renderTest(<DecisionStyleTest onContinueToTree={vi.fn()} />);
 
-    await waitFor(() => expect(screen.getByText(/第 2 \/ 28 题/)).toBeInTheDocument());
+    expect(screen.getByText("02 / 28")).toBeInTheDocument();
   });
 
   it("uses an inviter token only for the current completion flow, then clears invite state", async () => {
@@ -146,7 +220,7 @@ describe("DecisionStyleTest", () => {
     const onCompareReady = vi.fn();
     const onInviteCleared = vi.fn();
 
-    render(
+    await renderTest(
       <DecisionStyleTest
         onContinueToTree={vi.fn()}
         inviteToken="inviter-signed-token"
@@ -158,30 +232,32 @@ describe("DecisionStyleTest", () => {
     fireEvent.click(screen.getByRole("button", { name: "开始测试" }));
 
     for (let index = 0; index < FULL_QUESTIONS.length; index += 1) {
-      answerQuestion(index, FULL_QUESTIONS[index].axis === "tempo" ? "neutral" : "a");
-      fireEvent.click(screen.getByRole("button", { name: index === FULL_QUESTIONS.length - 1 ? "查看结果" : "下一题" }));
+      const choice = FULL_QUESTIONS[index].axis === "tempo" ? "neutral" : "a";
+      chooseAndAdvance(index, answerValue(index, choice));
     }
 
-    fireEvent.click(screen.getByLabelText("先试一次再调整"));
-    fireEvent.click(screen.getByRole("button", { name: "查看结果" }));
+    chooseTieAndFinish("先试一次再调整");
 
-    await waitFor(() => expect(requestDecisionStyleShareLink).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(requestDecisionStyleShareLink).toHaveBeenCalledTimes(1);
     expect(requestDecisionStyleShareLink.mock.calls[0]?.[0]).toMatchObject({
       version: 2,
       source: "full",
       code: "FDBG",
     });
-    await waitFor(() => expect(onCompareReady).toHaveBeenCalledWith("/compare/inviter-signed-token/friend-signed-token"));
+    expect(onCompareReady).toHaveBeenCalledWith("/compare/inviter-signed-token/friend-signed-token");
     expect(onInviteCleared).toHaveBeenCalledTimes(1);
     expect(sessionStorage.getItem(STYLE_SUMMARY_KEY)).toBeNull();
     expect(localStorage.getItem(STYLE_DETAIL_KEY)).toContain('"version":2');
   });
 
-  it("clears invite state on restart without persisting the inviter token", () => {
+  it("clears invite state on restart without persisting the inviter token", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     const onInviteCleared = vi.fn();
 
-    render(
+    await renderTest(
       <DecisionStyleTest
         onContinueToTree={vi.fn()}
         inviteToken="inviter-signed-token"
