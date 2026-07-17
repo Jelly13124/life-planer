@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DecisionStyleSummary } from "@/domain/decisionStyle";
+import { DecisionPersonalityHero } from "@/components/decision-style/DecisionPersonalityHero";
 import { DecisionStyleResult } from "@/components/decision-style/DecisionStyleResult";
 
 const {
@@ -46,15 +47,19 @@ const evidence = [
   { questionId: "drive-1", axis: "drive" as const, choiceLabel: "回报、稳定性和可持续的保障", value: -2 as const },
 ];
 
-beforeEach(() => {
+function setReducedMotionPreference(matches: boolean) {
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: () => ({
-      matches: true,
+      matches,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     }),
   });
+}
+
+beforeEach(() => {
+  setReducedMotionPreference(true);
   requestDecisionStyleShareLink.mockReset();
   shareDecisionStyleLink.mockReset();
   copyDecisionStyleLink.mockReset();
@@ -63,6 +68,46 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("DecisionPersonalityHero", () => {
+  it("reveals immediately when reveal is disabled", () => {
+    setReducedMotionPreference(false);
+    const setTimeout = vi.spyOn(window, "setTimeout");
+
+    render(<DecisionPersonalityHero summary={summary} reveal={false} />);
+
+    expect(screen.getByRole("heading", { name: summary.code })).toBeInTheDocument();
+    expect(setTimeout).not.toHaveBeenCalled();
+  });
+
+  it("reveals immediately when reduced motion is preferred", () => {
+    const setTimeout = vi.spyOn(window, "setTimeout");
+
+    render(<DecisionPersonalityHero summary={summary} />);
+
+    expect(screen.getByRole("heading", { name: summary.code })).toBeInTheDocument();
+    expect(setTimeout).not.toHaveBeenCalled();
+  });
+
+  it("waits for the reveal delay when motion is allowed", () => {
+    vi.useFakeTimers();
+    setReducedMotionPreference(false);
+
+    try {
+      render(<DecisionPersonalityHero summary={summary} />);
+
+      expect(screen.queryByRole("heading", { name: summary.code })).not.toBeInTheDocument();
+
+      act(() => vi.advanceTimersByTime(449));
+      expect(screen.queryByRole("heading", { name: summary.code })).not.toBeInTheDocument();
+
+      act(() => vi.advanceTimersByTime(1));
+      expect(screen.getByRole("heading", { name: summary.code })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("DecisionStyleResult", () => {
@@ -119,14 +164,7 @@ describe("DecisionStyleResult", () => {
   });
 
   it("cleans the pending personality reveal timer when unmounted", () => {
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      value: () => ({
-        matches: false,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      }),
-    });
+    setReducedMotionPreference(false);
     const clearTimeout = vi.spyOn(window, "clearTimeout");
     const { unmount } = render(
       <DecisionStyleResult

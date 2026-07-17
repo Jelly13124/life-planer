@@ -1,11 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   decisionPersonalityPresentationByCode,
   type DecisionStyleSummary,
 } from "@/domain/decisionStyle";
 import { DecisionStyleCharacter } from "./DecisionStyleCharacter";
+
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+function subscribeToReducedMotion(onStoreChange: () => void) {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return () => undefined;
+  }
+
+  const mediaQuery = window.matchMedia(REDUCED_MOTION_QUERY);
+  mediaQuery.addEventListener("change", onStoreChange);
+  return () => mediaQuery.removeEventListener("change", onStoreChange);
+}
+
+function getReducedMotionPreference() {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia(REDUCED_MOTION_QUERY).matches
+  );
+}
+
+function getServerReducedMotionPreference() {
+  return false;
+}
 
 export function DecisionPersonalityHero({
   summary,
@@ -15,21 +39,21 @@ export function DecisionPersonalityHero({
   reveal?: boolean;
 }) {
   const presentation = decisionPersonalityPresentationByCode(summary.code);
-  const [revealed, setRevealed] = useState(!reveal);
+  const reduceMotion = useSyncExternalStore(
+    subscribeToReducedMotion,
+    getReducedMotionPreference,
+    getServerReducedMotionPreference,
+  );
+  const [revealDelayElapsed, setRevealDelayElapsed] = useState(!reveal);
 
   useEffect(() => {
-    const reduceMotion =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!reveal || reduceMotion) return;
 
-    if (!reveal || reduceMotion) {
-      setRevealed(true);
-      return;
-    }
-
-    const timer = window.setTimeout(() => setRevealed(true), 450);
+    const timer = window.setTimeout(() => setRevealDelayElapsed(true), 450);
     return () => window.clearTimeout(timer);
-  }, [reveal]);
+  }, [reduceMotion, reveal]);
+
+  const revealed = !reveal || reduceMotion || revealDelayElapsed;
 
   if (!presentation) return null;
 
