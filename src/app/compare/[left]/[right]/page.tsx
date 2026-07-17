@@ -2,14 +2,16 @@ import type { Metadata } from "next";
 import {
   AXES,
   AXIS_KEYS,
+  decisionPersonalityPresentationByCode,
+  decisionPersonalityRelationshipLine,
   decisionStyleAxisStrength,
-  decisionStyleTypeByCode,
   type DecisionStyleAxis,
   type DecisionStyleLetter,
   type DecisionStylePublicPayload,
 } from "@/domain/decisionStyle";
 import { getDecisionStyleShareSecret, verifyDecisionStyleToken } from "@/lib/decisionStyleToken.server";
 import { DecisionStyleAnalyticsBeacon } from "@/components/decision-style/DecisionStyleAnalyticsBeacon";
+import { DecisionStyleCharacter } from "@/components/decision-style/DecisionStyleCharacter";
 import {
   FALLBACK_DESCRIPTION,
   FALLBACK_TITLE,
@@ -69,11 +71,11 @@ export async function resolveDecisionStyleComparePayload(
 }
 
 function metadataForPayload(compare: ComparePayload): Metadata {
-  const leftType = decisionStyleTypeByCode(compare.left.code);
-  const rightType = decisionStyleTypeByCode(compare.right.code);
+  const leftPresentation = decisionPersonalityPresentationByCode(compare.left.code);
+  const rightPresentation = decisionPersonalityPresentationByCode(compare.right.code);
   return {
-    title: `${leftType?.label ?? compare.left.code} × ${rightType?.label ?? compare.right.code} 对照 | Life Planner`,
-    description: "并排查看两份已验证的四轴当前倾向与分数差异，不做匹配评分或优劣判断。",
+    title: `${leftPresentation?.label ?? compare.left.code} × ${rightPresentation?.label ?? compare.right.code} 对照 | Life Planner`,
+    description: "查看两份已验证的决策人格，以及四轴当前倾向的相近与差异之处。",
   };
 }
 
@@ -98,127 +100,126 @@ export default async function Page({
   const furthest = widestAxis(compare);
   const nearestAxis = AXES.find((item) => item.key === nearest)!;
   const furthestAxis = AXES.find((item) => item.key === furthest)!;
-  const leftType = decisionStyleTypeByCode(compare.left.code);
-  const rightType = decisionStyleTypeByCode(compare.right.code);
+  const leftPresentation = decisionPersonalityPresentationByCode(compare.left.code);
+  const rightPresentation = decisionPersonalityPresentationByCode(compare.right.code);
+  if (!leftPresentation || !rightPresentation) return <SafeRetestEntry />;
+
+  const people = [
+    { payload: compare.left, presentation: leftPresentation, role: "你" },
+    { payload: compare.right, presentation: rightPresentation, role: "TA" },
+  ] as const;
 
   return (
     <main
+      className="min-h-dvh px-4 pb-14 pt-6 text-[#251f1a] sm:px-6 sm:pb-20 sm:pt-10"
       style={{
-        minHeight: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        padding: "32px 16px 48px",
-        background: "#f8fafc",
-        color: "#0f172a",
-        fontFamily: "sans-serif",
+        background:
+          "radial-gradient(circle at 16% 4%, rgba(255,253,249,0.96) 0, rgba(255,253,249,0) 30%), #f4eadf",
       }}
     >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 980,
-          display: "flex",
-          flexDirection: "column",
-          gap: 20,
-        }}
-      >
+      <div className="mx-auto flex w-full max-w-[61.25rem] flex-col gap-5 font-display">
         <DecisionStyleAnalyticsBeacon event="style_compare_complete" source="compare" />
+
         <section
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-            borderRadius: 24,
-            background: "#ffffff",
-            boxShadow: "0 16px 40px rgba(15, 23, 42, 0.08)",
-            padding: 28,
-          }}
+          aria-labelledby="friend-comparison-title"
+          className="animate-fade overflow-hidden rounded-[1.75rem] bg-[#fffdf9] px-5 pb-6 pt-6 shadow-[0_1.5rem_4rem_rgba(88,57,37,0.12)] sm:rounded-[2rem] sm:px-7 sm:pb-7 sm:pt-7"
         >
-          <div style={{ fontSize: 14, letterSpacing: 2, color: "#64748b" }}>职业决策风格测试</div>
-          <h1 style={{ margin: 0, fontSize: 34 }}>和朋友的决策风格对照</h1>
-          <p style={{ margin: 0, fontSize: 18, lineHeight: 1.6, color: "#475569" }}>
-            这里只展示两份已验证结果在四个轴上的当前倾向和分数差异，不给出兼容度、胜负或排序判断。
+          <p className="m-0 text-xs font-semibold tracking-[0.18em] text-[#6d5f54] sm:text-[0.8125rem]">
+            朋友决策人格对照
           </p>
-          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-            <div style={{ borderRadius: 18, background: "#f8fafc", padding: 18 }}>
-              <div style={{ fontSize: 12, color: "#64748b", letterSpacing: 1.5 }}>左侧结果</div>
-              <div style={{ marginTop: 8, fontSize: 28, fontWeight: 700 }}>{compare.left.code}</div>
-              <div style={{ marginTop: 4, color: "#475569" }}>{leftType?.label ?? "当前倾向"}</div>
-            </div>
-            <div style={{ borderRadius: 18, background: "#f8fafc", padding: 18 }}>
-              <div style={{ fontSize: 12, color: "#64748b", letterSpacing: 1.5 }}>右侧结果</div>
-              <div style={{ marginTop: 8, fontSize: 28, fontWeight: 700 }}>{compare.right.code}</div>
-              <div style={{ marginTop: 4, color: "#475569" }}>{rightType?.label ?? "当前倾向"}</div>
-            </div>
+
+          <h1
+            id="friend-comparison-title"
+            className="mb-0 mt-4 max-w-[46rem] text-balance text-[clamp(2rem,6vw,3.25rem)] font-black leading-[1.05] tracking-[-0.045em]"
+          >
+            你们做决定，像两套不同的操作系统
+          </h1>
+
+          <div className="mt-7 grid gap-3.5 md:grid-cols-2">
+            {people.map(({ payload, presentation, role }, index) => (
+              <article
+                key={`${payload.code}-${index}`}
+                className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center overflow-hidden rounded-[1.25rem] bg-[#f4eadf] pl-5 sm:pl-6"
+              >
+                <div className="relative z-10 min-w-0 py-5">
+                  <p className="m-0 text-xs font-semibold tracking-[0.16em] text-[#6d5f54]">{role}</p>
+                  <h2 className="mb-0 mt-2 text-[clamp(1.875rem,6vw,2.5rem)] font-black leading-none tracking-[-0.055em]">
+                    {payload.code}
+                  </h2>
+                  <p className="mb-0 mt-2 text-base font-bold text-[#5a3d2b] sm:text-lg">
+                    {presentation.label}
+                  </p>
+                </div>
+                <DecisionStyleCharacter
+                  code={payload.code}
+                  size={150}
+                  className="h-auto w-[clamp(6.5rem,20vw,9.375rem)] self-end drop-shadow-[0_0.8rem_1rem_rgba(92,58,34,0.13)]"
+                />
+              </article>
+            ))}
           </div>
-          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-            <div style={{ borderRadius: 18, background: "#fff7ed", padding: 18 }}>
-              <div style={{ fontSize: 14, color: "#9a3412" }}>
-                最接近：{nearestAxis.a.label} / {nearestAxis.b.label}
-              </div>
-              <div style={{ marginTop: 6, color: "#7c2d12" }}>
-                分差 {differenceForAxis(compare, nearest)}，按固定轴顺序稳定判定。
-              </div>
-            </div>
-            <div style={{ borderRadius: 18, background: "#eff6ff", padding: 18 }}>
-              <div style={{ fontSize: 14, color: "#1d4ed8" }}>
-                差异最大：{furthestAxis.a.label} / {furthestAxis.b.label}
-              </div>
-              <div style={{ marginTop: 6, color: "#1e40af" }}>
-                分差 {differenceForAxis(compare, furthest)}，仅表示当前差距更明显。
-              </div>
-            </div>
-          </div>
+
+          <p className="mb-0 mt-3.5 rounded-[1.25rem] bg-[#2d2925] px-5 py-5 text-[clamp(1.125rem,3vw,1.375rem)] font-semibold leading-[1.55] tracking-[-0.015em] text-[#fffaf4] sm:px-6 sm:py-5">
+            {decisionPersonalityRelationshipLine(compare.left.code, compare.right.code, furthest)}
+          </p>
+        </section>
+
+        <section aria-label="相近与差异摘要" className="grid gap-3 md:grid-cols-[0.92fr_1.08fr]">
+          <article className="animate-pop rounded-[1.25rem] bg-[#ead8c7] p-5 sm:p-6">
+            <h2 className="m-0 text-sm font-bold tracking-[0.03em] text-[#7a3d22]">
+              最接近：{nearestAxis.a.label} / {nearestAxis.b.label}
+            </h2>
+            <p className="mb-0 mt-2 leading-7 text-[#5d4638]">
+              分差 {differenceForAxis(compare, nearest)}，是你们此刻最接近的一组倾向。
+            </p>
+          </article>
+          <article
+            className="animate-pop rounded-[1.25rem] bg-[#fffdf9] p-5 shadow-[0_0.75rem_2rem_rgba(88,57,37,0.08)] sm:p-6"
+            style={{ animationDelay: "80ms" }}
+          >
+            <h2 className="m-0 text-sm font-bold tracking-[0.03em] text-[#7a3d22]">
+              差异最大：{furthestAxis.a.label} / {furthestAxis.b.label}
+            </h2>
+            <p className="mb-0 mt-2 leading-7 text-[#5d4638]">
+              分差 {differenceForAxis(compare, furthest)}，是你们此刻差距更明显的一组倾向。
+            </p>
+          </article>
         </section>
 
         <section
-          style={{
-            display: "grid",
-            gap: 16,
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          }}
+          aria-label="四轴倾向明细"
+          className="grid gap-3 md:grid-cols-2"
         >
-          {AXES.map((axis) => {
+          {AXES.map((axis, axisIndex) => {
             const left = axisDisplay(compare.left, axis.key);
             const right = axisDisplay(compare.right, axis.key);
             return (
               <article
                 key={axis.key}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 14,
-                  borderRadius: 24,
-                  background: "#ffffff",
-                  boxShadow: "0 16px 40px rgba(15, 23, 42, 0.08)",
-                  padding: 24,
-                }}
+                className="animate-fade flex flex-col gap-4 rounded-[1.25rem] bg-[#fffdf9] p-5 shadow-[0_0.75rem_2rem_rgba(88,57,37,0.08)] sm:p-6"
+                style={{ animationDelay: `${120 + axisIndex * 55}ms` }}
               >
                 <div>
-                  <h2 style={{ margin: 0, fontSize: 20 }}>
+                  <h2 className="m-0 text-xl font-bold tracking-[-0.02em]">
                     {axis.a.label} / {axis.b.label}
                   </h2>
-                  <p style={{ margin: "8px 0 0", color: "#64748b", lineHeight: 1.5 }}>
-                    两边都展示分数和当前倾向，不往外延伸成谁更好之类的结论。
+                  <p className="mb-0 mt-2 text-sm leading-6 text-[#75685d]">
+                    一边是你，一边是 TA，只看这次自报的选择倾向。
                   </p>
                 </div>
-                <div
-                  style={{
-                    display: "grid",
-                    gap: 10,
-                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                  }}
-                >
+                <div className="grid grid-cols-2 gap-2.5">
                   {[left, right].map((item, index) => (
-                    <div key={`${axis.key}-${index}`} style={{ borderRadius: 18, background: "#f8fafc", padding: 16 }}>
-                      <div style={{ fontSize: 12, color: "#64748b", letterSpacing: 1.5 }}>
-                        {index === 0 ? "左侧" : "右侧"}
-                      </div>
-                      <div style={{ marginTop: 8, fontSize: 22, fontWeight: 700 }}>{item.score} / 100</div>
-                      <div style={{ marginTop: 8, color: "#334155" }}>{item.tendency}</div>
-                      <div style={{ marginTop: 4, color: "#475569" }}>
+                    <div key={`${axis.key}-${index}`} className="min-w-0 rounded-[1rem] bg-[#f4eadf] p-3.5 sm:p-4">
+                      <p className="m-0 text-xs font-semibold tracking-[0.12em] text-[#74665b]">
+                        {index === 0 ? "你" : "TA"}
+                      </p>
+                      <p className="mb-0 mt-2 text-[clamp(1.125rem,4vw,1.375rem)] font-black tabular-nums tracking-[-0.035em]">
+                        {item.score} / 100
+                      </p>
+                      <p className="mb-0 mt-2 text-sm font-semibold text-[#4c3d32]">{item.tendency}</p>
+                      <p className="mb-0 mt-1 text-sm leading-5 text-[#695c52]">
                         {item.letter} · {item.label}
-                      </div>
+                      </p>
                     </div>
                   ))}
                 </div>

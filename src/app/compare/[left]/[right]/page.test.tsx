@@ -58,7 +58,15 @@ describe("Decision Style compare route", () => {
     process.env.DECISION_STYLE_SHARE_SECRET = "test-secret";
 
     const html = renderToStaticMarkup(await Page({ params: signedParams(leftPayload, rightPayload) }));
-    expect(html).toContain("和朋友的决策风格对照");
+    expect(html).toContain("你们做决定，像两套不同的操作系统");
+    expect(html).toContain("FDBG");
+    expect(html).toContain("务实攻坚者");
+    expect(html).toContain("FDLG");
+    expect(html).toContain("借势攀登者");
+    expect(html).toContain("/decision-style/characters/FDBG.png");
+    expect(html).toContain("/decision-style/characters/FDLG.png");
+    expect(html.match(/人格角色/g)).toHaveLength(2);
+    expect(html).toContain("你习惯自己握方向盘，TA 更擅长借力把路走宽。");
     expect(html).toContain("最接近：集中深耕 / 多线探索");
     expect(html).toContain("差异最大：自主掌控 / 平台借势");
     expect(html).toContain("76 / 100");
@@ -91,7 +99,22 @@ describe("Decision Style compare route", () => {
     expect(html).not.toContain("76 / 100");
 
     const validHtml = renderToStaticMarkup(await Page({ params: signedParams(leftPayload, rightPayload) }));
-    for (const forbidden of ["匹配度", "适合", "不适合", "winner", "ranking", "第 1", "第一名"]) {
+    for (const forbidden of [
+      "兼容度",
+      "匹配度",
+      "适合",
+      "不适合",
+      "科学",
+      "诊断",
+      "预测",
+      "胜负",
+      "排名",
+      "winner",
+      "ranking",
+      "第 1",
+      "第一名",
+      "按固定轴顺序稳定判定",
+    ]) {
       expect(validHtml).not.toContain(forbidden);
     }
   });

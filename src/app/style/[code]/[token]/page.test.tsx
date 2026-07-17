@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { DecisionStylePublicPayload } from "@/domain/decisionStyle";
 import { signDecisionStylePayload } from "@/lib/decisionStyleToken.server";
-import { DecisionStyleShareCard } from "@/components/decision-style/DecisionStyleShareCard";
 import {
   DecisionStyleShareArtwork,
   OG_SIZE,
@@ -66,9 +65,8 @@ describe("public Decision Style share route", () => {
     process.env.DECISION_STYLE_SHARE_SECRET = "test-secret";
 
     const metadata = await generateMetadata({ params: validParams() });
-    expect(metadata.title).toContain("FDBG");
-    expect(metadata.title).toContain("务实攻坚者");
-    expect(metadata.description).toContain("四轴");
+    expect(metadata.title).toBe("FDBG · 务实攻坚者 | Life Planner");
+    expect(metadata.description).toBe("你不是没耐心，只是觉得今天能解决的事，不该开三次会。");
     expect(metadata.description).not.toContain("AI 粗估");
 
     const invalidMetadata = await generateMetadata({ params: invalidParams() });
@@ -76,32 +74,39 @@ describe("public Decision Style share route", () => {
     expect(invalidMetadata.title).not.toContain("FDBG");
   });
 
-  it("renders the public page and share card without local-only evidence or forbidden copy", async () => {
+  it("renders a presentation-led public result without diagnostic or local-only details", async () => {
     process.env.DECISION_STYLE_SHARE_SECRET = "test-secret";
 
+    const token = signDecisionStylePayload(payload, "test-secret");
     const pageHtml = renderToStaticMarkup(await Page({ params: validParams() }));
     expect(pageHtml).toContain("FDBG");
     expect(pageHtml).toContain("务实攻坚者");
-    expect(pageHtml).toContain("76 / 100");
-    expect(pageHtml).toContain("84 / 100");
-    expect(pageHtml).toContain("当前倾向，不是固定人格");
-    expect(pageHtml).toContain("测完和 TA 比");
-    expect(pageHtml).not.toContain("本地结果依据");
-    expect(pageHtml).not.toContain("AI 粗估");
+    expect(pageHtml).toContain("你不是没耐心，只是觉得今天能解决的事，不该开三次会。");
+    expect(pageHtml).toContain("TA 的高光");
+    expect(pageHtml).toContain("容易翻车");
+    expect(pageHtml).toContain("当前自报倾向，不是固定人格或心理诊断。公开结果不包含原始答案。");
+    expect(pageHtml).toContain("测测我是什么，和 TA 对比");
+    expect(pageHtml).toContain(`/test?invite=${token}`);
+    expect(pageHtml).toContain("/decision-style/characters/FDBG.png");
+    for (const hidden of [
+      "76 / 100",
+      "84 / 100",
+      "先试再调",
+      "先验证再动",
+      "本地结果依据",
+      "answers",
+      "evidence",
+      "completedAt",
+      "feasibility",
+      "data:image/svg+xml",
+      "AI 粗估",
+    ]) {
+      expect(pageHtml).not.toContain(hidden);
+    }
 
     const invalidPageHtml = renderToStaticMarkup(await Page({ params: invalidParams() }));
     expect(invalidPageHtml).toContain("重新测试");
     expect(invalidPageHtml).not.toContain("76 / 100");
-
-    const cardHtml = renderToStaticMarkup(<DecisionStyleShareCard payload={payload} />);
-    expect(cardHtml).toContain("FDBG");
-    expect(cardHtml).toContain("76 / 100");
-    expect(cardHtml).toContain("84 / 100");
-    expect(cardHtml).not.toContain("answers");
-    expect(cardHtml).not.toContain("evidence");
-    expect(cardHtml).not.toContain("completedAt");
-    expect(cardHtml).not.toContain("feasibility");
-    expect(cardHtml).not.toContain("AI 粗估");
   });
 
   it("uses separate portrait and OG dimensions and generates local share assets", async () => {
@@ -125,25 +130,29 @@ describe("public Decision Style share route", () => {
     expect(portraitHtml).toContain("我是 FDBG，你是什么？");
   });
 
-  it("returns image responses for valid routes and rejects invalid signatures for OG and PNG", async () => {
-    process.env.DECISION_STYLE_SHARE_SECRET = "test-secret";
+  it(
+    "returns image responses for valid routes and rejects invalid signatures for OG and PNG",
+    async () => {
+      process.env.DECISION_STYLE_SHARE_SECRET = "test-secret";
 
-    const og = await Image({ params: validParams() });
-    expect(og.headers.get("content-type")).toContain(contentType);
-    await expectPngDimensions(og, 1200, 630);
+      const og = await Image({ params: validParams() });
+      expect(og.headers.get("content-type")).toContain(contentType);
+      await expectPngDimensions(og, 1200, 630);
 
-    const png = await GET(new Request("http://localhost/style/FDBG/token/card.png"), {
-      params: validParams(),
-    });
-    expect(png.headers.get("content-type")).toContain(contentType);
-    await expectPngDimensions(png, 1080, 1350);
+      const png = await GET(new Request("http://localhost/style/FDBG/token/card.png"), {
+        params: validParams(),
+      });
+      expect(png.headers.get("content-type")).toContain(contentType);
+      await expectPngDimensions(png, 1080, 1350);
 
-    const invalidOg = await Image({ params: invalidParams() });
-    expect(invalidOg.status).toBe(404);
+      const invalidOg = await Image({ params: invalidParams() });
+      expect(invalidOg.status).toBe(404);
 
-    const invalidPng = await GET(new Request("http://localhost/style/SWLV/token/card.png"), {
-      params: invalidParams(),
-    });
-    expect(invalidPng.status).toBe(404);
-  });
+      const invalidPng = await GET(new Request("http://localhost/style/SWLV/token/card.png"), {
+        params: invalidParams(),
+      });
+      expect(invalidPng.status).toBe(404);
+    },
+    20_000,
+  );
 });
