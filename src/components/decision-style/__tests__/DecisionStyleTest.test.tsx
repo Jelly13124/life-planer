@@ -230,6 +230,7 @@ describe("DecisionStyleTest", () => {
     expect(screen.getByText("加赛题")).toBeInTheDocument();
     act(() => vi.advanceTimersByTime(1));
 
+    fireEvent.click(screen.getByRole("button", { name: "看看我为什么是这个类型" }));
     expect(screen.getByText("本地结果依据")).toBeInTheDocument();
     expect(sessionStorage.getItem(STYLE_DRAFT_KEY)).toBeNull();
     expect(loadDecisionStyleDetail()).not.toBeNull();
