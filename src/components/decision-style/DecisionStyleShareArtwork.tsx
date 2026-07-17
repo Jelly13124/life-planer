@@ -44,7 +44,6 @@ export function DecisionStyleShareArtwork({
           display: "flex",
           flex: 1,
           flexDirection: "column",
-          zIndex: 2,
         }}
       >
         <div style={{ display: "flex", fontSize: 20, letterSpacing: 3, color: "#7b6c60" }}>

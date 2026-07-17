@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { DecisionStylePublicPayload } from "@/domain/decisionStyle";
 import { signDecisionStylePayload } from "@/lib/decisionStyleToken.server";
@@ -134,24 +134,34 @@ describe("public Decision Style share route", () => {
     "returns image responses for valid routes and rejects invalid signatures for OG and PNG",
     async () => {
       process.env.DECISION_STYLE_SHARE_SECRET = "test-secret";
+      const warnSpy = vi.spyOn(console, "warn");
 
-      const og = await Image({ params: validParams() });
-      expect(og.headers.get("content-type")).toContain(contentType);
-      await expectPngDimensions(og, 1200, 630);
+      try {
+        const og = await Image({ params: validParams() });
+        expect(og.headers.get("content-type")).toContain(contentType);
+        await expectPngDimensions(og, 1200, 630);
 
-      const png = await GET(new Request("http://localhost/style/FDBG/token/card.png"), {
-        params: validParams(),
-      });
-      expect(png.headers.get("content-type")).toContain(contentType);
-      await expectPngDimensions(png, 1080, 1350);
+        const png = await GET(new Request("http://localhost/style/FDBG/token/card.png"), {
+          params: validParams(),
+        });
+        expect(png.headers.get("content-type")).toContain(contentType);
+        await expectPngDimensions(png, 1080, 1350);
 
-      const invalidOg = await Image({ params: invalidParams() });
-      expect(invalidOg.status).toBe(404);
+        const invalidOg = await Image({ params: invalidParams() });
+        expect(invalidOg.status).toBe(404);
 
-      const invalidPng = await GET(new Request("http://localhost/style/SWLV/token/card.png"), {
-        params: invalidParams(),
-      });
-      expect(invalidPng.status).toBe(404);
+        const invalidPng = await GET(new Request("http://localhost/style/SWLV/token/card.png"), {
+          params: invalidParams(),
+        });
+        expect(invalidPng.status).toBe(404);
+
+        const unsupportedStyleWarnings = warnSpy.mock.calls.filter(([message]) =>
+          typeof message === "string" && /z-?index/i.test(message),
+        );
+        expect(unsupportedStyleWarnings).toEqual([]);
+      } finally {
+        warnSpy.mockRestore();
+      }
     },
     20_000,
   );
