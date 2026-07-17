@@ -1,13 +1,19 @@
 import { ImageResponse } from "next/og";
 import { createElement } from "react";
-import { DecisionStyleShareCard } from "@/components/decision-style/DecisionStyleShareCard";
+import {
+  DecisionStyleShareArtwork,
+  PORTRAIT_SIZE,
+} from "@/components/decision-style/DecisionStyleShareArtwork";
+import {
+  decisionStyleQrDataUrl,
+  loadDecisionStyleCharacterDataUrl,
+} from "@/lib/decisionStyleShareAssets.server";
 import { resolveDecisionStyleSharePayload } from "../page";
-import { contentType, size } from "../opengraph-image";
 
 export const runtime = "nodejs";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   {
     params,
   }: {
@@ -19,8 +25,19 @@ export async function GET(
   );
   if (!payload) return new Response("Not found", { status: 404 });
 
-  return new ImageResponse(createElement(DecisionStyleShareCard, { payload }), {
-    ...size,
-    headers: { "content-type": contentType },
+  const resultUrl = request.url.replace(/\/card\.png(?:\?.*)?$/, "");
+  const [characterSrc, qrSrc] = await Promise.all([
+    loadDecisionStyleCharacterDataUrl(payload.code),
+    decisionStyleQrDataUrl(resultUrl),
+  ]);
+
+  return new ImageResponse(createElement(DecisionStyleShareArtwork, {
+    payload,
+    characterSrc,
+    qrSrc,
+    variant: "portrait",
+  }), {
+    ...PORTRAIT_SIZE,
+    headers: { "content-type": "image/png" },
   });
 }

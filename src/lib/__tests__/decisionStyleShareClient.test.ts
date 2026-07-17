@@ -87,14 +87,18 @@ describe("decisionStyleShareClient", () => {
     const copyText = vi.fn(async () => undefined);
 
     await expect(
-      shareDecisionStyleLink("https://lifeplanner.test/style/FDBG/signed-token", {
-        navigatorLike: { share } as unknown as Navigator,
-        copyText,
-      }),
+      shareDecisionStyleLink(
+        "https://lifeplanner.test/style/FDBG/signed-token",
+        "FDBG",
+        {
+          navigatorLike: { share } as unknown as Navigator,
+          copyText,
+        },
+      ),
     ).resolves.toBe("shared");
     expect(share).toHaveBeenCalledWith({
-      title: "职业决策风格测试",
-      text: "看看我的当前职业决策倾向",
+      title: "我的决策人格",
+      text: "我是 FDBG。测测你的四字母决策人格，再看看我们哪里最不一样。",
       url: "https://lifeplanner.test/style/FDBG/signed-token",
     });
     expect(copyText).not.toHaveBeenCalled();
@@ -103,10 +107,14 @@ describe("decisionStyleShareClient", () => {
     copyText.mockClear();
 
     await expect(
-      shareDecisionStyleLink("https://lifeplanner.test/style/FDBG/signed-token", {
-        navigatorLike: {} as Navigator,
-        copyText,
-      }),
+      shareDecisionStyleLink(
+        "https://lifeplanner.test/style/FDBG/signed-token",
+        "FDBG",
+        {
+          navigatorLike: {} as Navigator,
+          copyText,
+        },
+      ),
     ).resolves.toBe("copied");
     expect(copyText).toHaveBeenCalledWith("https://lifeplanner.test/style/FDBG/signed-token");
   });
@@ -152,7 +160,7 @@ describe("decisionStyleShareClient", () => {
     const downloadBlob = (createObjectUrl.mock.calls as unknown[][])[0]?.[0];
     expect(downloadBlob).toMatchObject({ type: "image/png" });
     expect(anchor.href).toBe("blob:decision-style");
-    expect(anchor.download).toBe("decision-style-card.png");
+    expect(anchor.download).toBe("decision-personality-card.png");
     expect(anchor.rel).toBe("noopener");
     expect(anchor.click).toHaveBeenCalledTimes(1);
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:decision-style");

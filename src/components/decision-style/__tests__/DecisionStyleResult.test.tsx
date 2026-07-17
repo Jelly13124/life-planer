@@ -174,7 +174,10 @@ describe("DecisionStyleResult", () => {
 
     fireEvent.click(shareButton);
     await waitFor(() => expect(requestDecisionStyleShareLink).toHaveBeenCalledWith(summary));
-    expect(shareDecisionStyleLink).toHaveBeenCalledWith("https://lifeplanner.test/style/FDBG/signed-token");
+    expect(shareDecisionStyleLink).toHaveBeenCalledWith(
+      "https://lifeplanner.test/style/FDBG/signed-token",
+      "FDBG",
+    );
 
     fireEvent.click(copyButton);
     await waitFor(() => expect(copyDecisionStyleLink).toHaveBeenCalledWith("https://lifeplanner.test/style/FDBG/signed-token"));

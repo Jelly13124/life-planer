@@ -73,7 +73,7 @@ export function DecisionStyleResult({
               "share",
               async (signed) => {
                 void trackDecisionStyleEvent("style_share", { source: "direct" });
-                const outcome = await shareDecisionStyleLink(signed.url);
+                const outcome = await shareDecisionStyleLink(signed.url, summary.code);
                 return outcome === "copied" ? "链接已复制" : "已打开系统分享";
               },
               "分享暂时不可用，请稍后重试",

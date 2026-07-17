@@ -1,4 +1,8 @@
-import type { DecisionStylePublicPayload, DecisionStyleSummary } from "@/domain/decisionStyle";
+import type {
+  DecisionStyleCode,
+  DecisionStylePublicPayload,
+  DecisionStyleSummary,
+} from "@/domain/decisionStyle";
 
 export const SHARE_UNAVAILABLE_MESSAGE = "分享暂不可用，请联网后重试";
 export const INVALID_SHARE_RESPONSE_MESSAGE = "Invalid share token response";
@@ -67,22 +71,23 @@ export async function copyDecisionStyleLink(
 
 export async function shareDecisionStyleLink(
   url: string,
+  code: DecisionStyleCode,
   {
     navigatorLike = globalThis.navigator,
     copyText,
   }: ShareDecisionStyleLinkOptions = {},
 ): Promise<"shared" | "copied"> {
-  if (isDecisionStyleNativeShareAvailable(navigatorLike)) {
-    await navigatorLike.share({
-      title: "职业决策风格测试",
-      text: "看看我的当前职业决策倾向",
-      url,
-    });
-    return "shared";
+  if (!isDecisionStyleNativeShareAvailable(navigatorLike)) {
+    await copyDecisionStyleLink(url, { copyText });
+    return "copied";
   }
 
-  await copyDecisionStyleLink(url, { copyText });
-  return "copied";
+  await navigatorLike.share({
+    title: "我的决策人格",
+    text: `我是 ${code}。测测你的四字母决策人格，再看看我们哪里最不一样。`,
+    url,
+  });
+  return "shared";
 }
 
 export async function requestDecisionStyleShareLink(
@@ -159,7 +164,7 @@ export async function downloadDecisionStylePng(
   const anchor = createAnchor();
   try {
     anchor.href = objectUrl;
-    anchor.download = "decision-style-card.png";
+    anchor.download = "decision-personality-card.png";
     anchor.rel = "noopener";
     anchor.click();
   } finally {

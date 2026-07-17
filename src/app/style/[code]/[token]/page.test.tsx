@@ -3,6 +3,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { DecisionStylePublicPayload } from "@/domain/decisionStyle";
 import { signDecisionStylePayload } from "@/lib/decisionStyleToken.server";
 import { DecisionStyleShareCard } from "@/components/decision-style/DecisionStyleShareCard";
+import {
+  DecisionStyleShareArtwork,
+  OG_SIZE,
+  PORTRAIT_SIZE,
+} from "@/components/decision-style/DecisionStyleShareArtwork";
+import {
+  decisionStyleQrDataUrl,
+  loadDecisionStyleCharacterDataUrl,
+} from "@/lib/decisionStyleShareAssets.server";
 import Page, { generateMetadata, resolveDecisionStyleSharePayload } from "./page";
 import Image, { contentType } from "./opengraph-image";
 import { GET } from "./card.png/route";
@@ -78,6 +87,27 @@ describe("public Decision Style share route", () => {
     expect(cardHtml).not.toContain("completedAt");
     expect(cardHtml).not.toContain("feasibility");
     expect(cardHtml).not.toContain("AI 粗估");
+  });
+
+  it("uses separate portrait and OG dimensions and generates local share assets", async () => {
+    expect(PORTRAIT_SIZE).toEqual({ width: 1080, height: 1350 });
+    expect(OG_SIZE).toEqual({ width: 1200, height: 630 });
+    expect(decisionStyleQrDataUrl("https://lifeplanner.test/style/FDBG/token")).toMatch(
+      /^data:image\/svg\+xml;base64,/,
+    );
+    await expect(loadDecisionStyleCharacterDataUrl("FDBG")).resolves.toMatch(/^data:image\/png;base64,/);
+    await expect(loadDecisionStyleCharacterDataUrl("NOPE")).rejects.toThrow("Unknown decision personality code");
+
+    const portraitHtml = renderToStaticMarkup(
+      <DecisionStyleShareArtwork
+        payload={payload}
+        characterSrc="data:image/png;base64,character"
+        qrSrc="data:image/svg+xml;base64,qr"
+        variant="portrait"
+      />,
+    );
+    expect(portraitHtml).toContain("你不是没耐心，只是觉得今天能解决的事，不该开三次会。");
+    expect(portraitHtml).toContain("我是 FDBG，你是什么？");
   });
 
   it("returns image responses for valid routes and rejects invalid signatures for OG and PNG", async () => {
