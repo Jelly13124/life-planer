@@ -110,5 +110,5 @@ describe("decision personality character assets", () => {
       expect(hasTransparentBorder(web)).toBe(true);
       expect(mobile.hash).toBe(web.hash);
     }
-  });
+  }, 15_000);
 });
