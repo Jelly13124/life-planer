@@ -15,6 +15,7 @@ import { Button, Card, Muted } from "../ui";
 import { colors, radii, space } from "../theme";
 import { clearDecisionStyleDetail, loadDecisionStyleDetail, saveDecisionStyleDetail } from "../lib/decisionStyleStorage";
 import { trackAppDecisionStyleEvent } from "../lib/decisionStyleAnalytics";
+import { DecisionPersonalityCard } from "./DecisionPersonalityCard";
 import { DecisionStyleScale } from "./DecisionStyleScale";
 
 function answerOf(detail: DecisionStyleLocalDetail, questionId: string) {
@@ -141,20 +142,11 @@ export default function DecisionStyleQuickTest({
   if (stage === "result" && summary) {
     return (
       <TestFrame embedded={embedded}>
-        <Card>
-          <Text style={styles.eyebrow}>你的当前倾向</Text>
-          <Text style={styles.title}>{summary.code}</Text>
-          <Muted>四个轴的分数已保存在资料摘要中，之后可以在「我」里重测。</Muted>
-          <View style={styles.scoreGrid}>
-            {Object.entries(summary.scores).map(([axis, score]) => (
-              <View key={axis} style={styles.scoreItem}>
-                <Text style={styles.scoreAxis}>{axis}</Text>
-                <Text style={styles.score}>{score}</Text>
-              </View>
-            ))}
-          </View>
+        <DecisionPersonalityCard summary={summary} reveal />
+        <View style={styles.resultActions}>
           <Button label="继续填写资料" onPress={() => onComplete(summary)} />
-        </Card>
+        </View>
+        <Muted style={styles.disclaimer}>当前自报倾向，不是固定人格或心理诊断。</Muted>
       </TestFrame>
     );
   }
@@ -257,8 +249,6 @@ const styles = StyleSheet.create({
   optionSelected: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
   optionPressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
   optionText: { color: colors.fg, fontSize: 15, lineHeight: 22 },
-  scoreGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginVertical: 18 },
-  scoreItem: { width: "47%", borderRadius: radii.sm, backgroundColor: colors.accentSoft, padding: 12 },
-  scoreAxis: { color: colors.fgMuted, fontSize: 12 },
-  score: { color: colors.fg, fontSize: 24, fontWeight: "700", marginTop: 4 },
+  resultActions: { marginTop: 16 },
+  disclaimer: { marginTop: 12, textAlign: "center" },
 });

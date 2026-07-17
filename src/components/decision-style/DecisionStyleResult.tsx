@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { decisionStyleTypeByCode, scoreDecisionStyle, type DecisionStyleEvidence, type DecisionStyleSummary } from "@/domain/decisionStyle";
-import { Card } from "@/components/ui/Card";
+import { scoreDecisionStyle, type DecisionStyleEvidence, type DecisionStyleSummary } from "@/domain/decisionStyle";
 import { Button } from "@/components/ui/Button";
 import {
   copyDecisionStyleLink,
@@ -11,7 +10,11 @@ import {
   shareDecisionStyleLink,
 } from "@/lib/decisionStyleShareClient";
 import { DecisionStyleAxisBars } from "./DecisionStyleAxisBars";
+import { DecisionPersonalityHero } from "./DecisionPersonalityHero";
 import { trackDecisionStyleEvent } from "@/lib/decisionStyleAnalytics";
+
+const RESULT_BUTTON_CLASS =
+  "min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-0)]";
 
 function messageFromError(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -28,8 +31,8 @@ export function DecisionStyleResult({
   onContinue: () => void;
   onRestart: () => void;
 }) {
-  const type = decisionStyleTypeByCode(summary.code);
   const tendencies = scoreDecisionStyle(summary.source, [], {}).tendencies;
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<"share" | "copy" | "png" | null>(null);
 
@@ -58,64 +61,13 @@ export function DecisionStyleResult({
 
   return (
     <div className="space-y-5">
-      <Card pad="lg" className="space-y-4">
-        <div className="space-y-2">
-          <div className="text-xs uppercase tracking-[0.2em] text-[var(--fg-faint)]">
-            职业决策风格测试
-          </div>
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <div className="text-3xl font-semibold text-[var(--fg)]">{summary.code}</div>
-              <div className="mt-1 text-lg text-[var(--fg-dim)]">{type?.label ?? "当前倾向"}</div>
-            </div>
-            <div className="text-sm text-[var(--fg-dim)]">
-              {summary.source === "full" ? "28 题完整版" : "快测"}
-            </div>
-          </div>
-        </div>
-
-        <DecisionStyleAxisBars scores={summary.scores} tendencies={tendencies} />
-
-        {type ? (
-          <div className="grid gap-3 text-sm text-[var(--fg-dim)] sm:grid-cols-2">
-            <Card pad="sm" sunken className="space-y-1">
-              <div className="font-medium text-[var(--fg)]">优势</div>
-              <p>{type.strength}</p>
-            </Card>
-            <Card pad="sm" sunken className="space-y-1">
-              <div className="font-medium text-[var(--fg)]">代价</div>
-              <p>{type.cost}</p>
-            </Card>
-            <Card pad="sm" sunken className="space-y-1">
-              <div className="font-medium text-[var(--fg)]">决策建议</div>
-              <p>{type.advice}</p>
-            </Card>
-            <Card pad="sm" sunken className="space-y-1">
-              <div className="font-medium text-[var(--fg)]">张力</div>
-              <p>{type.tension}</p>
-            </Card>
-          </div>
-        ) : null}
-
-        <Card pad="sm" sunken className="space-y-2">
-          <div className="font-medium text-[var(--fg)]">本地结果依据</div>
-          <ul className="space-y-2 text-sm text-[var(--fg-dim)]">
-            {evidence.map((item) => (
-              <li key={`${item.axis}-${item.questionId}`} className="list-disc pl-2 ml-4">
-                {item.choiceLabel}
-              </li>
-            ))}
-          </ul>
-        </Card>
-
-        <p className="text-sm text-[var(--fg-dim)]">当前倾向，不是固定人格。</p>
-      </Card>
+      <DecisionPersonalityHero summary={summary} />
 
       <div className="flex flex-col gap-3">
         <Button
           type="button"
           disabled={busyAction === "share"}
-          className="min-h-11"
+          className={RESULT_BUTTON_CLASS}
           onClick={() =>
             void runSignedAction(
               "share",
@@ -128,51 +80,99 @@ export function DecisionStyleResult({
             )
           }
         >
-          一键分享
+          分享我的人格
         </Button>
         <Button
           type="button"
           variant="subtle"
-          disabled={busyAction === "copy"}
-          className="min-h-11"
-          onClick={() =>
-            void runSignedAction(
-              "copy",
-              async (signed) => {
-                await copyDecisionStyleLink(signed.url);
-                return "链接已复制";
-              },
-              "复制失败，请稍后重试",
-            )
-          }
+          aria-expanded={detailsOpen}
+          aria-controls="decision-style-details"
+          className={RESULT_BUTTON_CLASS}
+          onClick={() => setDetailsOpen((open) => !open)}
         >
-          复制链接
-        </Button>
-        <Button
-          type="button"
-          variant="subtle"
-          disabled={busyAction === "png"}
-          className="min-h-11"
-          onClick={() =>
-            void runSignedAction(
-              "png",
-              async (signed) => {
-                await downloadDecisionStylePng(signed.pngUrl);
-                return "PNG 下载已开始";
-              },
-              "PNG 保存失败，请稍后重试",
-            )
-          }
-        >
-          保存 PNG
-        </Button>
-        <Button type="button" variant="subtle" className="min-h-11" onClick={onContinue}>
-          继续生成人生树
-        </Button>
-        <Button type="button" variant="ghost" className="min-h-11" onClick={onRestart}>
-          重新测试
+          {detailsOpen ? "收起人格详情" : "看看我为什么是这个类型"}
         </Button>
       </div>
+
+      {detailsOpen ? (
+        <section
+          id="decision-style-details"
+          aria-label="人格详情"
+          className="animate-fade space-y-6 rounded-[1.5rem] border border-[var(--line)] bg-[var(--bg-1)] p-4 sm:p-6"
+        >
+          <div>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-lg font-semibold tracking-[-0.02em] text-[var(--fg)]">四个决策轴</h2>
+              <span className="text-xs text-[var(--fg-faint)]">
+                {summary.source === "full" ? "28 题完整版" : "快测"}
+              </span>
+            </div>
+            <div className="mt-5">
+              <DecisionStyleAxisBars scores={summary.scores} tendencies={tendencies} />
+            </div>
+          </div>
+
+          <div className="border-t border-[var(--line)] pt-5">
+            <h3 className="font-semibold text-[var(--fg)]">本地结果依据</h3>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-[var(--fg-dim)]">
+              {evidence.map((item) => (
+                <li key={`${item.axis}-${item.questionId}`} className="ml-4 list-disc pl-1 marker:text-[var(--accent)]">
+                  {item.choiceLabel}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="border-t border-[var(--line)] pt-4 text-sm leading-6 text-[var(--fg-dim)]">
+            当前自报倾向，不是固定人格或心理诊断。
+          </p>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button
+              type="button"
+              variant="subtle"
+              disabled={busyAction === "copy"}
+              className={RESULT_BUTTON_CLASS}
+              onClick={() =>
+                void runSignedAction(
+                  "copy",
+                  async (signed) => {
+                    await copyDecisionStyleLink(signed.url);
+                    return "链接已复制";
+                  },
+                  "复制失败，请稍后重试",
+                )
+              }
+            >
+              复制链接
+            </Button>
+            <Button
+              type="button"
+              variant="subtle"
+              disabled={busyAction === "png"}
+              className={RESULT_BUTTON_CLASS}
+              onClick={() =>
+                void runSignedAction(
+                  "png",
+                  async (signed) => {
+                    await downloadDecisionStylePng(signed.pngUrl);
+                    return "PNG 下载已开始";
+                  },
+                  "PNG 保存失败，请稍后重试",
+                )
+              }
+            >
+              保存 PNG
+            </Button>
+            <Button type="button" variant="subtle" className={RESULT_BUTTON_CLASS} onClick={onContinue}>
+              继续生成人生树
+            </Button>
+            <Button type="button" variant="ghost" className={RESULT_BUTTON_CLASS} onClick={onRestart}>
+              重新测试
+            </Button>
+          </div>
+        </section>
+      ) : null}
 
       {statusMessage ? (
         <p aria-live="polite" className="text-sm text-[var(--fg-dim)]">

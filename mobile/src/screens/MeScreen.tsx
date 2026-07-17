@@ -3,6 +3,7 @@ import React from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FREE_AI_OPS_PER_MONTH } from "@lifeplanner/core/aiQuota";
+import { AXES } from "@lifeplanner/core/decisionStyle";
 import { useApp } from "../state/store";
 import { Button, Card, Input, Muted, SectionTitle } from "../ui";
 import { colors, space } from "../theme";
@@ -11,6 +12,7 @@ import { restorePro, MONETIZATION_ENABLED } from "../lib/purchases";
 import DecisionStyleQuickTest from "../components/DecisionStyleQuickTest";
 import { shareDecisionStyle } from "../lib/decisionStyleShare";
 import { trackAppDecisionStyleEvent } from "../lib/decisionStyleAnalytics";
+import { DecisionPersonalityCard } from "../components/DecisionPersonalityCard";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -43,6 +45,7 @@ export default function MeScreen() {
   const [restoring, setRestoring] = React.useState(false);
   const [styleRetake, setStyleRetake] = React.useState(false);
   const [sharingStyle, setSharingStyle] = React.useState(false);
+  const [styleDetailsOpen, setStyleDetailsOpen] = React.useState(false);
 
   const handleStyleShare = React.useCallback(async () => {
     if (!p?.decisionStyle || sharingStyle) return;
@@ -163,9 +166,11 @@ export default function MeScreen() {
       <SectionTitle>职业决策风格</SectionTitle>
       {styleRetake ? (
         <DecisionStyleQuickTest
+          embedded
           onComplete={(summary) => {
             app.setDecisionStyleSummary(summary);
             setStyleRetake(false);
+            setStyleDetailsOpen(false);
           }}
           onSkip={() => setStyleRetake(false)}
         />
@@ -173,32 +178,47 @@ export default function MeScreen() {
         <Card>
           {p?.decisionStyle ? (
             <>
-              <Text style={styles.cardTitle}>
-                {p.decisionStyle.code} · {p.decisionStyle.source === "full" ? "完整" : "快测"}
-              </Text>
-              <Muted style={{ marginTop: 4 }}>当前倾向，不是固定人格</Muted>
-              <View style={styles.styleScoreRow}>
-                {Object.entries(p.decisionStyle.scores).map(([axis, score]) => (
-                  <Text key={axis} style={styles.styleScore}>{axis} {score}</Text>
-                ))}
+              <DecisionPersonalityCard summary={p.decisionStyle} compact />
+              <View style={styles.styleActions}>
+                <Button
+                  label={sharingStyle ? "准备分享中…" : "分享我的人格"}
+                  loading={sharingStyle}
+                  onPress={() => void handleStyleShare()}
+                />
+                <Button
+                  label={styleDetailsOpen ? "收起人格详情" : "查看人格详情"}
+                  kind="ghost"
+                  onPress={() => setStyleDetailsOpen((open) => !open)}
+                />
               </View>
+              {styleDetailsOpen ? (
+                <View style={styles.styleScoreRow}>
+                  {AXES.map((axis) => (
+                    <Text key={axis.key} style={styles.styleScore}>
+                      {axis.a.label} / {axis.b.label} · {p.decisionStyle!.scores[axis.key]}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+              <Button
+                label="重新测试"
+                kind="ghost"
+                onPress={() => {
+                  setStyleDetailsOpen(false);
+                  setStyleRetake(true);
+                }}
+              />
             </>
           ) : (
-            <Muted>还没有测试结果，可以稍后补测。</Muted>
+            <>
+              <Muted>还没有测试结果，可以稍后补测。</Muted>
+              <Button
+                label="开始快测"
+                kind="ghost"
+                onPress={() => setStyleRetake(true)}
+              />
+            </>
           )}
-          <Button
-            label={p?.decisionStyle ? "重新测试" : "开始快测"}
-            kind="ghost"
-            onPress={() => setStyleRetake(true)}
-          />
-          {p?.decisionStyle ? (
-            <Button
-              label={sharingStyle ? "准备分享中…" : "分享结果"}
-              kind="ghost"
-              loading={sharingStyle}
-              onPress={() => void handleStyleShare()}
-            />
-          ) : null}
         </Card>
       )}
 
@@ -369,6 +389,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 16, fontWeight: "700", color: colors.fg, marginBottom: 6 },
   errorText: { color: colors.danger, marginBottom: 10 },
+  styleActions: { gap: 2, marginTop: 12 },
   styleScoreRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginVertical: 12 },
   styleScore: { color: colors.fgMuted, fontSize: 13 },
   linkRow: { flexDirection: "row", gap: 20, marginTop: 12 },
