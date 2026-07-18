@@ -151,7 +151,10 @@ export default function DecisionStyleQuickTest({
       <TestFrame embedded={embedded}>
         <DecisionPersonalityCard summary={summary} reveal />
         <View style={styles.resultActions}>
-          <Button label="继续填写资料" onPress={() => onComplete(summary)} />
+          <Button
+            label={embedded ? "保存完整角色卡" : "继续填写资料"}
+            onPress={() => onComplete(summary)}
+          />
         </View>
         <Muted style={styles.disclaimer}>当前自报倾向，不是固定人格或心理诊断。</Muted>
       </TestFrame>

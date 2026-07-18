@@ -170,7 +170,7 @@ export default function MeScreen() {
           onComplete={(summary) => {
             app.setDecisionStyleSummary(summary);
             setStyleRetake(false);
-            setStyleDetailsOpen(false);
+            setStyleDetailsOpen(true);
           }}
           onSkip={() => setStyleRetake(false)}
         />
@@ -178,7 +178,7 @@ export default function MeScreen() {
         <Card>
           {p?.decisionStyle ? (
             <>
-              <DecisionPersonalityCard summary={p.decisionStyle} compact />
+              <DecisionPersonalityCard summary={p.decisionStyle} />
               <View style={styles.styleActions}>
                 <Button
                   label={sharingStyle ? "准备分享中…" : "分享我的人格"}
@@ -186,7 +186,7 @@ export default function MeScreen() {
                   onPress={() => void handleStyleShare()}
                 />
                 <Button
-                  label={styleDetailsOpen ? "收起人格详情" : "查看人格详情"}
+                  label={styleDetailsOpen ? "收起四维倾向" : "查看四维倾向"}
                   kind="ghost"
                   onPress={() => setStyleDetailsOpen((open) => !open)}
                 />
