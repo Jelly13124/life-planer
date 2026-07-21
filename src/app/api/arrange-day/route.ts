@@ -3,9 +3,7 @@
 import { allowRequest } from "@/lib/rateLimit";
 import { arrangeDay, DEFAULT_DAY_START, DEFAULT_DAY_END } from "@/domain/schedule";
 import type { ArrangeResult } from "@/domain/schedule";
-
-const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
-const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
+import { completeDeepSeek, extractJson, getDeepSeekKey } from "@/lib/deepseek";
 
 interface ArrangeInput {
   id: string;
@@ -17,19 +15,6 @@ interface Body {
   start?: string;
   end?: string;
   lang?: "zh" | "en";
-}
-
-function getKey(): string | null {
-  const k = process.env.DEEPSEEK_API_KEY;
-  return k && k.trim() ? k.trim() : null;
-}
-
-function extractJson(text: string): string | null {
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const body = fence ? fence[1] : text;
-  const s = body.indexOf("{");
-  const e = body.lastIndexOf("}");
-  return s === -1 || e === -1 || e < s ? null : body.slice(s, e + 1);
 }
 
 // 兜底：用确定性的本地贪心顺排，保证一定排得出不重叠的一天。
@@ -53,8 +38,7 @@ export async function POST(request: Request) {
   const start = body.start && /^\d{2}:\d{2}$/.test(body.start) ? body.start : DEFAULT_DAY_START;
   const end = body.end && /^\d{2}:\d{2}$/.test(body.end) ? body.end : DEFAULT_DAY_END;
 
-  const key = getKey();
-  if (!key) return Response.json({ plan: localPlan(items, start, end) });
+  if (!getDeepSeekKey()) return Response.json({ plan: localPlan(items, start, end) });
   if (!allowRequest(request, Date.now())) {
     return Response.json({ plan: localPlan(items, start, end) });
   }
@@ -75,28 +59,16 @@ export async function POST(request: Request) {
     .join("\n");
 
   try {
-    const res = await fetch(DEEPSEEK_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: `这些是今天要排的行动（窗口 ${start}–${end}）：\n${list}` },
-        ],
-        response_format: MODEL.includes("reasoner") ? undefined : { type: "json_object" },
-        max_tokens: 800,
-        temperature: 0.4,
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(30000),
+    const content = await completeDeepSeek({
+      label: "arrange-day",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: `这些是今天要排的行动（窗口 ${start}–${end}）：\n${list}` },
+      ],
+      maxTokens: 800,
+      temperature: 0.4,
+      structuredOutput: true,
     });
-    if (!res.ok) {
-      console.error(`[arrange-day] DeepSeek ${res.status}`);
-      return Response.json({ plan: localPlan(items, start, end) });
-    }
-    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const content = data.choices?.[0]?.message?.content;
     const json = content ? extractJson(content) : null;
     if (!json) return Response.json({ plan: localPlan(items, start, end) });
     const parsed = JSON.parse(json) as {

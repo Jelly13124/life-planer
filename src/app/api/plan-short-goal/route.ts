@@ -6,9 +6,7 @@ import { z } from "zod";
 import { allowRequest } from "@/lib/rateLimit";
 import { localPlanShort, type PlanShortInput, type PlanShortResult } from "@/domain/planShort";
 import { addDays } from "@/domain/daily";
-
-const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
-const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
+import { completeDeepSeek, extractJson, getDeepSeekKey } from "@/lib/deepseek";
 
 interface Body {
   goal?: { title?: string; why?: string; startDate?: string; endDate?: string };
@@ -27,19 +25,6 @@ const PlanZ = z.object({
   taskDates: z.record(z.string(), z.string()).default({}),
   habitWeekdays: z.record(z.string(), z.number()).default({}),
 });
-
-function getKey(): string | null {
-  const k = process.env.DEEPSEEK_API_KEY;
-  return k && k.trim() ? k.trim() : null;
-}
-
-function extractJson(text: string): string | null {
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const body = fence ? fence[1] : text;
-  const s = body.indexOf("{");
-  const e = body.lastIndexOf("}");
-  return s === -1 || e === -1 || e < s ? null : body.slice(s, e + 1);
-}
 
 // 把日期夹进 [winStart, winEnd]（含两端）。越界则贴到最近一端。非法日期 → null。
 function clampDate(d: string, winStart: string, winEnd: string): string | null {
@@ -86,8 +71,7 @@ export async function POST(request: Request) {
 
   const fallback = (): PlanShortResult => localPlanShort(input);
 
-  const key = getKey();
-  if (!key) return Response.json(fallback());
+  if (!getDeepSeekKey()) return Response.json(fallback());
   if (!allowRequest(request, Date.now())) return Response.json(fallback());
 
   // AI 的真实窗口（与 localPlanShort 同步）：起点不早于今天，缺/早于起点的 endDate → 14 天窗口。
@@ -119,31 +103,19 @@ export async function POST(request: Request) {
     .join("\n");
 
   try {
-    const res = await fetch(DEEPSEEK_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: system },
-          {
-            role: "user",
-            content: `任务（铺进窗口）：\n${taskList}\n\n每周习惯（定星期几）：\n${habitList}`,
-          },
-        ],
-        response_format: MODEL.includes("reasoner") ? undefined : { type: "json_object" },
-        max_tokens: 900,
-        temperature: 0.5,
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(30000),
+    const content = await completeDeepSeek({
+      label: "plan-short-goal",
+      messages: [
+        { role: "system", content: system },
+        {
+          role: "user",
+          content: `任务（铺进窗口）：\n${taskList}\n\n每周习惯（定星期几）：\n${habitList}`,
+        },
+      ],
+      maxTokens: 900,
+      temperature: 0.5,
+      structuredOutput: true,
     });
-    if (!res.ok) {
-      console.error(`[plan-short-goal] DeepSeek ${res.status}`);
-      return Response.json(fallback());
-    }
-    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const content = data.choices?.[0]?.message?.content;
     const json = content ? extractJson(content) : null;
     if (!json) return Response.json(fallback());
     const parsed = PlanZ.safeParse(JSON.parse(json));

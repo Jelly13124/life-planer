@@ -16,6 +16,10 @@ const BUMP_MAX = 30;
 // 有效可行度上限：绝不显示 100%（诚实）。
 const FEASIBILITY_CAP = 95;
 
+export function roundFeasibility(value: number): number {
+  return Math.round(value / 5) * 5;
+}
+
 // 关联目标：活跃、且 pathId 指向该路的「长期」目标（短期不上树，不计）。
 export function linkedGoals(tree: LifeTree, pathId: string): Goal[] {
   return longGoals(tree).filter((g) => g.status === "active" && g.pathId === pathId);

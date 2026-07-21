@@ -1,9 +1,7 @@
 // 服务端：人生规划助手对话。帮处于迷茫期的人想清楚选择、提出没考虑过的可能。
 // 与 enrich/chat 一致地走 DeepSeek，没密钥则优雅降级。
 import { allowRequest } from "@/lib/rateLimit";
-
-const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
-const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
+import { completeDeepSeek, getDeepSeekKey } from "@/lib/deepseek";
 
 interface AssistantBody {
   profileSummary: string; // 一句话现状
@@ -12,27 +10,21 @@ interface AssistantBody {
   lang?: "zh" | "en";
 }
 
-function getKey(): string | null {
-  const k = process.env.DEEPSEEK_API_KEY;
-  return k && k.trim() ? k.trim() : null;
-}
-
 export async function GET() {
-  return Response.json({ enabled: Boolean(getKey()) });
+  return Response.json({ enabled: Boolean(getDeepSeekKey()) });
 }
 
 export async function POST(request: Request) {
   if (!allowRequest(request, Date.now())) {
     return Response.json({ reply: null }, { status: 429 });
   }
-  const key = getKey();
   let body: AssistantBody;
   try {
     body = (await request.json()) as AssistantBody;
   } catch {
     return Response.json({ reply: null }, { status: 400 });
   }
-  if (!key) return Response.json({ reply: null });
+  if (!getDeepSeekKey()) return Response.json({ reply: null });
 
   const system = [
     "你是一个温暖、清醒的人生规划助手，服务的对象正处在迷茫期、面临选择、怕选错。",
@@ -50,26 +42,13 @@ export async function POST(request: Request) {
     .join("");
 
   try {
-    const res = await fetch(DEEPSEEK_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [{ role: "system", content: system }, ...(body.messages || [])],
-        max_tokens: 600,
-        temperature: 0.9,
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(30000),
+    const reply = await completeDeepSeek({
+      label: "assistant",
+      messages: [{ role: "system", content: system }, ...(body.messages || [])],
+      maxTokens: 600,
+      temperature: 0.9,
     });
-    if (!res.ok) {
-      console.error(`[assistant] DeepSeek ${res.status}`);
-      return Response.json({ reply: null });
-    }
-    const data = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    return Response.json({ reply: data.choices?.[0]?.message?.content ?? null });
+    return Response.json({ reply });
   } catch (e) {
     console.error("[assistant] failed:", e);
     return Response.json({ reply: null });

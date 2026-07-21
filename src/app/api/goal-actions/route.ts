@@ -1,8 +1,6 @@
 // 服务端：把一个目标拆成 3-5 条可勾选的近期行动。无 key 时给通用兜底。带限流。
 import { allowRequest } from "@/lib/rateLimit";
-
-const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
-const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
+import { completeDeepSeek, extractJson, getDeepSeekKey } from "@/lib/deepseek";
 
 interface Body {
   goalTitle: string;
@@ -20,19 +18,6 @@ const FALLBACK_EN = [
   "Set a small milestone to check your progress",
 ];
 
-function getKey(): string | null {
-  const k = process.env.DEEPSEEK_API_KEY;
-  return k && k.trim() ? k.trim() : null;
-}
-
-function extractJson(text: string): string | null {
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const body = fence ? fence[1] : text;
-  const s = body.indexOf("{");
-  const e = body.lastIndexOf("}");
-  return s === -1 || e === -1 || e < s ? null : body.slice(s, e + 1);
-}
-
 export async function POST(request: Request) {
   const fb = (lang?: string) => (lang === "en" ? FALLBACK_EN : FALLBACK_ZH);
   // 限流命中：不调用大模型（仍保护 key），但仍返回通用兜底（语言未知，默认中文）。
@@ -45,8 +30,7 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ actions: fb() }, { status: 400 });
   }
-  const key = getKey();
-  if (!key || !body.goalTitle?.trim()) return Response.json({ actions: fb(body?.lang) });
+  if (!getDeepSeekKey() || !body.goalTitle?.trim()) return Response.json({ actions: fb(body?.lang) });
 
   const system = [
     `把目标「${body.goalTitle.trim()}」拆成 3-5 条具体、可勾选、近期就能动手的行动。`,
@@ -63,28 +47,16 @@ export async function POST(request: Request) {
     .join("\n");
 
   try {
-    const res = await fetch(DEEPSEEK_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: "拆成行动。" },
-        ],
-        response_format: MODEL.includes("reasoner") ? undefined : { type: "json_object" },
-        max_tokens: 500,
-        temperature: 0.8,
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(30000),
+    const content = await completeDeepSeek({
+      label: "goal-actions",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: "拆成行动。" },
+      ],
+      maxTokens: 500,
+      temperature: 0.8,
+      structuredOutput: true,
     });
-    if (!res.ok) {
-      console.error(`[goal-actions] DeepSeek ${res.status}`);
-      return Response.json({ actions: fb(body.lang) });
-    }
-    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const content = data.choices?.[0]?.message?.content;
     const json = content ? extractJson(content) : null;
     if (!json) return Response.json({ actions: fb(body.lang) });
     const parsed = JSON.parse(json) as { actions?: unknown[] };

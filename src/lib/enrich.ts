@@ -12,10 +12,7 @@ import {
   backgroundFacts,
   financialFacts,
 } from "@/domain/profile";
-import { styleHintForCode } from "@/domain/lifePathCode";
-
-const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
-const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
+import { DEEPSEEK_MODEL as MODEL, completeDeepSeek, extractJson, getDeepSeekKey } from "@/lib/deepseek";
 
 const DIMS = [
   "career",
@@ -267,65 +264,28 @@ function jsonExample(name: string, lo: number, hi: number): string {
 }`;
 }
 
-function getKey(): string | null {
-  const k = process.env.DEEPSEEK_API_KEY;
-  return k && k.trim() ? k.trim() : null;
-}
-
 // reasoner（R1）不支持 json 模式/temperature，且更慢——单独处理。
 const IS_REASONER = /reasoner/i.test(MODEL);
 
-// 从模型输出里稳妥地抠出 JSON（兼容裸 JSON、```json 代码块、夹带解释的情况）。
-function extractJson(text: string): string | null {
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const body = fence ? fence[1] : text;
-  const start = body.indexOf("{");
-  const end = body.lastIndexOf("}");
-  if (start === -1 || end === -1 || end < start) return null;
-  return body.slice(start, end + 1);
-}
-
 export function isEnrichEnabled(): boolean {
-  return getKey() !== null;
+  return getDeepSeekKey() !== null;
 }
 
 export async function enrichPath(input: EnrichInput): Promise<EnrichOut | null> {
-  const key = getKey();
-  if (!key) return null;
-
-  const body: Record<string, unknown> = {
-    model: MODEL,
-    messages: [
-      { role: "system", content: SYSTEM },
-      { role: "user", content: buildUserPrompt(input) },
-    ],
-    max_tokens: IS_REASONER ? 2200 : 1800,
-    stream: false,
-  };
-  if (!IS_REASONER) {
-    // 仅普通 chat 模型支持：JSON 模式 + 温度。reasoner 都不支持。
-    body.response_format = { type: "json_object" };
-    body.temperature = 0.7; // 偏低：要克制可信、扎根现实，别飘成爽文
-  }
+  if (!getDeepSeekKey()) return null;
 
   try {
-    const res = await fetch(DEEPSEEK_URL, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(IS_REASONER ? 90000 : 30000), // reasoner 更慢
+    const content = await completeDeepSeek({
+      label: "enrich",
+      messages: [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: buildUserPrompt(input) },
+      ],
+      maxTokens: IS_REASONER ? 2200 : 1800,
+      temperature: IS_REASONER ? undefined : 0.7,
+      timeoutMs: IS_REASONER ? 90000 : 30000,
+      structuredOutput: !IS_REASONER,
     });
-    if (!res.ok) {
-      console.error(`[enrich] DeepSeek ${res.status}:`, await res.text().catch(() => ""));
-      return null;
-    }
-    const data = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    const content = data.choices?.[0]?.message?.content;
     if (!content) return null;
     const json = extractJson(content);
     if (!json) return null;

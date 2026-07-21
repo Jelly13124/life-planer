@@ -19,7 +19,7 @@ import { IconSparkle, IconPencil } from "./ui/icons";
 import { DecisionSheet } from "./DecisionSheet";
 import { RegenerateSheet } from "./RegenerateSheet";
 import { activeDecisionFor, reviewedDecisionsFor, togglePlanItem } from "@/domain/decisions";
-import { effectiveFeasibility, linkedGoals } from "@/domain/feasibility";
+import { effectiveFeasibility, linkedGoals, roundFeasibility } from "@/domain/feasibility";
 import { isEnriched } from "@/domain/pathEnriched";
 
 /** 导入时取一次当下作初值（render 内不可调用 new Date）；组件挂载后用 effect 刷新。 */
@@ -36,10 +36,6 @@ const SCENARIOS: { value: Scenario; label: string }[] = [
 ];
 
 // 可行度显示：四舍五入到最近的 5，避免给出"精确概率"的错觉。
-function roundFeasibility(x: number): number {
-  return Math.round(x / 5) * 5;
-}
-
 const MOOD_COLOR: Record<Mood, string> = {
   high: "#34d399",
   mid: "#f59e0b",

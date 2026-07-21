@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // Metro config for the Expo app inside an npm workspaces monorepo.
 //
 // The shared pure domain lives at <repo>/packages/core and is published in the
@@ -16,9 +17,6 @@ const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, "..");
 
 const config = getDefaultConfig(projectRoot);
-
-// Follow the workspace symlink (@lifeplanner/core) to its real target.
-config.resolver.unstable_enableSymlinks = true;
 
 // Watch the whole monorepo so edits to packages/core are picked up.
 config.watchFolders = [workspaceRoot];

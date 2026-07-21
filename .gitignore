@@ -51,6 +51,8 @@ next-env.d.ts
 .playwright-mcp/
 .enrich-test-body.json
 .prod-server.log
+/tmp/
+/output/
 
 # Claude Code personal (not committed)
 .claude/settings.local.json

@@ -71,7 +71,7 @@ export default function PrivacyPage() {
             6. 数据删除
           </h2>
           <p>
-            你可以随时在应用内使用「重置数据」功能，清除本地与云端保存的全部数据；也可以通过邮件联系我们，请求删除你的账号及关联数据。
+            你可以随时在应用内使用「重置数据」功能，清除本地与云端保存的规划数据。登录用户还可以在「我 → 账号与同步」中选择「删除账户与全部数据」，永久删除账号、云端关联数据和本机数据。
           </p>
         </section>
 
@@ -125,8 +125,9 @@ export default function PrivacyPage() {
             RevenueCat receives anonymized purchase and device identifiers to
             validate subscription status. Share cards are
             only created and made public when you explicitly tap Share. You
-            can delete all local and cloud data anytime via in-app Reset Data,
-            or by emailing ruizheyuan3487@gmail.com. Local notifications, when
+            can clear planning data via in-app Reset Data. Signed-in users can
+            permanently delete their account and associated local and cloud data
+            from Me &gt; Account &amp; Sync &gt; Delete Account. Local notifications, when
             enabled, are scheduled entirely on-device.
           </p>
         </section>

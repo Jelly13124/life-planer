@@ -14,7 +14,7 @@
       "url": "https://u.expo.dev/bbb6f73c-30ed-4eb9-b2c6-97289c3bcac9"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "appleTeamId": "7V9VP73GQK",
       "bundleIdentifier": "com.jelly13124.lifeplanner",
       "entitlements": {

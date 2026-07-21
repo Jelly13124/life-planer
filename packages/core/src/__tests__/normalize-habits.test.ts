@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { normalizeLoadedTree } from "../repository/normalize";
 
 // A pre-migration tree shape (loose typing — simulates persisted old data with habits[]).
-function oldTree(): any {
+function oldTree(): Record<string, unknown> {
   return {
     id: "t1",
     profile: { name: "x", age: 30, areas: { career: 50, wealth: 50, relationships: 50, health: 50, growth: 50 } },
@@ -21,24 +21,24 @@ function oldTree(): any {
 describe("normalizeLoadedTree — habits→tasks migration", () => {
   it("folds goal.habits into goal.tasks as repeating tasks (id + fields preserved)", () => {
     const t = normalizeLoadedTree(oldTree())!;
-    const g = t.goals[0] as any;
-    expect(g.habits).toBeUndefined();
-    const h1 = g.tasks.find((x: any) => x.id === "h1");
+    const g = t.goals[0];
+    expect("habits" in g).toBe(false);
+    const h1 = g.tasks.find((x) => x.id === "h1");
     expect(h1).toMatchObject({ id: "h1", text: "每天跑步", repeat: "daily", startTime: "07:00", durationMin: 30, done: false });
-    expect(g.tasks.find((x: any) => x.id === "tk1")).toBeTruthy();
+    expect(g.tasks.find((x) => x.id === "tk1")).toBeTruthy();
   });
 
   it("folds tree.habits into tree.tasks and drops the habits field", () => {
-    const t = normalizeLoadedTree(oldTree())! as any;
-    expect(t.habits).toBeUndefined();
-    expect(t.tasks.find((x: any) => x.id === "h2")).toMatchObject({ id: "h2", repeat: "weekly", repeatWeekday: 0, done: false });
+    const t = normalizeLoadedTree(oldTree())!;
+    expect("habits" in t).toBe(false);
+    expect(t.tasks.find((x) => x.id === "h2")).toMatchObject({ id: "h2", repeat: "weekly", repeatWeekday: 0, done: false });
   });
 
   it("is idempotent — re-normalizing already-migrated data is a no-op on tasks", () => {
     const once = normalizeLoadedTree(oldTree())!;
-    const twice = normalizeLoadedTree(once as any)!;
+    const twice = normalizeLoadedTree(once)!;
     expect(twice.goals[0].tasks.length).toBe(once.goals[0].tasks.length);
-    expect((twice as any).habits).toBeUndefined();
+    expect("habits" in twice).toBe(false);
     expect(twice.tasks.length).toBe(once.tasks.length);
   });
 });

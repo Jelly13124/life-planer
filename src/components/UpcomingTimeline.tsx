@@ -9,7 +9,6 @@ import { addDays } from "@/domain/daily";
 import { localTodayStr } from "@/lib/dailyClient";
 import { AREA_COLOR, AreaIcon } from "./lib/areaMeta";
 import { SectionHeader } from "./ui/SectionHeader";
-import { EmptyState } from "./ui/EmptyState";
 import { IconRepeat, IconPointer, IconList } from "./ui/icons";
 
 // 散项（goal=null）的中性条色：用 line 色，与领域配色区分。

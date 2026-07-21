@@ -5,9 +5,7 @@
 import type { Profile } from "@/domain/types";
 import { backgroundFacts, financialFacts } from "@/domain/profile";
 import { allowRequest } from "@/lib/rateLimit";
-
-const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
-const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
+import { completeDeepSeek, getDeepSeekKey, type DeepSeekMessage } from "@/lib/deepseek";
 
 interface ChatTurn {
   role: "user" | "assistant";
@@ -29,11 +27,6 @@ interface ChatRequestBody {
   path: PathPayload;
   messages: ChatTurn[];
   lang?: "zh" | "en";
-}
-
-function getKey(): string | null {
-  const k = process.env.DEEPSEEK_API_KEY;
-  return k && k.trim() ? k.trim() : null;
 }
 
 // 未来的"我"现在几岁：取这条路所有节点里最大的年龄；没有节点就用 forkAge + horizonYears。
@@ -96,15 +89,14 @@ function buildSystem(body: ChatRequestBody): string {
 
 // 是否已接入真实大模型（前端可用来探测）。
 export async function GET() {
-  return Response.json({ enabled: Boolean(getKey()) });
+  return Response.json({ enabled: Boolean(getDeepSeekKey()) });
 }
 
 export async function POST(request: Request) {
   if (!allowRequest(request, Date.now())) {
     return Response.json({ reply: null }, { status: 429 });
   }
-  const key = getKey();
-  if (!key) return Response.json({ reply: null });
+  if (!getDeepSeekKey()) return Response.json({ reply: null });
 
   let body: ChatRequestBody;
   try {
@@ -116,40 +108,19 @@ export async function POST(request: Request) {
     return Response.json({ reply: null }, { status: 400 });
   }
 
-  const messages = [
+  const messages: DeepSeekMessage[] = [
     { role: "system", content: buildSystem(body) },
     ...body.messages.map((m) => ({ role: m.role, content: m.content })),
   ];
 
   try {
-    const res = await fetch(DEEPSEEK_URL, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages,
-        max_tokens: 600,
-        temperature: 0.9,
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(30000),
+    const reply = await completeDeepSeek({
+      label: "chat",
+      messages,
+      maxTokens: 600,
+      temperature: 0.9,
     });
-    if (!res.ok) {
-      console.error(
-        `[chat] DeepSeek ${res.status}:`,
-        await res.text().catch(() => ""),
-      );
-      return Response.json({ reply: null });
-    }
-    const data = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    const reply = data.choices?.[0]?.message?.content;
-    if (!reply || !reply.trim()) return Response.json({ reply: null });
-    return Response.json({ reply: reply.trim() });
+    return Response.json({ reply });
   } catch (e) {
     console.error("[chat] generation failed:", e);
     return Response.json({ reply: null });

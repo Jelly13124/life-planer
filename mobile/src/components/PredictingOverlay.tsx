@@ -2,7 +2,7 @@
 // 暗色媒体面板质感 + 主时间线分叉自绘入场 + 原点呼吸，营造「AI 正在认真计算」的观感。
 // 复用 TreeScreen 的 useReduceMotion 模式：减少动态效果时渲染静态版本（曲线常亮、原点不脉动）。
 import React, { useEffect, useState } from "react";
-import { AccessibilityInfo, Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, Animated, Easing, Modal, Pressable, StyleSheet, Text } from "react-native";
 import Svg, { Circle, Defs, Path, RadialGradient, Stop } from "react-native-svg";
 import { colors } from "../theme";
 

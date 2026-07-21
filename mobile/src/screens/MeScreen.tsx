@@ -46,6 +46,7 @@ export default function MeScreen() {
   const [styleRetake, setStyleRetake] = React.useState(false);
   const [sharingStyle, setSharingStyle] = React.useState(false);
   const [styleDetailsOpen, setStyleDetailsOpen] = React.useState(false);
+  const [deletingAccount, setDeletingAccount] = React.useState(false);
 
   const handleStyleShare = React.useCallback(async () => {
     if (!p?.decisionStyle || sharingStyle) return;
@@ -146,6 +147,34 @@ export default function MeScreen() {
         },
       },
     ]);
+
+  const confirmDeleteAccount = () =>
+    Alert.alert(
+      "删除账户与全部数据",
+      "将永久删除登录账户、云端同步数据和这台设备上的人生树，无法撤销。",
+      [
+        { text: "取消", style: "cancel" },
+        {
+          text: "永久删除",
+          style: "destructive",
+          onPress: () => {
+            if (deletingAccount) return;
+            setDeletingAccount(true);
+            void app.deleteAccount().then((deleteError) => {
+              setDeletingAccount(false);
+              if (deleteError) {
+                Alert.alert("删除失败", deleteError);
+                return;
+              }
+              setPhase("email");
+              setCode("");
+              setError(null);
+              Alert.alert("账户已删除", "你的账户、云端数据和本机数据已永久删除。");
+            });
+          },
+        },
+      ],
+    );
 
   return (
     <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + space }]}>
@@ -341,6 +370,14 @@ export default function MeScreen() {
             )}
             <View style={{ height: 12 }} />
             <Button label="退出登录" kind="ghost" onPress={confirmLogout} />
+            <View style={{ height: 8 }} />
+            <Button
+              label={deletingAccount ? "正在删除账户…" : "删除账户与全部数据"}
+              kind="danger"
+              loading={deletingAccount}
+              disabled={deletingAccount}
+              onPress={confirmDeleteAccount}
+            />
           </View>
         )}
       </Card>

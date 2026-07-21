@@ -16,7 +16,7 @@ import { CalendarImportCard } from "./CalendarImportCard";
 import { addDays, currentStreak, heatmap } from "@/domain/daily";
 import { unscheduledActions } from "@/domain/calendar";
 import { goalProgress } from "@/domain/goals";
-import { effectiveFeasibility } from "@/domain/feasibility";
+import { effectiveFeasibility, roundFeasibility } from "@/domain/feasibility";
 import { longGoals, shortGoalsOf } from "@/domain/goalTree";
 import { localTodayStr } from "@/lib/dailyClient";
 import { parseQuickInput } from "@/domain/quickParse";
@@ -25,10 +25,6 @@ import { IconFlame, IconCalendar, IconTrophy, IconTarget, IconPlus } from "./ui/
 const _bootToday = localTodayStr();
 
 // 可行度显示：四舍五入到最近的 5，避免"精确概率"错觉（与 PathDetail / LifeMap 一致）。
-function roundFeasibility(x: number): number {
-  return Math.round(x / 5) * 5;
-}
-
 // 周几全称（0=周日…6=周六），用于「每周X」习惯的快速添加回显。
 const WEEKDAY_FULL = ["每周日", "每周一", "每周二", "每周三", "每周四", "每周五", "每周六"];
 

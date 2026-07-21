@@ -14,7 +14,7 @@ npm test         # 运行单元测试（35 个）
 npm run build    # 生产构建（含类型检查 + lint）
 ```
 
-**无需任何 API 密钥或账号即可完整体验**——默认的"AI 生成"用的是本地确定性引擎，数据存在浏览器 localStorage。
+不需要 API 密钥也能打开应用、查看已保存内容和运行本地几何/数学逻辑；新的 AI 人生叙事和规划内容需要配置 DeepSeek key，失败时保留重试入口，已保存的内容仍可离线读取。
 
 ### 接入真实 AI（可选，让故事"活"起来）
 
@@ -27,7 +27,7 @@ npm run dev                  # 重启即可生效
 
 - 密钥只在**服务端**使用（`src/app/api/enrich/route.ts` → `src/lib/enrich.ts`），永远不会进到浏览器，也不会被提交（`.env*` 已 gitignore）。
 - 默认模型 `deepseek-chat`（DeepSeek-V3）；可用 `LIFEPLANNER_MODEL` 覆盖。
-- 机制是**混合**的：本地引擎先即时画出整棵树和数字，真实 AI 在后台重写每段故事，写好后原地替换；接口失败或没配密钥都会安静回退到本地文案，不影响使用。
+- 机制是**分层**的：本地逻辑负责树的几何、数字和进度；真实 AI 负责新的路径叙事、规划内容和对话。AI 内容生成失败时不伪造一份新文案，界面提供重试，已保存的预测仍然可读。
 - 每"加一条岔路"会产生一次 AI 调用（按量计费），结果存进本地不会重复生成。
 - 想换成别的服务商（如 Claude）只需改 `src/lib/enrich.ts` 里的请求——接口与回退逻辑都不用动。
 
@@ -38,7 +38,7 @@ npm run dev                  # 重启即可生效
 3. **点开一条路**：时间线关键节点（每个带维度标签）+ 故事 + 指标曲线；顶部切**乐观/最可能/保守**三种走向。
 4. **和未来的你对话**：点「✨ 和 X 岁的你聊聊」，跟走了这条路的未来自己第一人称聊天；聊出新选择可一键加进树。
 5. **规划助手**：右下角常驻浮窗，帮你理清纠结、提出没想到的路，也能一键加进树。
-6. 数据自动保存，刷新仍在；「↺ 重置」清空重来。全程无需密钥也能用（本地引擎兜底）。
+6. 数据自动保存，刷新仍在；「↺ 重置」清空重来。没有密钥时仍可访问本地数据和确定性功能，但新的 AI 内容需要重试或配置服务端 key。
 
 ## 架构
 
@@ -46,18 +46,18 @@ UI 只依赖两个接口，使"现在能跑"和"日后认真上线"解耦：
 
 | 接口 | v1 实现 | 未来实现 |
 |---|---|---|
-| `PathGenerator`（生成一条人生路径） | `LocalPathGenerator`（确定性、模板+规则、无密钥） | `ClaudePathGenerator`（真实大模型，草稿见 `src/domain/generator/claudeGenerator.ts.txt`） |
+| `PathGenerator`（生成一条人生路径） | `LocalPathGenerator`（确定性几何/结构） | DeepSeek enrichment（真实大模型，入口在 `src/lib/enrich.ts`） |
 | `TreeRepository`（持久化） | `LocalStorageRepository` | `SupabaseRepository`（账号+云端） |
 
 ```
 src/
-  domain/            # 纯 TS 领域核心（有单测）
+  domain/            # Web 兼容别名，实际指向 packages/core/src
     types.ts         # 领域模型
     seed.ts          # 确定性伪随机（无 Math.random/Date.now）
     archetypes.ts    # 选择原型：关键词、曲线、领域影响、节点模板
     suggestions.ts   # "AI 建议"岔路（静态规则）
     tree.ts          # 建树/加路/删路（纯函数）
-    generator/       # PathGenerator 接口 + 本地实现
+    generator/       # Web 侧通过 @/domain 兼容引用 core
     repository/      # TreeRepository 接口 + localStorage 实现
   components/        # React 组件
     LifeTreeCanvas / treePath  # 招牌动画 SVG + 曲线几何（有单测）

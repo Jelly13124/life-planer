@@ -17,9 +17,9 @@
 - `src/components/CloudAuth.tsx` — 侧栏底部「云同步」入口（魔法链接登录 / 已登录显示邮箱 + 退出）。**flag 关时渲染 `null`，无任何 UI。**
 - `src/components/CloudNotice.tsx` — 云端加载失败回退本地时的一条小提示（flag 关时渲染 `null`）。
 - `src/state/AppContext.tsx` — 已接异步云端：flag 开 + 已登录时从 `SupabaseRepository` 读/防抖写树；首登做一次本地→云迁移；flag 关 / 未登录时走原 localStorage 路径，逐字不变。
-- `src/domain/repository/supabaseRepo.ts` — `SupabaseRepository`，依赖窄接口 `CloudStore`（便于 mock）。
-- `src/domain/repository/migrate.ts` — `migrateLocalToCloud`，首次登录把本地树搬到空云端（幂等，不覆盖云端已有）。
-- `src/domain/repository/normalize.ts` — `normalizeLoadedTree`，本地与云端共用的校验/旧数据补字段（云端读到的树也会过它）。
+- `packages/core/src/repository/supabaseRepo.ts` — `SupabaseRepository`，依赖窄接口 `CloudStore`（便于 mock）。
+- `packages/core/src/repository/migrate.ts` — `migrateLocalToCloud`，首次登录把本地树搬到空云端（幂等，不覆盖云端已有）。
+- `packages/core/src/repository/normalize.ts` — `normalizeLoadedTree`，本地与云端共用的校验/旧数据补字段（云端读到的树也会过它）。
 
 > supabase-js 仍在演进。正式接入前可对照 https://supabase.com/docs 再核一遍 `signInWithOtp` / `auth.getSession` / RLS 用 `auth.uid()` 的写法。
 
@@ -113,8 +113,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 云路径用内存 mock（`CloudStore`）做单测，零网络零密钥：
 
-- `src/domain/repository/__tests__/supabaseRepo.test.ts` — 存/取/补字段/JSON 字符串/容错。
-- `src/domain/repository/__tests__/migrate.test.ts` — 三种迁移结果。
+- `packages/core/src/repository/__tests__/supabaseRepo.test.ts` — 存/取/补字段/JSON 字符串/容错。
+- `packages/core/src/repository/__tests__/migrate.test.ts` — 三种迁移结果。
 - `src/lib/__tests__/featureFlags.test.ts` — flag 由两个 env 是否配齐驱动。
 - `src/lib/__tests__/supabaseClient.test.ts` — 未配置时 `getSupabase()/getCloudStore()` 返回 `null`、不抛错。
 - `src/components/__tests__/CloudAuth.test.tsx` — flag 关时渲染 `null`；flag 开时魔法链接表单 / 已登录态。
@@ -126,3 +126,19 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 `supabase/migrations/20260710000000_style_events.sql` 创建了一个只包含测试漏斗元数据的 `style_events` 表。它只保存事件名称、端（`web` / `app`）、来源（`direct` / `shared` / `compare`）、测试版本和服务端时间戳；不保存答案、分数、标签、分享码、姓名、账号、设备或流程标识。
 
 表启用 RLS，不给匿名或登录用户直接读写权限。Web API 使用仅存在于服务端的 `SUPABASE_SERVICE_ROLE_KEY` 做尽力写入；缺少配置或 Supabase 暂时不可用时，测试仍正常完成。迁移会在 `pg_cron` 可用时安排每日清理，删除 30 天以前的事件。
+
+## 7. App 内删除账户（上线必需）
+
+移动端「我 → 账号与同步 → 删除账户与全部数据」会携带当前 Supabase access token 请求网站的 `DELETE /api/account`。服务端会先通过 Supabase Auth 重新验证 token，只删除该 token 对应的用户，然后依靠 `trees`、`shares` 对 `auth.users` 的 `on delete cascade` 清理关联数据。管理员密钥绝不能放进 `NEXT_PUBLIC_*` 或 `EXPO_PUBLIC_*` 变量。
+
+在 Vercel Production 环境配置下面其中一个服务端变量：
+
+```bash
+# 推荐的新式 Supabase server secret
+SUPABASE_SECRET_KEY=sb_secret_...
+
+# 或兼容旧项目的 service_role JWT（2026 年底前仍受支持）
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+部署后，未携带登录 token 请求该接口应返回 `401`；有效登录用户确认删除后应回到未登录、未引导状态，并且 Authentication 用户、`trees` 与 `shares` 中的关联行都不再存在。

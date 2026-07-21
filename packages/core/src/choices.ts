@@ -103,7 +103,8 @@ export function decideChoice(
 export function reopenChoice(tree: LifeTree, choiceId: string): LifeTree {
   return mapChoices(tree, (c) => {
     if (c.id !== choiceId) return c;
-    const { decidedAt: _drop, ...rest } = c;
+    const rest = { ...c };
+    delete rest.decidedAt;
     return { ...rest, chosenOptionId: null };
   });
 }
@@ -162,7 +163,8 @@ export function removeOption(tree: LifeTree, optionId: string): LifeTree {
     if (!has) return c;
     const options = (c.options ?? []).filter((o) => o.id !== optionId);
     if (c.chosenOptionId === optionId) {
-      const { decidedAt: _drop, ...rest } = c;
+      const rest = { ...c };
+      delete rest.decidedAt;
       return { ...rest, options, chosenOptionId: null };
     }
     return { ...c, options };

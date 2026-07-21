@@ -18,9 +18,7 @@ import {
   financialFacts,
 } from "@/domain/profile";
 import type { Profile } from "@/domain/types";
-
-const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
-const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
+import { completeDeepSeek, extractJson, getDeepSeekKey } from "@/lib/deepseek";
 
 interface Body {
   question?: string;
@@ -40,19 +38,6 @@ const OptionZ = z.object({
 const AnalysisZ = z.object({
   analysis: z.record(z.string(), OptionZ).default({}),
 });
-
-function getKey(): string | null {
-  const k = process.env.DEEPSEEK_API_KEY;
-  return k && k.trim() ? k.trim() : null;
-}
-
-function extractJson(text: string): string | null {
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const body = fence ? fence[1] : text;
-  const s = body.indexOf("{");
-  const e = body.lastIndexOf("}");
-  return s === -1 || e === -1 || e < s ? null : body.slice(s, e + 1);
-}
 
 // 把用户 profile 压成几行"既定事实"，让 AI 结合起点/约束/所在国去判（缺字段就略过）。
 function profileFacts(p: Partial<Profile>): string {
@@ -91,8 +76,7 @@ export async function POST(request: Request) {
 
   const fallback = (): ChoiceAnalysis => localChoiceAnalysis(options);
 
-  const key = getKey();
-  if (!key) return Response.json({ analysis: fallback() });
+  if (!getDeepSeekKey()) return Response.json({ analysis: fallback() });
   if (!allowRequest(request, Date.now())) return Response.json({ analysis: fallback() });
 
   const question = (body.question ?? "").trim() || "（未写明的选择）";
@@ -119,28 +103,16 @@ export async function POST(request: Request) {
     .join("\n");
 
   try {
-    const res = await fetch(DEEPSEEK_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: `选项（逐个分析）：\n${optionList}` },
-        ],
-        response_format: MODEL.includes("reasoner") ? undefined : { type: "json_object" },
-        max_tokens: 1200,
-        temperature: 0.5,
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(30000),
+    const content = await completeDeepSeek({
+      label: "analyze-choice",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: `选项（逐个分析）：\n${optionList}` },
+      ],
+      maxTokens: 1200,
+      temperature: 0.5,
+      structuredOutput: true,
     });
-    if (!res.ok) {
-      console.error(`[analyze-choice] DeepSeek ${res.status}`);
-      return Response.json({ analysis: fallback() });
-    }
-    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const content = data.choices?.[0]?.message?.content;
     const json = content ? extractJson(content) : null;
     if (!json) return Response.json({ analysis: fallback() });
     const parsed = AnalysisZ.safeParse(JSON.parse(json));

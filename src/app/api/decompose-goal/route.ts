@@ -2,10 +2,8 @@
 // 无 key / 调用失败 → 退回纯函数 localDecompose（按领域给模板，离线也能用）。带限流。
 import { z } from "zod";
 import { allowRequest } from "@/lib/rateLimit";
+import { completeDeepSeek, extractJson, getDeepSeekKey } from "@/lib/deepseek";
 import { localDecompose, type GoalDecomposition, type GoalInput } from "@/lib/decompose";
-
-const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
-const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
 
 interface Body {
   goal?: GoalInput;
@@ -34,19 +32,6 @@ const DecompositionZ = z.object({
   habits: z.array(HabitZ).default([]),
   subgoals: z.array(SubgoalZ).default([]),
 });
-
-function getKey(): string | null {
-  const k = process.env.DEEPSEEK_API_KEY;
-  return k && k.trim() ? k.trim() : null;
-}
-
-function extractJson(text: string): string | null {
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const body = fence ? fence[1] : text;
-  const s = body.indexOf("{");
-  const e = body.lastIndexOf("}");
-  return s === -1 || e === -1 || e < s ? null : body.slice(s, e + 1);
-}
 
 // 收口：截断到任务书里规定的条数上限，避免 AI 一次塞太多。
 function clamp(dec: GoalDecomposition): GoalDecomposition {
@@ -80,8 +65,7 @@ export async function POST(request: Request) {
     return Response.json(localDecompose(goal), { status: 429 });
   }
 
-  const key = getKey();
-  if (!key) return Response.json(localDecompose(goal));
+  if (!getDeepSeekKey()) return Response.json(localDecompose(goal));
 
   const system = [
     "你是目标拆解助手。根据用户的目标(标题/为什么/领域/时间范围),拆成可执行的结构:" +
@@ -99,28 +83,16 @@ export async function POST(request: Request) {
     .join("\n");
 
   try {
-    const res = await fetch(DEEPSEEK_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: "把这个目标拆成可执行结构。" },
-        ],
-        response_format: MODEL.includes("reasoner") ? undefined : { type: "json_object" },
-        max_tokens: 1200,
-        temperature: 0.7,
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(30000),
+    const content = await completeDeepSeek({
+      label: "decompose-goal",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: "把这个目标拆成可执行结构。" },
+      ],
+      maxTokens: 1200,
+      temperature: 0.7,
+      structuredOutput: true,
     });
-    if (!res.ok) {
-      console.error(`[decompose-goal] DeepSeek ${res.status}`);
-      return Response.json(localDecompose(goal));
-    }
-    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const content = data.choices?.[0]?.message?.content;
     const json = content ? extractJson(content) : null;
     if (!json) return Response.json(localDecompose(goal));
     const parsed = DecompositionZ.safeParse(JSON.parse(json));

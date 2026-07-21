@@ -1,10 +1,8 @@
 // 服务端：从用户现状建议几个值得追的目标（新嵌套模型：不再有 长期/短期 horizon，
 // 只是 area/title/why 的目标雏形）。无 key 时给通用兜底，让规划主线离线也能用。带限流。
 import { allowRequest } from "@/lib/rateLimit";
+import { completeDeepSeek, extractJson, getDeepSeekKey } from "@/lib/deepseek";
 import { LIFE_AREAS, type LifeArea } from "@/domain/types";
-
-const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
-const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
 
 interface Body {
   profileSummary: string;
@@ -26,19 +24,6 @@ const FALLBACK: GoalSuggestionDTO[] = [
   { area: "growth", title: "每周留 5 小时学新技能", why: "为长期目标攒底气" },
   { area: "health", title: "每周运动三次", why: "状态是一切的本钱" },
 ];
-
-function getKey(): string | null {
-  const k = process.env.DEEPSEEK_API_KEY;
-  return k && k.trim() ? k.trim() : null;
-}
-
-function extractJson(text: string): string | null {
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const body = fence ? fence[1] : text;
-  const s = body.indexOf("{");
-  const e = body.lastIndexOf("}");
-  return s === -1 || e === -1 || e < s ? null : body.slice(s, e + 1);
-}
 
 function normalize(raw: { area?: unknown; title?: unknown; why?: unknown }[]): GoalSuggestionDTO[] {
   return raw
@@ -65,8 +50,7 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ goals: FALLBACK }, { status: 400 });
   }
-  const key = getKey();
-  if (!key) return Response.json({ goals: FALLBACK });
+  if (!getDeepSeekKey()) return Response.json({ goals: FALLBACK });
 
   const system = [
     "你在帮一个想认真规划人生的人，提炼几个值得追的目标。",
@@ -85,28 +69,16 @@ export async function POST(request: Request) {
     .join("\n");
 
   try {
-    const res = await fetch(DEEPSEEK_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: "给我几个值得追的目标。" },
-        ],
-        response_format: MODEL.includes("reasoner") ? undefined : { type: "json_object" },
-        max_tokens: 800,
-        temperature: 0.9,
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(30000),
+    const content = await completeDeepSeek({
+      label: "goals",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: "给我几个值得追的目标。" },
+      ],
+      maxTokens: 800,
+      temperature: 0.9,
+      structuredOutput: true,
     });
-    if (!res.ok) {
-      console.error(`[goals] DeepSeek ${res.status}`);
-      return Response.json({ goals: FALLBACK });
-    }
-    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const content = data.choices?.[0]?.message?.content;
     const json = content ? extractJson(content) : null;
     if (!json) return Response.json({ goals: FALLBACK });
     const parsed = JSON.parse(json) as { goals?: { area?: unknown; title?: unknown; why?: unknown }[] };

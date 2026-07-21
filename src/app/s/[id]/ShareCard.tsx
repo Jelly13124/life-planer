@@ -1,12 +1,8 @@
 "use client";
 
+import { roundFeasibility } from "@/lib/shareFormat";
 import { useT } from "@/prefs/PreferencesContext";
 import type { SharePayload } from "./shareData";
-
-// 与 feasibility % 展示口径保持一致（约 X%，取整到 5，封顶 95）。
-function roundFeasibility(n: number): number {
-  return Math.min(95, Math.max(0, Math.round(n / 5) * 5));
-}
 
 export function ShareCard({ payload }: { payload: SharePayload }) {
   const { t } = useT();

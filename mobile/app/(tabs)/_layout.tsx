@@ -6,9 +6,12 @@ import { colors } from "../../src/theme";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 const icon =
-  (name: IconName) =>
-  ({ color, size }: { color: ColorValue; size: number }) =>
-    <MaterialCommunityIcons name={name} size={size ?? 24} color={color as string} />;
+  (name: IconName) => {
+    function TabBarIcon({ color, size }: { color: ColorValue; size: number }) {
+      return <MaterialCommunityIcons name={name} size={size ?? 24} color={color as string} />;
+    }
+    return TabBarIcon;
+  };
 
 export default function TabsLayout() {
   return (

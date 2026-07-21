@@ -61,11 +61,11 @@ export function normalizeLoadedTree(parsed: unknown): LifeTree | null {
   // 习惯并入任务：goal.habits[] 折入 goal.tasks[]（带 repeat），并从输出中去掉 habits 字段。
   t.goals = t.goals.map((g): Goal => {
     const ag = g as WithLegacyHabits<Goal>;
-    const { habits: _dropHabits, ...restNoHabits } = ag;
+    const { habits, ...restNoHabits } = ag;
     return {
       ...restNoHabits,
       metrics: Array.isArray(g.metrics) ? g.metrics : [],
-      tasks: foldHabits(ag.tasks, ag.habits),
+      tasks: foldHabits(ag.tasks, habits),
       kind: g.kind ?? "long",
       parentGoalId: g.parentGoalId ?? null,
     };

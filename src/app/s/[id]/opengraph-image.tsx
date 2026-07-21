@@ -1,14 +1,10 @@
 import { ImageResponse } from "next/og";
+import { roundFeasibility } from "@/lib/shareFormat";
 import { fetchSharePayload } from "./shareData";
 
 export const alt = "人生树 Life Planner";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-
-// 与卡片页/feasibility 展示口径一致（约 X%，取整到 5，封顶 95）。
-function roundFeasibility(n: number): number {
-  return Math.min(95, Math.max(0, Math.round(n / 5) * 5));
-}
 
 // 深色媒体面板视觉语言（对齐 globals.css 的 .lp-media-dark），系统字体、无外部字体加载。
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {

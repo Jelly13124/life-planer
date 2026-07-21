@@ -11,7 +11,7 @@ import {
 } from "react";
 import type { LifeTree, Mood } from "@/domain/types";
 import { useT } from "@/prefs/PreferencesContext";
-import { effectiveFeasibility } from "@/domain/feasibility";
+import { effectiveFeasibility, roundFeasibility } from "@/domain/feasibility";
 import { cubicYAtX, layoutMap, type MapLayout, type MapNode, type PathLayout } from "./mapLayout";
 
 const MIN_K = 0.4;
@@ -46,10 +46,6 @@ function truncate(s: string, max: number): string {
 }
 
 // 可行度显示：四舍五入到最近的 5，避免"精确概率"错觉（与 PathDetail 一致）。
-function roundFeasibility(x: number): number {
-  return Math.round(x / 5) * 5;
-}
-
 export function LifeMap({
   tree,
   onSelectPath,

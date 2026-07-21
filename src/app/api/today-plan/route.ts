@@ -1,8 +1,6 @@
 // 服务端：从"还没完成的行动"里挑今天最该做的≤3条。无 key/限流时本地兜底。
 import { allowRequest } from "@/lib/rateLimit";
-
-const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
-const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
+import { completeDeepSeek, extractJson, getDeepSeekKey } from "@/lib/deepseek";
 
 interface PendingItem {
   id: string;
@@ -13,19 +11,6 @@ interface Body {
   profileSummary?: string;
   pending?: PendingItem[];
   lang?: "zh" | "en";
-}
-
-function getKey(): string | null {
-  const k = process.env.DEEPSEEK_API_KEY;
-  return k && k.trim() ? k.trim() : null;
-}
-
-function extractJson(text: string): string | null {
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const body = fence ? fence[1] : text;
-  const s = body.indexOf("{");
-  const e = body.lastIndexOf("}");
-  return s === -1 || e === -1 || e < s ? null : body.slice(s, e + 1);
 }
 
 // 兜底：跨不同目标各取第一条、最多 3 条，给通用理由。
@@ -52,8 +37,7 @@ export async function POST(request: Request) {
   const pending = Array.isArray(body.pending) ? body.pending.filter((p) => p?.id && p?.text) : [];
   if (!pending.length) return Response.json({ pick: [] });
 
-  const key = getKey();
-  if (!key) return Response.json({ pick: localPick(pending, body.lang) });
+  if (!getDeepSeekKey()) return Response.json({ pick: localPick(pending, body.lang) });
   if (!allowRequest(request, Date.now())) {
     return Response.json({ pick: localPick(pending, body.lang) });
   }
@@ -74,28 +58,16 @@ export async function POST(request: Request) {
     .join("\n");
 
   try {
-    const res = await fetch(DEEPSEEK_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: `这些是待办行动：\n${list}` },
-        ],
-        response_format: MODEL.includes("reasoner") ? undefined : { type: "json_object" },
-        max_tokens: 400,
-        temperature: 0.6,
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(30000),
+    const content = await completeDeepSeek({
+      label: "today-plan",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: `这些是待办行动：\n${list}` },
+      ],
+      maxTokens: 400,
+      temperature: 0.6,
+      structuredOutput: true,
     });
-    if (!res.ok) {
-      console.error(`[today-plan] DeepSeek ${res.status}`);
-      return Response.json({ pick: localPick(pending, body.lang) });
-    }
-    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const content = data.choices?.[0]?.message?.content;
     const json = content ? extractJson(content) : null;
     if (!json) return Response.json({ pick: localPick(pending, body.lang) });
     const parsed = JSON.parse(json) as { pick?: { id?: unknown; why?: unknown }[] };

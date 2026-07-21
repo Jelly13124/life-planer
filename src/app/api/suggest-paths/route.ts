@@ -1,9 +1,7 @@
 // 服务端：让规划助手"铺开几条值得探索的路"——返回结构化的候选选择，
 // 前端渲染成确认按钮，用户点一下才真正画上（确认优先）。
 import { allowRequest } from "@/lib/rateLimit";
-
-const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
-const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
+import { completeDeepSeek, extractJson, getDeepSeekKey } from "@/lib/deepseek";
 
 interface Body {
   profileSummary: string;
@@ -11,31 +9,17 @@ interface Body {
   lang?: "zh" | "en";
 }
 
-function getKey(): string | null {
-  const k = process.env.DEEPSEEK_API_KEY;
-  return k && k.trim() ? k.trim() : null;
-}
-
-function extractJson(text: string): string | null {
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const body = fence ? fence[1] : text;
-  const s = body.indexOf("{");
-  const e = body.lastIndexOf("}");
-  return s === -1 || e === -1 || e < s ? null : body.slice(s, e + 1);
-}
-
 export async function POST(request: Request) {
   if (!allowRequest(request, Date.now())) {
     return Response.json({ suggestions: [] }, { status: 429 });
   }
-  const key = getKey();
   let body: Body;
   try {
     body = (await request.json()) as Body;
   } catch {
     return Response.json({ suggestions: [] }, { status: 400 });
   }
-  if (!key) return Response.json({ suggestions: [] });
+  if (!getDeepSeekKey()) return Response.json({ suggestions: [] });
 
   const system = [
     "你在帮一个处于迷茫期的人，铺开几条他值得探索的人生选择。",
@@ -53,30 +37,16 @@ export async function POST(request: Request) {
     .join("\n");
 
   try {
-    const res = await fetch(DEEPSEEK_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: "给我铺开几条路。" },
-        ],
-        response_format: MODEL.includes("reasoner") ? undefined : { type: "json_object" },
-        max_tokens: 700,
-        temperature: 1.0,
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(30000),
+    const content = await completeDeepSeek({
+      label: "suggest-paths",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: "给我铺开几条路。" },
+      ],
+      maxTokens: 700,
+      temperature: 1.0,
+      structuredOutput: true,
     });
-    if (!res.ok) {
-      console.error(`[suggest-paths] DeepSeek ${res.status}`);
-      return Response.json({ suggestions: [] });
-    }
-    const data = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    const content = data.choices?.[0]?.message?.content;
     const json = content ? extractJson(content) : null;
     if (!json) return Response.json({ suggestions: [] });
     const parsed = JSON.parse(json) as {

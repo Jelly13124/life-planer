@@ -7,6 +7,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { LifeTree } from "@lifeplanner/core/types";
 import type { CloudStore } from "@lifeplanner/core/repository/supabaseRepo";
 import type { SharePayload } from "@lifeplanner/core/share";
+import { API_BASE_URL } from "./api";
 
 const SUPA_URL = (process.env.EXPO_PUBLIC_SUPABASE_URL ?? "").trim();
 const SUPA_ANON = (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
@@ -89,6 +90,34 @@ export async function signOut(): Promise<void> {
   const sb = getSupabase();
   // 即使服务端 revoke 失败，signOut 也会清掉本地会话；这里忽略错误，不阻塞退出登录。
   if (sb) await sb.auth.signOut().catch(() => {});
+}
+
+// 删除账户必须由可信服务端完成：客户端只发送当前用户 access token，绝不持有管理员密钥。
+// 成功时 Auth 用户及带 on delete cascade 的 trees/shares 会一并删除；本地数据由 store 随后清理。
+export async function deleteAccount(): Promise<string | null> {
+  const sb = getSupabase();
+  if (!sb) return "云同步未配置";
+  if (!API_BASE_URL) return "账户删除服务暂不可用";
+
+  try {
+    const { data, error } = await sb.auth.getSession();
+    const token = data.session?.access_token;
+    if (error || !token) return "登录已过期，请重新登录后再试";
+
+    const response = await fetch(`${API_BASE_URL}/api/account`, {
+      method: "DELETE",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    if (response.status === 204) {
+      // 服务端删除用户后全局登出可能返回用户已不存在；无论结果如何都要清掉本机会话。
+      await sb.auth.signOut().catch(() => {});
+      return null;
+    }
+    if (response.status === 401) return "登录已过期，请重新登录后再试";
+    return "账户删除失败，请稍后重试";
+  } catch {
+    return "网络异常，请联网后重试";
+  }
 }
 
 // 分享卡 payload：类型定义在共享核心（@lifeplanner/core/share），与网页 /s/[id] 页面

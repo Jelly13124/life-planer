@@ -30,7 +30,7 @@ import Svg, {
 } from "react-native-svg";
 import type { LifePath } from "@lifeplanner/core/types";
 import { isEnriched } from "@lifeplanner/core/pathEnriched";
-import { effectiveFeasibility } from "@lifeplanner/core/feasibility";
+import { effectiveFeasibility, roundFeasibility } from "@lifeplanner/core/feasibility";
 import { layoutMap } from "../lib/mapLayout";
 import { shareCard } from "../lib/shareCard";
 import { useApp } from "../state/store";
@@ -69,10 +69,6 @@ function hexToRgba(hex: string, alpha: number): string {
 function truncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + "…" : s;
 }
-function roundFeasibility(x: number): number {
-  return Math.round(x / 5) * 5;
-}
-
 function useReduceMotion(): boolean {
   const [reduce, setReduce] = useState(false);
   useEffect(() => {

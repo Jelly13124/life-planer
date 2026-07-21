@@ -1,8 +1,6 @@
 // 服务端：把一个选择落地成 30/90 天计划 + 低成本试错。无 key/失败 → 空数组，前端本地兜底。
 import { allowRequest } from "@/lib/rateLimit";
-
-const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
-const MODEL = process.env.LIFEPLANNER_MODEL || "deepseek-chat";
+import { completeDeepSeek, extractJson, getDeepSeekKey } from "@/lib/deepseek";
 
 interface Body {
   profileSummary: string;
@@ -14,31 +12,17 @@ interface Body {
   lang?: "zh" | "en";
 }
 
-function getKey(): string | null {
-  const k = process.env.DEEPSEEK_API_KEY;
-  return k && k.trim() ? k.trim() : null;
-}
-
-function extractJson(text: string): string | null {
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const body = fence ? fence[1] : text;
-  const s = body.indexOf("{");
-  const e = body.lastIndexOf("}");
-  return s === -1 || e === -1 || e < s ? null : body.slice(s, e + 1);
-}
-
 export async function POST(request: Request) {
   if (!allowRequest(request, Date.now())) {
     return Response.json({ steps: [], experiments: [] }, { status: 429 });
   }
-  const key = getKey();
   let body: Body;
   try {
     body = (await request.json()) as Body;
   } catch {
     return Response.json({ steps: [], experiments: [] }, { status: 400 });
   }
-  if (!key) return Response.json({ steps: [], experiments: [] });
+  if (!getDeepSeekKey()) return Response.json({ steps: [], experiments: [] });
 
   const days = body.horizon === "30d" ? 30 : 90;
   const system = [
@@ -60,28 +44,16 @@ export async function POST(request: Request) {
     .join("\n");
 
   try {
-    const res = await fetch(DEEPSEEK_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: "把它落地成计划。" },
-        ],
-        response_format: MODEL.includes("reasoner") ? undefined : { type: "json_object" },
-        max_tokens: 700,
-        temperature: 0.7,
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(30000),
+    const content = await completeDeepSeek({
+      label: "plan",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: "把它落地成计划。" },
+      ],
+      maxTokens: 700,
+      temperature: 0.7,
+      structuredOutput: true,
     });
-    if (!res.ok) {
-      console.error(`[plan] DeepSeek ${res.status}`);
-      return Response.json({ steps: [], experiments: [] });
-    }
-    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const content = data.choices?.[0]?.message?.content;
     const json = content ? extractJson(content) : null;
     if (!json) return Response.json({ steps: [], experiments: [] });
     const parsed = JSON.parse(json) as { steps?: unknown; experiments?: unknown };

@@ -83,7 +83,15 @@ import {
   applyEnrichToPath,
   type GoalSuggestion,
 } from "../lib/api";
-import { isCloudEnabled, getSupabase, getCloudStore, sendOtp, verifyOtp, signOut } from "../lib/supabase";
+import {
+  isCloudEnabled,
+  getSupabase,
+  getCloudStore,
+  sendOtp,
+  verifyOtp,
+  signOut,
+  deleteAccount as deleteSupabaseAccount,
+} from "../lib/supabase";
 import { normalizeLoadedTree } from "@lifeplanner/core/repository/normalize";
 
 // 时间注入（状态层，允许取当前时间——领域层才禁止）。
@@ -191,6 +199,7 @@ interface AppValue {
   sendLoginCode: (email: string) => Promise<string | null>;
   loginWithOtp: (email: string, token: string) => Promise<string | null>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<string | null>;
   retrySync: () => void;
 }
 
@@ -1019,6 +1028,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSyncState("off");
   }, [cancelPendingCloudSave]);
 
+  const deleteAccount = useCallback(async (): Promise<string | null> => {
+    cancelPendingCloudSave();
+    const error = await deleteSupabaseAccount();
+    if (error) return error;
+
+    await clearTree();
+    await clearDecisionStyleDetail();
+    setTree(null);
+    treeRef.current = null;
+    setCloudUserId(null);
+    cloudUserIdRef.current = null;
+    setSyncState("off");
+    setLastSyncAt(null);
+    return null;
+  }, [cancelPendingCloudSave]);
+
   const retrySync = useCallback(() => {
     if (cloudUserId) void resolveCloud(cloudUserId);
   }, [cloudUserId, resolveCloud]);
@@ -1155,6 +1180,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       sendLoginCode,
       loginWithOtp,
       logout,
+      deleteAccount,
       retrySync,
     };
   }, [
@@ -1216,6 +1242,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     sendLoginCode,
     loginWithOtp,
     logout,
+    deleteAccount,
     retrySync,
   ]);
 

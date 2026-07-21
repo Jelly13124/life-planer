@@ -10,7 +10,9 @@ const eslintConfig = defineConfig([
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
+    "output/**",
     "build/**",
+    "tmp/**",
     "next-env.d.ts",
   ]),
   // 领域层纯函数铁律：packages/core/** 不得取当前时间/随机数（time 由 state 层注入）。

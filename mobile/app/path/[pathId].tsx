@@ -1,7 +1,7 @@
 // 岔路详情(完整预测展示)—— 对齐网页 PathDetail 的预测部分:
 // 头部 + 现实可行度 + 高光/平稳/低谷三情景(带可能性比率)+ 五领域指标曲线 + 关键时刻时间线 + 聊天入口。
 // 不含:把这条路变成计划/复盘、补充信息重推(本轮不做)。
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -12,7 +12,7 @@ import {
   type Mood,
   type Scenario,
 } from "@lifeplanner/core/types";
-import { effectiveFeasibility } from "@lifeplanner/core/feasibility";
+import { effectiveFeasibility, roundFeasibility } from "@lifeplanner/core/feasibility";
 import { scenarioOdds } from "@lifeplanner/core/scenarioOdds";
 import { isEnriched } from "@lifeplanner/core/pathEnriched";
 import { useApp } from "../../src/state/store";
@@ -29,8 +29,6 @@ const SCENARIOS: { value: Scenario; label: string }[] = [
 ];
 const MOOD_COLOR: Record<Mood, string> = { high: "#0f9d6a", mid: "#c77600", low: "#e84a6f" };
 const MOOD_LABEL: Record<Mood, string> = { high: "高光", mid: "平稳", low: "低谷" };
-const round5 = (n: number) => Math.round(n / 5) * 5;
-
 export default function PathDetailScreen() {
   const { pathId } = useLocalSearchParams<{ pathId: string }>();
   const app = useApp();
@@ -43,12 +41,13 @@ export default function PathDetailScreen() {
   const isChosen = app.chosenPathId === path?.id;
   const linkedGoals = app.longGoals.filter((g) => g.pathId === path?.id && g.status === "active");
 
-  const [scenario, setScenario] = useState<Scenario | null>(path?.scenario ?? null);
-
-  useEffect(() => {
-    setScenario(path?.scenario ?? null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path?.id]);
+  const [scenarioSelection, setScenarioSelection] = useState<{
+    pathId: string;
+    scenario: Scenario | null;
+  } | null>(null);
+  const scenario = scenarioSelection?.pathId === path?.id
+    ? scenarioSelection?.scenario ?? null
+    : path?.scenario ?? null;
 
   const variantFor = (s: Scenario) =>
     path
@@ -79,7 +78,7 @@ export default function PathDetailScreen() {
   const shownPath = (scenario ? variantFor(scenario) : undefined) ?? path;
 
   const pickScenario = (s: Scenario) => {
-    setScenario(s);
+    setScenarioSelection({ pathId: path.id, scenario: s });
     if (!variantFor(s)) addScenario(path.id, s);
   };
 
@@ -139,12 +138,12 @@ export default function PathDetailScreen() {
       {isRoute && eff && isEnriched(path) ? (
         <View style={styles.feasBox}>
           <Text style={styles.feasLine}>
-            现实可行度 <Text style={styles.feasVal}>约 {round5(eff.value)}%</Text>
+            现实可行度 <Text style={styles.feasVal}>约 {roundFeasibility(eff.value)}%</Text>
             {path.feasibilityNote ? <Text style={styles.feasNote}> — {path.feasibilityNote}</Text> : null}
           </Text>
           {eff.bump > 0 ? (
             <Text style={styles.feasSub}>
-              起步 {round5(eff.baseline)}% · <Text style={{ color: colors.success, fontWeight: "700" }}>你的行动 +{eff.bump}%</Text>
+              起步 {roundFeasibility(eff.baseline)}% · <Text style={{ color: colors.success, fontWeight: "700" }}>你的行动 +{eff.bump}%</Text>
             </Text>
           ) : null}
           <Text style={styles.feasFaint}>AI 粗估,非精确概率</Text>
