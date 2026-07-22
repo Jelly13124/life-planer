@@ -1,5 +1,5 @@
 // 和未来的自己对话（某条人生路）。复用后端 /api/chat（非流式 v1）。无后端 → 提示。
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,

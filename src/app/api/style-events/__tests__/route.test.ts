@@ -9,7 +9,8 @@ const validBody = {
 } as const;
 
 const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const originalSecretKey = process.env.SUPABASE_SECRET_KEY;
+const originalLegacyKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function post(body: BodyInit, ip = "198.51.100.10") {
   return POST(
@@ -23,7 +24,8 @@ function post(body: BodyInit, ip = "198.51.100.10") {
 
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
-  vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-test-key");
+  vi.stubEnv("SUPABASE_SECRET_KEY", "secret-test-key");
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 201 })));
 });
 
@@ -31,8 +33,10 @@ afterEach(() => {
   vi.restoreAllMocks();
   if (originalUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
   else process.env.NEXT_PUBLIC_SUPABASE_URL = originalUrl;
-  if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-  else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+  if (originalSecretKey === undefined) delete process.env.SUPABASE_SECRET_KEY;
+  else process.env.SUPABASE_SECRET_KEY = originalSecretKey;
+  if (originalLegacyKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  else process.env.SUPABASE_SERVICE_ROLE_KEY = originalLegacyKey;
 });
 
 describe("POST /api/style-events", () => {
@@ -45,8 +49,8 @@ describe("POST /api/style-events", () => {
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          apikey: "service-test-key",
-          authorization: "Bearer service-test-key",
+          apikey: "secret-test-key",
+          authorization: "Bearer secret-test-key",
         }),
         body: JSON.stringify(validBody),
       }),
@@ -57,11 +61,27 @@ describe("POST /api/style-events", () => {
   });
 
   it("returns a success no-op when server configuration is absent", async () => {
+    delete process.env.SUPABASE_SECRET_KEY;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     const response = await post(JSON.stringify(validBody), "198.51.100.12");
 
     expect(response.status).toBe(202);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps the legacy service-role key as a compatibility fallback", async () => {
+    delete process.env.SUPABASE_SECRET_KEY;
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "legacy-service-key");
+
+    const response = await post(JSON.stringify(validBody), "198.51.100.19");
+
+    expect(response.status).toBe(202);
+    expect(fetch).toHaveBeenCalledWith(
+      "https://example.supabase.co/rest/v1/style_events",
+      expect.objectContaining({
+        headers: expect.objectContaining({ apikey: "legacy-service-key" }),
+      }),
+    );
   });
 
   it("returns a success no-op when Supabase is unavailable", async () => {

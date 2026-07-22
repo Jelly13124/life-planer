@@ -1,30 +1,61 @@
-# 手机端接后端（AI 分支 / 对话 / AI 建议目标）
+# 手机端连接网页 API 与 Supabase
 
-手机端的 AI 功能走根 Next.js 的 `/api/*`（DeepSeek）。`mobile/src/lib/api.ts`：
-- env `EXPO_PUBLIC_API_BASE_URL` 优先；
-- 没设时 **dev 自动回退**到 Metro 同一台主机的 `:3000`（`Constants.expoConfig.hostUri` 取主机）；
-- 都没有 → 离线降级（分支用本地生成器、对话提示需连后端），不报错。
-- `DEEPSEEK_API_KEY` 只在根 `.env.local`（服务端）；手机端绝不直连 DeepSeek。
+手机端把根 Next.js 部署当作 API 后端。生产地址已经固定为：
 
-## 本机开发（模拟器 / 真机）
-1. 启动后端：仓库根 `npm run dev`（:3000，读 `.env.local` 的 DeepSeek key）。`GET http://localhost:3000/api/enrich` 返回 `{"enabled":true}` 即 AI 已启用。
-2. 启动 Metro：`cd mobile && npx expo start`。
-3. **安卓模拟器**（最稳）：`adb reverse tcp:3000 tcp:3000` + `adb reverse tcp:8081 tcp:8081`，应用里用 `exp://127.0.0.1:8081` 打开。api.ts 会自动用 `http://127.0.0.1:3000` 当后端。
-4. **真机（同一 WiFi）**：手机扫 Expo Go 的码；api.ts 自动用 `http://<电脑局域网IP>:3000`。需电脑防火墙放行 3000。
-   - 若公司网络隔离导致连不上，回退用 `adb reverse`（真机插 USB 也可）或部署到公网（见下）。
-5. 验证：人生树加一条选择 → "AI 推演中…" → 卡片换成真 AI 故事 + 现实可行度；服务器日志出现 `POST /api/enrich 200`。和未来的自己对话同理走 `/api/chat`。
-
-## 想固定指定后端（覆盖自动回退）
-在 `mobile/.env`（自己手建，已 gitignore）写一行：
+```text
+https://life-planer-opal.vercel.app
 ```
-EXPO_PUBLIC_API_BASE_URL=http://192.168.x.x:3000
+
+`mobile/eas.json` 的 preview/production profile 均配置了 `EXPO_PUBLIC_API_BASE_URL`。EAS Production 环境还存在：
+
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+
+变量值不进入仓库。
+
+## 本地开发
+
+从仓库根目录启动 API：
+
+```bash
+npm run dev
 ```
-改 env 后要重启 Metro（`EXPO_PUBLIC_*` 在打包时内联）。
 
-## 让它「在哪都能用」= 部署后端到公网（生产步骤）
-本机方案只在「电脑开着 + 同网/转发」时有效。要真正随时可用：
-1. 把根 Next.js 部署到 Vercel（你登录操作）。环境变量配 `DEEPSEEK_API_KEY`（+ 如用云同步再加 `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`）。
-2. `mobile/.env` 里 `EXPO_PUBLIC_API_BASE_URL=https://<你的vercel域名>`。
-3. 重新打包/EAS build，手机端就随时连公网后端，不再依赖你的电脑。
+再启动 Mobile：
 
-> 已验证（2026-06-24，模拟器）：`adb reverse` + `127.0.0.1:3000`，加分支触发 `POST /api/enrich 200 in 17s`，返回真 AI 预测。
+```bash
+npm run start --workspace mobile
+```
+
+`mobile/src/lib/api.ts` 的地址优先级：
+
+1. `EXPO_PUBLIC_API_BASE_URL`
+2. 开发模式下 Metro 主机的 `:3000`
+3. 无可用后端时返回连接失败，让界面保留既有内容并提供重试
+
+安卓模拟器可使用：
+
+```bash
+adb reverse tcp:3000 tcp:3000
+adb reverse tcp:8081 tcp:8081
+```
+
+真机需要与电脑同网，并允许防火墙访问 `3000`/`8081`；也可以临时在 `mobile/.env` 设置局域网地址。`EXPO_PUBLIC_*` 会打入 bundle，修改后必须重启 Metro 或重新构建。
+
+## 服务端变量
+
+AI 密钥只配置在 Vercel/根 `.env.local`：
+
+- `DEEPSEEK_API_KEY`
+- 可选 `LIFEPLANNER_MODEL`
+
+手机绝不能直连 DeepSeek。内容生成失败时不伪造新的预测或目标，客户端显示重试；本地几何、进度和已经保存的内容仍可使用。
+
+账户删除和匿名统计还需要 Vercel 的服务端 `SUPABASE_SECRET_KEY`。完整列表见 `supabase-setup.md`。
+
+## 验证
+
+- `GET /api/enrich` 返回 `{"enabled":true}` 表示服务端 AI 已启用。
+- 手机触发预测后，Vercel/本地日志应出现对应 `/api/*` 请求。
+- 未带 token 请求生产 `DELETE /api/account` 应返回 `401`，不能返回 `500/503`。
+- Supabase 登录、跨设备同步和有效 token 删除需要真机账号做一次端到端验收。

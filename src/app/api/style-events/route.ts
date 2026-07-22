@@ -104,7 +104,9 @@ function parseRequest(value: unknown): StyleEventRequest | null {
 
 async function insertEvent(event: StyleEventRequest): Promise<void> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const serviceKey =
+    process.env.SUPABASE_SECRET_KEY?.trim() ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !serviceKey) return;
 
   try {

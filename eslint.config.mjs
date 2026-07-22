@@ -17,7 +17,7 @@ const eslintConfig = defineConfig([
   ]),
   // 领域层纯函数铁律：packages/core/** 不得取当前时间/随机数（time 由 state 层注入）。
   // 只禁不纯的形式——无参 new Date()/Date.now()/Math.random()；new Date(注入值) 仍允许。
-  // 编辑后由 .claude/hooks/check-edit.mjs 自动执行；测试目录豁免。
+  // 编辑后可由 .codex/hooks/check-edit.mjs 自动执行；测试目录豁免。
   {
     files: ["packages/core/**/*.{ts,tsx}"],
     ignores: ["packages/core/**/__tests__/**", "packages/core/**/*.test.{ts,tsx}"],

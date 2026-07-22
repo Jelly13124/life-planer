@@ -1,6 +1,6 @@
 // 首页：本周条 + 任务驱动竖向时间轴(图标块+竖线) + 未排托盘 + 目标进度 + 悬浮加号。
 // 选时间统一走自定义 TimePickSheet(滚轮 + 持续时间胶囊),不用系统选择器。
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Modal,

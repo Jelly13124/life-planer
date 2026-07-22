@@ -1,5 +1,4 @@
 // 月 / 年 日历视图（展示层）。数据走核心 calendar.monthGrid；密度/导航由 ScheduleScreen 注入。
-import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { monthGrid, weekdayOf } from "@lifeplanner/core/calendar";
 import { addDays } from "@lifeplanner/core/daily";
@@ -247,4 +246,3 @@ const styles = StyleSheet.create({
   weekNumText: { fontSize: 15, fontWeight: "600", color: colors.fg },
   weekDot: { width: 5, height: 5, borderRadius: 3 },
 });
-

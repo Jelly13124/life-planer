@@ -1,7 +1,7 @@
 // 目标屏（手机精简版）：只有「目标」和「任务」两个概念。
 // 一个目标 = 标题 + 进度 + 到期日(可选) + 一条任务清单(任务 + 重复任务)。
 // 习惯并进"重复任务"(加任务可选 无/每天/每周)；短期目标已从手机端拿掉(数据仍在,网页可用)。
-import React, { useState } from "react";
+import { useState } from "react";
 import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";

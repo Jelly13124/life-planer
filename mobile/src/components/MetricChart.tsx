@@ -1,5 +1,4 @@
 // 单领域指标小卡:某方面(0-100)随年龄的折线。详情页五领域各一张。纯展示,无动画。
-import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Path, Line } from "react-native-svg";
 import type { MetricPoint } from "@lifeplanner/core/types";

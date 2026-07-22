@@ -1,7 +1,8 @@
 // 服务端专用：用真实大模型（DeepSeek）生成一条人生路径的文案。
 // 模型自己决定关键转折点（年龄/起伏/事件），我们只给它人物背景、这条路的选择、
 // 大致时间跨度和一个"整体走向"提示。数字曲线仍由本地引擎决定，各取所长。
-// 没有 DEEPSEEK_API_KEY 或调用失败时返回 null，调用方回退到本地文案。
+// 没有 DEEPSEEK_API_KEY 或调用失败时返回 null；调用方保留既有内容并提供重试，
+// 不为新的 AI 叙事伪造本地文案。几何与确定性数字仍由本地引擎负责。
 import { z } from "zod";
 import type { CurveShape, PathKind, Profile } from "@/domain/types";
 import type { DecisionStyleSummary } from "@/domain/decisionStyle";

@@ -1,6 +1,6 @@
 // 自定义"选时间"面板（仿 Structured）：图标 + 任务名 + 时间滚轮(显示 开始–结束 区间)
 // + 持续时间滑块 + 确定。滚轮纯 RN ScrollView 吸附,不依赖 reanimated。
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
   Pressable,

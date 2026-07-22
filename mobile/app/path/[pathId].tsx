@@ -1,7 +1,7 @@
 // 岔路详情(完整预测展示)—— 对齐网页 PathDetail 的预测部分:
 // 头部 + 现实可行度 + 高光/平稳/低谷三情景(带可能性比率)+ 五领域指标曲线 + 关键时刻时间线 + 聊天入口。
 // 不含:把这条路变成计划/复盘、补充信息重推(本轮不做)。
-import React, { useState } from "react";
+import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";

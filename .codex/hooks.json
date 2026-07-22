@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node 'C:\\Users\\Jerry\\Desktop\\lifeplaner\\.codex\\hooks\\guard-env.mjs'"
+            "command": "node .codex/hooks/guard-env.mjs"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node 'C:\\Users\\Jerry\\Desktop\\lifeplaner\\.codex\\hooks\\check-edit.mjs'"
+            "command": "node .codex/hooks/check-edit.mjs"
           }
         ]
       }

@@ -1,38 +1,84 @@
-# Dev build（脱离 Expo Go：动画 / 通知 / 拖拽 / 任意原生库）
+# Expo development build、EAS、TestFlight 与 OTA
 
-Expo Go 是固定沙盒,只带一批原生模块。装了 `expo-dev-client` 后,`expo start` 会去找**你自己的开发构建(dev build)**,而不是 Expo Go。dev build = 把 app 编译成真安装包(仍是 Expo/React Native),里面带你声明的所有原生库。
+## 当前配置
 
-已配好(本仓库):
-- `eas.json`(development / preview / production 三档)
-- `app.json`:名字「人生树」、`ios.bundleIdentifier` / `android.package` = `com.jelly13124.lifeplanner`、`expo-notifications` 插件
-- `react-native-reanimated@4.5.0` + `react-native-worklets@0.10.0`(根 `overrides` 锁单版本)、`react-native-worklets/plugin`(babel 末位)、根布局包 `GestureHandlerRootView`、`expo-dev-client`
-- 解锁:reanimated 流畅动画、真本地通知(代码已写,dev build 自动生效)、拖拽、任意图标/原生库
+- Expo SDK `56`，React Native `0.85.3`，React `19.2.3`。
+- `react-native-reanimated` `4.3.1`，`react-native-worklets` `0.8.3`。
+- App 名称「人生树」，版本 `1.1.0`。
+- iOS bundle identifier：`com.jelly13124.lifeplanner`。
+- EAS owner：`jelly2474`；project ID：`bbb6f73c-30ed-4eb9-b2c6-97289c3bcac9`。
+- `runtimeVersion.policy = appVersion`；`production` 与 `preview` channel 已定义。
+- `eas.json` 已把生产 API 指向 `https://life-planer-opal.vercel.app`。
 
-## A. 本地安卓 dev build(不需要 Apple 账号,在模拟器/安卓机上验证)
+依赖由根 npm workspace 统一管理：
+
+```bash
+cd life-planer
+npm ci
 ```
+
+不要进入 `mobile/` 再执行一次 `npm install`，也不要重新生成 `mobile/package-lock.json`。
+
+## 本地开发
+
+先启动网页/API：
+
+```bash
+npm run dev
+```
+
+另开终端启动 Metro：
+
+```bash
+npm run start --workspace mobile
+```
+
+需要包含所有原生模块的安卓开发构建时：
+
+```bash
+npm run android --workspace mobile
+```
+
+Windows 不能本地编译 iOS，使用 EAS 云构建。
+
+## EAS 构建和提交
+
+新电脑先登录已有 Expo 账号；项目已经关联，通常不要再次运行 `eas init`：
+
+```bash
+npx eas-cli login
+npx eas-cli project:info
+npx eas-cli build --platform ios --profile production
+npx eas-cli submit --platform ios --profile production
+```
+
+EAS 远端管理 iOS build number。2026-07-21 已上传版本 `1.1.0`、build `24` 到 App Store Connect；历史 build/submission 标识见最新 handoff。
+
+构建或提交前：
+
+```bash
+npm run verify
+npx expo-doctor@latest mobile
+```
+
+## OTA 边界
+
+只有在以下条件全部满足时才走 OTA：
+
+- 只改 JavaScript/TypeScript 或普通资源。
+- 没有新增/升级原生依赖。
+- 没有修改需要重新生成原生工程的 plugin、entitlement、widget、bundle identifier 或系统权限。
+- 目标 binary 的 app version/runtimeVersion 与更新一致。
+
+发布 production OTA：
+
+```bash
 cd mobile
-npx expo run:android      # 首次会 prebuild + Gradle 编译,几分钟;装到已连的模拟器/真机
+npx eas-cli update --channel production --message "<说明>"
 ```
-之后日常:`npx expo start`(它连这个 dev build,不再要 Expo Go)。
 
-## B. iOS dev build → 你的 iPhone / TestFlight（需要 Apple 开发者账号）
-EAS 云端构建,处理全部原生工具链:
-```
-cd mobile
-npm i -g eas-cli            # 或全程用 npx eas-cli
-eas login                  # 登录 Expo 账号（免费注册）
-eas init                   # 关联/创建 EAS 项目（会把 projectId 写进 app.json）
-# 装到自己 iPhone 调试用：
-eas build --platform ios --profile development
-# 走 TestFlight（正式分发给测试者）：
-eas build --platform ios --profile production
-eas submit --platform ios   # 上传到 App Store Connect → TestFlight
-```
-首次 iOS 构建 EAS 会引导你登录 Apple、生成证书/描述文件(它自动管,跟着提示走)。
+修改 `react-native-purchases`、widget、Expo SDK、原生插件、entitlement 或原生权限时必须重新 EAS build，不能只 OTA。
 
-## 后端（AI 分支 / 对话）在 dev build 里怎么连
-- 开发期:电脑开 `npm run dev`(:3000)+ `adb reverse tcp:3000 tcp:3000`(模拟器)或同 WiFi;api.ts 会自动用 Metro 主机的 :3000。
-- 给真用户/TestFlight 版:把后端部署到公网(Vercel),在 `mobile/.env` 设 `EXPO_PUBLIC_API_BASE_URL=https://<域名>` 再构建。详见 `docs/mobile-backend.md`。
+## 凭据
 
-## 还想用 Expo Go 快速预览?
-装了 dev-client 后默认走 dev build。临时回 Expo Go:`npx expo start --go`(但 reanimated 等原生版本可能与 Expo Go 不一致,以 dev build 为准)。
+Apple 证书和 provisioning profile 由 EAS 远端管理，不提交到 Git。新电脑需要重新登录 Expo/Apple，而不是从旧电脑复制证书目录。
